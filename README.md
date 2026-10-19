@@ -1,0 +1,32 @@
+# Sheeper
+
+A Java learning project: a Minecraft mod for Minecraft 1.19.2 using Forge.
+Adds a sheep with Creeper-like behavior.
+
+## Project Status
+
+The Sheeper has not been implemented yet.
+
+## Development Environment
+
+- Minecraft 1.19.2
+- Minecraft Forge 43.5.0
+- JDK 17
+- Gradle via the included wrapper
+
+## Build
+
+Run from the project directory:
+
+```bash
+./gradlew build
+```
+
+The generated mod JAR is located in `build/libs/`.
+
+## License
+
+Original project code is licensed under the [MIT License](LICENSE).
+
+The Forge license and accompanying third-party notices are included in
+[FORGE_LICENSE.txt](FORGE_LICENSE.txt).
