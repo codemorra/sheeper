@@ -1,6 +1,7 @@
 package de.codemorra.sheeper;
 
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.registry.ModItems;
 import com.mojang.logging.LogUtils;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraftforge.fml.common.Mod;
@@ -16,6 +17,7 @@ public class SheeperMod {
 
     public SheeperMod(FMLJavaModLoadingContext context) {
         ModEntities.register(context.getModEventBus());
+        ModItems.register(context.getModEventBus());
         context.getModEventBus().addListener(this::registerEntityAttributes);
         LOGGER.info("SheeperMod initialized");
     }
