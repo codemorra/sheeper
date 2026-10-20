@@ -5,7 +5,8 @@ Adds a sheep with Creeper-like behavior.
 
 ## Project Status
 
-The Sheeper has not been implemented yet.
+The Sheeper can be summoned using `/summon sheeper:sheeper` or a spawn egg.
+It currently uses vanilla sheep behavior, models, and textures.
 
 ## Development Environment
 
@@ -20,6 +21,12 @@ Run from the project directory:
 
 ```bash
 ./gradlew build
+```
+
+## Run the Development Client
+
+```bash
+./gradlew runClient
 ```
 
 The generated mod JAR is located in `build/libs/`.
