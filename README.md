@@ -6,7 +6,12 @@ Adds a sheep with Creeper-like behavior.
 ## Project Status
 
 The Sheeper can be summoned using `/summon sheeper:sheeper` or a spawn egg.
-It currently uses vanilla sheep behavior, models, and textures.
+It uses vanilla sheep models and textures.
+
+While unobserved, it approaches nearby Survival and Adventure players.
+Being observed stops pursuit and restores normal sheep behavior.
+The detection radius and observation angle are configurable in
+`config/sheeper-common.toml`.
 
 ## Development Environment
 
@@ -23,13 +28,13 @@ Run from the project directory:
 ./gradlew build
 ```
 
+The generated mod JAR is located in `build/libs/`.
+
 ## Run the Development Client
 
 ```bash
 ./gradlew runClient
 ```
-
-The generated mod JAR is located in `build/libs/`.
 
 ## License
 
