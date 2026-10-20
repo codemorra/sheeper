@@ -17,11 +17,17 @@ import net.minecraftforge.fml.common.Mod;
     value = Dist.CLIENT
 )
 public class ClientModEvents {
-    // Private constructor to prevent instantiation of this utility class.
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ClientModEvents() {
     }
 
-    // Reuses vanilla sheep renderer for the Sheeper entity.
+    /**
+     * Registers entity renderers for custom entities.
+     * 
+     * @param event The event used to register entity renderers
+     */
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.SHEEPER.get(), SheepRenderer::new);

@@ -13,10 +13,16 @@ import net.minecraftforge.registries.RegistryObject;
  * Registers custom items for the Sheeper mod.
  */
 public class ModItems {
+    /**
+     * Deferred register for items.
+     * This deferred register is used to register all custom items for the Sheeper mod.
+     */
     private static final DeferredRegister<Item> ITEMS =
         DeferredRegister.create(ForgeRegistries.ITEMS, SheeperMod.MODID);
 
-    // Registry object for the Sheeper spawn egg item.
+    /**
+     * Registry object for the Sheeper spawn egg item.
+     */
     public static final RegistryObject<ForgeSpawnEggItem> SHEEPER_SPAWN_EGG =
         ITEMS.register("sheeper_spawn_egg", () ->
             new ForgeSpawnEggItem(
@@ -29,7 +35,11 @@ public class ModItems {
             )
         );
     
-    // Registers the items with the given event bus.
+    /**
+     * Connects the deferred register to the mod event bus.
+     *
+     * @param eventBus the mod event bus used for registration
+     */
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);
     }

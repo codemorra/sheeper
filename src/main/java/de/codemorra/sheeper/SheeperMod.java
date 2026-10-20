@@ -11,13 +11,21 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import org.slf4j.Logger;
 
+/**
+ * Main class for the Sheeper mod.
+ * Handles the registration of entities, items, and configuration.
+ */
 @Mod(SheeperMod.MODID)
 public class SheeperMod {
     public static final String MODID = "sheeper";
 
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    // Registers the mod's entities, items, and configuration.
+    /**
+     * Registers the mod's entities, items, and configuration.
+     * 
+     * @param context The mod loading context used to register entities, items, and configuration
+     */
     public SheeperMod(FMLJavaModLoadingContext context) {
         ModEntities.register(context.getModEventBus());
         ModItems.register(context.getModEventBus());
@@ -26,7 +34,11 @@ public class SheeperMod {
         LOGGER.info("SheeperMod initialized");
     }
 
-    // Registers the entity attributes for custom entities.
+    /**
+     * Registers the entity attributes for custom entities.
+     * 
+     * @param event The entity attribute creation event used to register attributes
+     */
     private void registerEntityAttributes(EntityAttributeCreationEvent event) {
         event.put(ModEntities.SHEEPER.get(), Sheep.createAttributes().build());
     }
