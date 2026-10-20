@@ -13,11 +13,17 @@ import net.minecraftforge.registries.RegistryObject;
  * Registers custom entities for the Sheeper mod.
  */
 public class ModEntities {
-    // Deferred register for entity types.
+    /**
+     * Deferred register for entity types.
+     * This deferred register is used to register all custom entity types for the Sheeper mod.
+     */
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
         DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, SheeperMod.MODID);
 
-    // Registry object for the Sheeper entity.
+    /**
+     * Registry object for the Sheeper entity.
+     * Represents the custom Sheeper entity type.
+     */
     public static final RegistryObject<EntityType<SheeperEntity>> SHEEPER =
         ENTITY_TYPES.register("sheeper", () ->
             EntityType.Builder.<SheeperEntity>of(
@@ -28,10 +34,17 @@ public class ModEntities {
             .build(SheeperMod.MODID + ":sheeper")
     );
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModEntities() {
     }
 
-    // Connects the deferred register to the given event bus.
+    /**
+     * Connects the deferred register to the mod event bus.
+     *
+     * @param eventBus the mod event bus used for registration
+     */
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }
