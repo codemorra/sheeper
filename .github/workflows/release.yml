@@ -1,0 +1,85 @@
+name: Prepare release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out tagged sources
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read and validate release metadata
+        id: metadata
+        shell: bash
+        run: |
+          read_property() {
+            sed -n "s/^$1=//p" gradle.properties | tr -d '\r'
+          }
+
+          mod_id="$(read_property mod_id)"
+          mod_version="$(read_property mod_version)"
+          minecraft_version="$(read_property minecraft_version)"
+          forge_version="$(read_property forge_version)"
+
+          for value in "$mod_id" "$mod_version" "$minecraft_version" "$forge_version"; do
+            if [ -z "$value" ]; then
+              echo "::error::Missing release metadata in gradle.properties."
+              exit 1
+            fi
+          done
+
+          if [ "$GITHUB_REF_NAME" != "v$mod_version" ]; then
+            echo "::error::Tag must match mod_version: expected v$mod_version."
+            exit 1
+          fi
+
+          {
+            echo "jar=build/libs/${mod_id}-forge-${minecraft_version}-${mod_version}.jar"
+            echo "title=Sheeper ${mod_version} — Minecraft ${minecraft_version} / Forge ${forge_version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build release jar
+        run: ./gradlew clean build --no-daemon
+
+      - name: Create release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TITLE: ${{ steps.metadata.outputs.title }}
+          RELEASE_JAR: ${{ steps.metadata.outputs.jar }}
+        run: |
+          if [ ! -f "$RELEASE_JAR" ]; then
+            echo "::error::Expected release jar was not found."
+            exit 1
+          fi
+
+          gh release create "$RELEASE_TAG" "$RELEASE_JAR" \
+            --verify-tag \
+            --draft \
+            --prerelease \
+            --title "$RELEASE_TITLE" \
+            --generate-notes
