@@ -9,9 +9,13 @@ The Sheeper can be summoned using `/summon sheeper:sheeper` or a spawn egg.
 It uses vanilla sheep models and textures.
 
 While unobserved, it approaches nearby Survival and Adventure players.
-Being observed stops pursuit and restores normal sheep behavior.
-The detection radius and observation angle are configurable in
-`config/sheeper-common.toml`.
+Within fuse range, it stops, bleats, and starts a countdown before exploding.
+Observation or leaving fuse range cancels and fully resets the countdown.
+Explosions respect the mobGriefing game rule.
+
+The detection radius, observation angle, fuse distance, and fuse duration
+are configurable in `config/sheeper-common.toml`.
+The effective fuse distance cannot exceed the detection radius.
 
 ## Development Environment
 
