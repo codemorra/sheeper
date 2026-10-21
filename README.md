@@ -1,7 +1,17 @@
 # Sheeper
 
 A Java learning project: a Minecraft mod for Minecraft 1.19.2 using Forge.
-Adds a sheep with Creeper-like behavior.
+
+Adds an explosive sheep that approaches when you look away.
+Hear it bleat? Look back before it's too late!
+
+## Download
+
+Download the mod JAR matching your Minecraft version and mod loader
+from [GitHub Releases](https://github.com/codemorra/sheeper/releases).
+
+Place the downloaded JAR in your Minecraft installation's `mods` folder.
+See the release notes for compatibility details and known limitations.
 
 ## Project Status
 
@@ -42,7 +52,7 @@ The generated mod JAR is located in `build/libs/`.
 
 ## License
 
-Original project code is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 The Forge license and accompanying third-party notices are included in
 [FORGE_LICENSE.txt](FORGE_LICENSE.txt).
