@@ -7,6 +7,8 @@ import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.Explosion;
+import net.minecraftforge.event.ForgeEventFactory;
 import javax.annotation.Nullable;
 
 /**
@@ -18,9 +20,10 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Registers the goals for this Sheeper entity, including the custom approach unobserved player goal.
+     * Registers the goals for this Sheeper entity, including the custom approach
+     * unobserved player goal.
      */
-    @Override 
+    @Override
     protected void registerGoals() {
         super.registerGoals();
         this.goalSelector.addGoal(2, new ApproachUnobservedPlayerGoal(this));
@@ -49,24 +52,25 @@ public class SheeperEntity extends Sheep {
 
         // Calculate the direction vector from the player to the Sheeper.
         Vec3 directionToSheeper = getEyePosition()
-            .subtract(player.getEyePosition());
+                .subtract(player.getEyePosition());
 
         // Check if the direction vector is too small to be meaningful.
         if (directionToSheeper.lengthSqr() < 1.0E-8) {
             return true;
         }
 
-        // Calculate the dot product between the player's look direction and the direction to the Sheeper.
+        // Calculate the dot product between the player's look direction and the
+        // direction to the Sheeper.
         double dot = player.getLookAngle()
-            .dot(directionToSheeper.normalize());
+                .dot(directionToSheeper.normalize());
 
-        // Convert the observation angle from degrees to radians and calculate the half-angle.
+        // Convert the observation angle from degrees to radians and calculate the
+        // half-angle.
         double halfAngleRadians = Math.toRadians(
-            SheeperConfig.OBSERVATION_ANGLE.get() / 2.0);
-        
+                SheeperConfig.OBSERVATION_ANGLE.get() / 2.0);
+
         return dot >= Math.cos(halfAngleRadians);
     }
-
 
     /**
      * Finds the nearest living Survival or Adventure player within detection range.
@@ -74,7 +78,7 @@ public class SheeperEntity extends Sheep {
      *
      * @return the nearest eligible player, or null if observed or no target exists
      */
-    @Nullable 
+    @Nullable
     public Player findApproachingTarget() {
         double radius = SheeperConfig.DETECTION_RADIUS.get();
         double nearestDistanceSquared = radius * radius;
@@ -107,5 +111,24 @@ public class SheeperEntity extends Sheep {
         }
 
         return nearestPlayer;
+    }
+
+    /**
+     * Explodes with normal Creeper strength, respecting mob griefing.
+     * Executes only on the Server.
+     */
+    public void explode() {
+        if (getLevel().isClientSide) {
+            return;
+        }
+
+        Explosion.BlockInteraction blockInteraction = ForgeEventFactory.getMobGriefingEvent(getLevel(), this)
+                ? Explosion.BlockInteraction.DESTROY
+                : Explosion.BlockInteraction.NONE;
+
+        dead = true;
+        getLevel().explode(
+                this, getX(), getY(), getZ(), 3.0F, blockInteraction);
+        discard();
     }
 }
