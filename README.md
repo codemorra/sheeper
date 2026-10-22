@@ -18,9 +18,12 @@ See the release notes for compatibility details and known limitations.
 The Sheeper can be summoned using `/summon sheeper:sheeper` or a spawn egg.
 It uses vanilla sheep models and textures.
 
-While unobserved, it approaches nearby Survival and Adventure players.
-Within fuse range, it stops, bleats, and starts a countdown before exploding.
+While unobserved, it silently approaches nearby Survival and Adventure
+players with glowing red eyes.
+Within fuse range, it stops, bleats, and starts a countdown while
+swelling and turning red.
 Observation or leaving fuse range cancels and fully resets the countdown.
+Visual warning effects fade smoothly when cancelled.
 Explosions respect the mobGriefing game rule.
 
 The detection radius, observation angle, fuse distance, and fuse duration
