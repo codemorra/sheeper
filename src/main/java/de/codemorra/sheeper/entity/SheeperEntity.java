@@ -30,6 +30,17 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
+     * Plays ordinary ambient sounds only when no unobserved target exists.
+     * The explicit fuse warning is handled separately by the approach goal.
+     */
+    @Override
+    public void playAmbientSound() {
+        if (findApproachingTarget() == null) {
+            super.playAmbientSound();
+        }
+    }
+
+    /**
      * Checks whether a player observes this Sheeper within the configured
      * detection radius and observation angle.
      * Uses the player's eye position and look direction for the calculation.
