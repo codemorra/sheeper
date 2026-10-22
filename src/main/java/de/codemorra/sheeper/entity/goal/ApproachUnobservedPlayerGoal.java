@@ -56,6 +56,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
         // If there is no target, reset the fuse and stop navigating.
         if (target == null) {
             fuseTicks = 0;
+            sheeper.setWarningState(false, 0.0f);
             sheeper.getNavigation().stop();
             return;
         }
@@ -68,6 +69,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
         // Check if the target is outside the fuse distance and reset the fuse if so.
         if (sheeper.distanceToSqr(target) > fuseDistance * fuseDistance) {
             fuseTicks = 0;
+            sheeper.setWarningState(true, 0.0f);
             sheeper.getNavigation().moveTo(target, 1.0);
             return;
         }
@@ -86,6 +88,9 @@ public class ApproachUnobservedPlayerGoal extends Goal {
         int requiredTicks = (int) Math.ceil(
                 SheeperConfig.getFuseDuration() * 20.0);
 
+        // Update the warning state with the current fuse progress.
+        sheeper.setWarningState(true, (float) fuseTicks / (float) requiredTicks);
+
         // If the fuse has reached the required duration, trigger the explosion.
         if (fuseTicks >= requiredTicks) {
             sheeper.explode();
@@ -98,6 +103,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
     @Override
     public void stop() {
         fuseTicks = 0;
+        sheeper.setWarningState(false, 0.0f);
         sheeper.getNavigation().stop();
     }
 }
