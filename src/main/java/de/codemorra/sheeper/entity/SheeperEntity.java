@@ -8,6 +8,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.util.Mth;
 import net.minecraftforge.event.ForgeEventFactory;
 import javax.annotation.Nullable;
 
@@ -15,8 +19,31 @@ import javax.annotation.Nullable;
  * A custom entity that inherits vanilla sheep behavior.
  */
 public class SheeperEntity extends Sheep {
+    private static final EntityDataAccessor<Boolean> DATA_WARNING_ACTIVE = SynchedEntityData
+            .defineId(SheeperEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final EntityDataAccessor<Float> DATA_FUSE_PROGRESS = SynchedEntityData
+            .defineId(SheeperEntity.class, EntityDataSerializers.FLOAT);
+
+    /**
+     * Constructs a new Sheeper entity with the specified entity type and level.
+     *
+     * @param entityType the type of the entity
+     * @param level      the level in which the entity exists
+     */
     public SheeperEntity(EntityType<? extends Sheep> entityType, Level level) {
         super(entityType, level);
+    }
+
+    /**
+     * Defines the synchronized data for this Sheeper entity, including the warning
+     * active state and fuse progress.
+     */
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_WARNING_ACTIVE, false);
+        this.entityData.define(DATA_FUSE_PROGRESS, 0.0f);
     }
 
     /**
@@ -38,6 +65,36 @@ public class SheeperEntity extends Sheep {
         if (findApproachingTarget() == null) {
             super.playAmbientSound();
         }
+    }
+
+    /**
+     * Updates the visual warning strate from the server side to the client side.
+     * Inactive warnings always have zero fuse progress.
+     *
+     * @param active       whether the warning state is active
+     * @param fuseProgress the current fuse progress, clamped between 0.0 and 1.0
+     */
+    public void setWarningState(boolean active, float fuseProgress) {
+        entityData.set(DATA_WARNING_ACTIVE, active);
+        entityData.set(DATA_FUSE_PROGRESS, active ? Mth.clamp(fuseProgress, 0.0f, 1.0f) : 0.0f);
+    }
+
+    /**
+     * Checks whether the warning state is currently active.
+     *
+     * @return true if the warning is active, false otherwise
+     */
+    public boolean isWarningActive() {
+        return entityData.get(DATA_WARNING_ACTIVE);
+    }
+
+    /**
+     * Retrieves the current fuse progress of the Sheeper.
+     *
+     * @return the fuse progress, clamped between 0.0 and 1.0
+     */
+    public float getFuseProgress() {
+        return entityData.get(DATA_FUSE_PROGRESS);
     }
 
     /**
