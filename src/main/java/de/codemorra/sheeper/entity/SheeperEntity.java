@@ -25,6 +25,9 @@ public class SheeperEntity extends Sheep {
     private static final EntityDataAccessor<Float> DATA_FUSE_PROGRESS = SynchedEntityData
             .defineId(SheeperEntity.class, EntityDataSerializers.FLOAT);
 
+    private float previousVisualFuseProgress;
+    private float visualFuseProgress;
+
     /**
      * Constructs a new Sheeper entity with the specified entity type and level.
      *
@@ -95,6 +98,31 @@ public class SheeperEntity extends Sheep {
      */
     public float getFuseProgress() {
         return entityData.get(DATA_FUSE_PROGRESS);
+    }
+
+    /**
+     * Updates the visual fuse progress for the client side.
+     * This is done every tick to smoothly interpolate the fuse progress.
+     */
+    @Override
+    public void tick() {
+        super.tick();
+
+        if (getLevel().isClientSide) {
+            previousVisualFuseProgress = visualFuseProgress;
+            visualFuseProgress = Mth.approach(
+                    visualFuseProgress, getFuseProgress(), 1.0F / 6.0F);
+        }
+    }
+
+    /**
+     * Returns the interpolated visual fuse progress.
+     *
+     * @param partialTicks the partial tick time for interpolation
+     * @return the interpolated visual fuse progress
+     */
+    public float getVisualFuseProgress(float partialTicks) {
+        return Mth.lerp(partialTicks, previousVisualFuseProgress, visualFuseProgress);
     }
 
     /**
