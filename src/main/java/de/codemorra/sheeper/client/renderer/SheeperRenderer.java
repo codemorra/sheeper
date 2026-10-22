@@ -2,6 +2,7 @@ package de.codemorra.sheeper.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import de.codemorra.sheeper.entity.SheeperEntity;
+import de.codemorra.sheeper.client.renderer.layer.SheeperEyesLayer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.SheepRenderer;
 import net.minecraft.world.entity.animal.Sheep;
@@ -13,6 +14,7 @@ import net.minecraft.world.entity.animal.Sheep;
 public class SheeperRenderer extends SheepRenderer {
     public SheeperRenderer(EntityRendererProvider.Context context) {
         super(context);
+        addLayer(new SheeperEyesLayer(this));
     }
 
     /**

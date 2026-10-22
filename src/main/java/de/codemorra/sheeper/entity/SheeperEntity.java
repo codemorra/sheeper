@@ -27,6 +27,8 @@ public class SheeperEntity extends Sheep {
 
     private float previousVisualFuseProgress;
     private float visualFuseProgress;
+    private float previousVisualWarningIntensity;
+    private float visualWarningIntensity;
 
     /**
      * Constructs a new Sheeper entity with the specified entity type and level.
@@ -101,8 +103,9 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Updates the visual fuse progress for the client side.
-     * This is done every tick to smoothly interpolate the fuse progress.
+     * Updates the visual fuse progress and warning intensity for the client side.
+     * This is done every tick to smoothly interpolate the fuse progress and warning
+     * intensity.
      */
     @Override
     public void tick() {
@@ -112,6 +115,12 @@ public class SheeperEntity extends Sheep {
             previousVisualFuseProgress = visualFuseProgress;
             visualFuseProgress = Mth.approach(
                     visualFuseProgress, getFuseProgress(), 1.0F / 6.0F);
+
+            previousVisualWarningIntensity = visualWarningIntensity;
+            visualWarningIntensity = Mth.approach(
+                    visualWarningIntensity,
+                    isWarningActive() ? 1.0F : 0.0F,
+                    1.0F / 6.0F);
         }
     }
 
@@ -123,6 +132,16 @@ public class SheeperEntity extends Sheep {
      */
     public float getVisualFuseProgress(float partialTicks) {
         return Mth.lerp(partialTicks, previousVisualFuseProgress, visualFuseProgress);
+    }
+
+    /**
+     * Returns the interpolated visual warning intensity.
+     *
+     * @param partialTicks the partial tick time for interpolation
+     * @return the interpolated visual warning intensity
+     */
+    public float getVisualWarningIntensity(float partialTicks) {
+        return Mth.lerp(partialTicks, previousVisualWarningIntensity, visualWarningIntensity);
     }
 
     /**
