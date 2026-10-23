@@ -10,37 +10,44 @@ public class SheeperConfig {
     /**
      * Builder for the Sheeper configuration specification.
      */
-    public static final ForgeConfigSpec.Builder BUILDER =
-        new ForgeConfigSpec.Builder();
+    public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /**
      * Detection radius for the Sheeper entity.
      */
     public static final ForgeConfigSpec.DoubleValue DETECTION_RADIUS = BUILDER
-        .comment("Maximum distance in blocks for detecting and pursuing players.")
-        .defineInRange("detectionRadius", 16.0, 1.0, 128.0);
+            .comment("Maximum distance in blocks for detecting and pursuing players.")
+            .defineInRange("detectionRadius", 16.0, 1.0, 128.0);
 
     /**
      * Observation angle for the Sheeper entity.
      */
     public static final ForgeConfigSpec.DoubleValue OBSERVATION_ANGLE = BUILDER
-        .comment("Total observation angle in degrees, centered on the player's look direction.")
-        .defineInRange("observationAngle", 120.0, 1.0, 360.0);
+            .comment("Total observation angle in degrees, centered on the player's look direction.")
+            .defineInRange("observationAngle", 120.0, 1.0, 360.0);
 
     /**
      * Maximum distance in blocks at which the fuse can remain active.
      */
     public static final ForgeConfigSpec.DoubleValue FUSE_DISTANCE = BUILDER
-        .comment("Maximum distance in blocks for starting and maintaining the fuse.")
-        .defineInRange("fuseDistance", 3.0, 0.0, 128.0);
-    
+            .comment("Maximum distance in blocks for starting and maintaining the fuse.")
+            .defineInRange("fuseDistance", 3.0, 0.0, 128.0);
+
     /**
      * Fuse duration in seconds.
      */
     public static final ForgeConfigSpec.DoubleValue FUSE_DURATION = BUILDER
-        .comment("Duration in seconds for which the fuse remains active.")
-        .defineInRange("fuseDuration", 1.5, 0.05, 60.0);
+            .comment("Duration in seconds for which the fuse remains active.")
+            .defineInRange("fuseDuration", 1.5, 0.05, 60.0);
 
+    /**
+     * Natural spawn chance for Sheeper.
+     */
+    public static final ForgeConfigSpec.DoubleValue NATURAL_SPAWN_CHANCE = BUILDER
+            .comment("Percentage chance to replace each naturally spawning sheep with a Sheeper.",
+                    "Applies during world generation and later natural spawning.",
+                    "0 disables replacement; 100 replaces every naturally spawning sheep.")
+            .defineInRange("naturalSpawnChance", 5.0, 0.0, 100.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
