@@ -15,8 +15,12 @@ See the release notes for compatibility details and known limitations.
 
 ## Project Status
 
-The Sheeper can be summoned using `/summon sheeper:sheeper` or a spawn egg.
-It uses vanilla sheep models and textures.
+Each naturally spawning sheep has a configurable chance to be replaced
+by a Sheeper (5% by default), both during world generation and later spawning.
+Breeding normal sheep always produces normal sheep.
+
+The Sheeper can also be summoned using `/summon sheeper:sheeper`
+or a spawn egg. It uses vanilla sheep models and textures.
 
 While unobserved, it silently approaches nearby Survival and Adventure
 players with glowing red eyes.
@@ -26,9 +30,11 @@ Observation or leaving fuse range cancels and fully resets the countdown.
 Visual warning effects fade smoothly when cancelled.
 Explosions respect the mobGriefing game rule.
 
-The detection radius, observation angle, fuse distance, and fuse duration
-are configurable in `config/sheeper-common.toml`.
+The detection radius, observation angle, fuse distance, fuse duration,
+and natural spawn chance are configurable in `config/sheeper-common.toml`.
 The effective fuse distance cannot exceed the detection radius.
+`naturalSpawnChance` is a percentage from 0 to 100;
+0 disables natural replacement, while 100 replaces every naturally spawning sheep.
 
 ## Development Environment
 
