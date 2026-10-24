@@ -189,7 +189,6 @@ public class SheeperEntity extends Sheep {
 
     /**
      * Finds the nearest living Survival or Adventure player within detection range.
-     * Living non-spectator observers, including Creative players, prevent pursuit.
      *
      * @return the nearest eligible player, or null if observed or no target exists
      */
@@ -201,18 +200,14 @@ public class SheeperEntity extends Sheep {
 
         // Iterate through all players in the level to find the nearest eligible target.
         for (Player player : getLevel().players()) {
-            if (!player.isAlive() || player.isSpectator()) {
+            // Skip players who are not alive, are spectators, or are in Creative mode.
+            if (!player.isAlive() || player.isSpectator() || player.isCreative()) {
                 continue;
             }
 
             // Any observer prevents pursuit.
             if (isObservedBy(player)) {
                 return null;
-            }
-
-            // Skip players who are in Creative mode, as they are not valid targets.
-            if (player.isCreative()) {
-                continue;
             }
 
             // Calculate the squared distance to the player.
