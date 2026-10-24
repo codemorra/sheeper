@@ -2,12 +2,15 @@ package de.codemorra.sheeper.entity;
 
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.ApproachUnobservedPlayerGoal;
+import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -38,6 +41,31 @@ public class SheeperEntity extends Sheep {
      */
     public SheeperEntity(EntityType<? extends Sheep> entityType, Level level) {
         super(entityType, level);
+    }
+
+    /**
+     * Creates the offspring of this Sheeper entity when breeding with another
+     * parent.
+     *
+     * @param level       the server level in which the offspring will exist
+     * @param otherParent the other parent involved in breeding
+     * @return the newly created Sheeper offspring, or null if creation fails
+     */
+    @Override
+    @Nullable
+    public SheeperEntity getBreedOffspring(ServerLevel level, AgeableMob otherParent) {
+        // Create a new Sheeper entity as the offspring.
+        SheeperEntity offspring = ModEntities.SHEEPER.get().create(level);
+
+        if (offspring == null) {
+            return null;
+        }
+
+        // Set the color of the offspring based on the vanilla sheep breeding result.
+        Sheep vanillaOffspring = super.getBreedOffspring(level, otherParent);
+        offspring.setColor(vanillaOffspring.getColor());
+
+        return offspring;
     }
 
     /**
