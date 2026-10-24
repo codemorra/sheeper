@@ -15,6 +15,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -39,6 +40,7 @@ public class SheeperEntity extends Sheep {
     private float visualFuseProgress;
     private float previousVisualWarningIntensity;
     private float visualWarningIntensity;
+    private boolean exploded;
 
     /**
      * Constructs a new Sheeper entity with the specified entity type and level.
@@ -305,13 +307,37 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
+     * Handles damage taken by the Sheeper.
+     * Triggers an explosion if a baby Sheeper takes damage.
+     */
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        float healthBefore = getHealth() + getAbsorptionAmount();
+
+        boolean hitAccepted = super.hurt(source, amount);
+
+        float healthAfter = getHealth() + getAbsorptionAmount();
+
+        // Trigger an explosion if a baby Sheeper takes damage and the hit was accepted.
+        if (!getLevel().isClientSide && isBaby() && hitAccepted && healthAfter < healthBefore) {
+            explode();
+        }
+
+        return hitAccepted;
+    }
+
+    /**
      * Explodes with normal Creeper strength, respecting mob griefing.
      * Executes only on the Server.
      */
     public void explode() {
-        if (getLevel().isClientSide) {
+        if (getLevel().isClientSide || exploded || isRemoved()) {
             return;
         }
+
+        exploded = true;
+
+        float strength = isBaby() ? SheeperConfig.BABY_EXPLOSION_STRENGTH.get().floatValue() : 3.0F;
 
         Explosion.BlockInteraction blockInteraction = ForgeEventFactory.getMobGriefingEvent(getLevel(), this)
                 ? Explosion.BlockInteraction.DESTROY
@@ -319,7 +345,7 @@ public class SheeperEntity extends Sheep {
 
         dead = true;
         getLevel().explode(
-                this, getX(), getY(), getZ(), 3.0F, blockInteraction);
+                this, getX(), getY(), getZ(), strength, blockInteraction);
         discard();
     }
 }

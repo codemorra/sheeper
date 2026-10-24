@@ -81,6 +81,16 @@ public class SheeperConfig {
 					"If the maximum is below the minimum, the pause is fixed at the minimum.")
 			.defineInRange("babyAttackPauseMax", 8.0, 0.0, 60.0);
 
+	/**
+	 * Explosion strength when a baby Sheeper takes damage.
+	 */
+	public static final ForgeConfigSpec.DoubleValue BABY_EXPLOSION_STRENGTH = BUILDER
+			.comment("Explosion strength when a baby Sheeper takes damage.",
+					"Default: 0.4. Adult Sheeper use strength 3.0.",
+					"Values below 0.4 may cause no noticeable player damage or block destruction.",
+					"The actual effect depends on distance and surrounding blocks.")
+			.defineInRange("babyExplosionStrength", 0.4, 0.1, 5.0);
+
 	public static final ForgeConfigSpec SPEC = BUILDER.build();
 
 	/**
