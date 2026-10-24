@@ -43,7 +43,7 @@ All Sheeper explosions respect the mobGriefing game rule.
 
 Settings are stored in `config/sheeper-common.toml`.
 The detection radius, observation angle, fuse distance, fuse duration,
-and natural spawn chance are configurable.
+adult explosion strength, and natural spawn chance are configurable.
 The effective fuse distance cannot exceed the detection radius.
 `naturalSpawnChance` is a percentage from 0 to 100;
 0 disables natural replacement, while 100 replaces every naturally spawning sheep.
