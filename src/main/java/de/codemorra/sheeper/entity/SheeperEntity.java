@@ -327,18 +327,23 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Explodes with normal Creeper strength, respecting mob griefing.
-     * Executes only on the Server.
+     * Explodes with the configured strength for this entity's age.
+     * Respects mob griefing and runs only on the server, at most once per entity.
      */
     public void explode() {
+        // Prevent multiple explosions or explosions on the client side.
         if (getLevel().isClientSide || exploded || isRemoved()) {
             return;
         }
 
         exploded = true;
 
-        float strength = isBaby() ? SheeperConfig.BABY_EXPLOSION_STRENGTH.get().floatValue() : 3.0F;
+        // Determine the explosion strength based on the entity's age.
+        float strength = isBaby()
+                ? SheeperConfig.BABY_EXPLOSION_STRENGTH.get().floatValue()
+                : SheeperConfig.ADULT_EXPLOSION_STRENGTH.get().floatValue();
 
+        // Determine the block interaction based on the mob griefing game rule.
         Explosion.BlockInteraction blockInteraction = ForgeEventFactory.getMobGriefingEvent(getLevel(), this)
                 ? Explosion.BlockInteraction.DESTROY
                 : Explosion.BlockInteraction.NONE;

@@ -82,11 +82,19 @@ public class SheeperConfig {
 			.defineInRange("babyAttackPauseMax", 8.0, 0.0, 60.0);
 
 	/**
+	 * Explosion strength of adult Sheeper.
+	 */
+	public static final ForgeConfigSpec.DoubleValue ADULT_EXPLOSION_STRENGTH = BUILDER
+			.comment("Explosion strength of adult Sheeper.",
+					"Default: 3.0, matching a normal Creeper.")
+			.defineInRange("adultExplosionStrength", 3.0, 0.1, 5.0);
+
+	/**
 	 * Explosion strength when a baby Sheeper takes damage.
 	 */
 	public static final ForgeConfigSpec.DoubleValue BABY_EXPLOSION_STRENGTH = BUILDER
 			.comment("Explosion strength when a baby Sheeper takes damage.",
-					"Default: 0.4. Adult Sheeper use strength 3.0.",
+					"Default: 0.4; Adult explosion strength is configured separately.",
 					"Values below 0.4 may cause no noticeable player damage or block destruction.",
 					"The actual effect depends on distance and surrounding blocks.")
 			.defineInRange("babyExplosionStrength", 0.4, 0.1, 5.0);
