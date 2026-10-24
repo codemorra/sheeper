@@ -29,12 +29,16 @@ public class ApproachUnobservedPlayerGoal extends Goal {
     }
 
     /**
-     * Determines whether this goal should start executing.
+     * Determines whether an adult Sheeper can start pursuing a player.
      *
-     * @return true if there is a player to approach, false otherwise
+     * @return true if this Sheeper is an adult and an eligible target exists
      */
     @Override
     public boolean canUse() {
+        if (sheeper.isBaby()) {
+            return false;
+        }
+
         target = sheeper.findApproachingTarget();
         return target != null;
     }
@@ -46,6 +50,10 @@ public class ApproachUnobservedPlayerGoal extends Goal {
      */
     @Override
     public boolean canContinueToUse() {
+        if (sheeper.isBaby()) {
+            return false;
+        }
+
         double radius = SheeperConfig.DETECTION_RADIUS.get();
 
         // If there is no target, or the target is invalid, or outside the detection
