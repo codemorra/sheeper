@@ -188,6 +188,17 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
+     * Checks whether a player can be a pursuit target or prevent pursuit by
+     * observing the Sheeper.
+     *
+     * @param player the player to check
+     * @return true if the player is alive and in Survival or Adventure mode
+     */
+    public boolean isEligiblePlayer(Player player) {
+        return player.isAlive() && !player.isSpectator() && !player.isCreative();
+    }
+
+    /**
      * Finds the nearest living Survival or Adventure player within detection range.
      *
      * @return the nearest eligible player, or null if observed or no target exists
@@ -201,7 +212,7 @@ public class SheeperEntity extends Sheep {
         // Iterate through all players in the level to find the nearest eligible target.
         for (Player player : getLevel().players()) {
             // Skip players who are not alive, are spectators, or are in Creative mode.
-            if (!player.isAlive() || player.isSpectator() || player.isCreative()) {
+            if (!isEligiblePlayer(player)) {
                 continue;
             }
 

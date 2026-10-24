@@ -9,11 +9,14 @@ import net.minecraft.sounds.SoundEvents;
 import java.util.EnumSet;
 
 /**
- * Approaches the nearest eligible player while no player observes the Sheeper.
+ * Selects the nearest eligible player when pursuit starts and keeps that target
+ * while it remains valid and within detection range and no eligible player
+ * observes the Sheeper.
  */
 public class ApproachUnobservedPlayerGoal extends Goal {
     private final SheeperEntity sheeper;
     private int fuseTicks;
+    private Player target;
 
     /**
      * Constructs a new ApproachUnobservedPlayerGoal for the given SheeperEntity.
@@ -32,7 +35,47 @@ public class ApproachUnobservedPlayerGoal extends Goal {
      */
     @Override
     public boolean canUse() {
-        return sheeper.findApproachingTarget() != null;
+        target = sheeper.findApproachingTarget();
+        return target != null;
+    }
+
+    /**
+     * Determines whether this goal should continue executing.
+     *
+     * @return true if the goal should continue executing, false otherwise
+     */
+    @Override
+    public boolean canContinueToUse() {
+        double radius = SheeperConfig.DETECTION_RADIUS.get();
+
+        // If there is no target, or the target is invalid, or outside the detection
+        // radius, stop executing.
+        if (target == null) {
+            return false;
+        }
+
+        // If the target is not eligible, stop executing.
+        if (!sheeper.isEligiblePlayer(target)) {
+            return false;
+        }
+
+        // If the target is outside the detection radius, stop executing.
+        if (radius * radius < sheeper.distanceToSqr(target)) {
+            return false;
+        }
+
+        // If the Sheeper is being observed by any player, stop executing.
+        for (Player player : sheeper.getLevel().players()) {
+            if (!sheeper.isEligiblePlayer(player)) {
+                continue;
+            }
+
+            if (sheeper.isObservedBy(player)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -51,22 +94,18 @@ public class ApproachUnobservedPlayerGoal extends Goal {
      */
     @Override
     public void tick() {
-        Player target = sheeper.findApproachingTarget();
-
-        // If there is no target, reset the fuse and stop navigating.
-        if (target == null) {
-            fuseTicks = 0;
-            sheeper.setWarningState(false, 0.0f);
-            sheeper.getNavigation().stop();
+        // If pursuit cannot continue, reset the state and stop navigating.
+        if (!canContinueToUse()) {
+            stop();
             return;
         }
 
-        // If the target is within fuse distance, start the fuse countdown.
+        // Make the Sheeper look at the target player.
         sheeper.getLookControl().setLookAt(target, 30.0F, 30.0F);
 
         double fuseDistance = SheeperConfig.getFuseDistance();
 
-        // Check if the target is outside the fuse distance and reset the fuse if so.
+        // Keep pursuing the stored target outside fuse distance.
         if (sheeper.distanceToSqr(target) > fuseDistance * fuseDistance) {
             fuseTicks = 0;
             sheeper.setWarningState(true, 0.0f);
@@ -77,7 +116,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
         // Stop navigating as the target is within fuse distance.
         sheeper.getNavigation().stop();
 
-        // Play the ambient sound when the fuse starts.
+        // Play the warning once when a new fuse starts.
         if (fuseTicks == 0) {
             sheeper.playSound(SoundEvents.SHEEP_AMBIENT, 1.0F, 1.0F);
         }
@@ -89,7 +128,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
                 SheeperConfig.getFuseDuration() * 20.0);
 
         // Update the warning state with the current fuse progress.
-        sheeper.setWarningState(true, (float) fuseTicks / (float) requiredTicks);
+        sheeper.setWarningState(true, (float) fuseTicks / requiredTicks);
 
         // If the fuse has reached the required duration, trigger the explosion.
         if (fuseTicks >= requiredTicks) {
@@ -103,6 +142,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
     @Override
     public void stop() {
         fuseTicks = 0;
+        target = null;
         sheeper.setWarningState(false, 0.0f);
         sheeper.getNavigation().stop();
     }
