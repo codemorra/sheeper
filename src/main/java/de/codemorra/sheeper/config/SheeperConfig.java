@@ -49,6 +49,14 @@ public class SheeperConfig {
                     "0 disables replacement; 100 replaces every naturally spawning sheep.")
             .defineInRange("naturalSpawnChance", 5.0, 0.0, 100.0);
 
+    /**
+     * Additional movement speed for baby Sheeper, in percent.
+     */
+    public static final ForgeConfigSpec.DoubleValue BABY_SPEED_BOOST_PERCENT = BUILDER
+            .comment("Additional movement speed for baby Sheeper, in percent.",
+                    "0 gives babies the same movement speed as adults.")
+            .defineInRange("babySpeedBoostPercent", 25.0, 0.0, 100.0);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     /**

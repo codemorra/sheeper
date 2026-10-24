@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.UUID;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.ApproachUnobservedPlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -7,6 +8,9 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.Explosion;
@@ -27,6 +31,8 @@ public class SheeperEntity extends Sheep {
 
     private static final EntityDataAccessor<Float> DATA_FUSE_PROGRESS = SynchedEntityData
             .defineId(SheeperEntity.class, EntityDataSerializers.FLOAT);
+
+    private static final UUID BABY_SPEED_BOOST_ID = UUID.fromString("d38eec79-e36c-4c91-b01e-dce9bc04792d");
 
     private float previousVisualFuseProgress;
     private float visualFuseProgress;
@@ -66,6 +72,40 @@ public class SheeperEntity extends Sheep {
         offspring.setColor(vanillaOffspring.getColor());
 
         return offspring;
+    }
+
+    /**
+     * Handles the age boundary reached event, applying the baby speed boost if
+     * applicable.
+     */
+    @Override
+    protected void ageBoundaryReached() {
+        super.ageBoundaryReached();
+
+        if (getLevel().isClientSide) {
+            return;
+        }
+
+        // Apply the baby speed boost if this entity is a baby.
+        AttributeInstance movementSpeed = getAttribute(Attributes.MOVEMENT_SPEED);
+
+        if (movementSpeed == null) {
+            return;
+        }
+
+        // Remove any existing baby speed boost modifier before applying a new one.
+        movementSpeed.removeModifier(BABY_SPEED_BOOST_ID);
+
+        // Apply the baby speed boost only if the entity is a baby.
+        if (isBaby()) {
+            double speedBoost = SheeperConfig.BABY_SPEED_BOOST_PERCENT.get() / 100.0;
+
+            AttributeModifier modifier = new AttributeModifier(
+                    BABY_SPEED_BOOST_ID, "Sheeper baby speed boost", speedBoost,
+                    AttributeModifier.Operation.MULTIPLY_TOTAL);
+
+            movementSpeed.addTransientModifier(modifier);
+        }
     }
 
     /**
