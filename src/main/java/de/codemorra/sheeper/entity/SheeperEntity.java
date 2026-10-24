@@ -3,6 +3,7 @@ package de.codemorra.sheeper.entity;
 import java.util.UUID;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.ApproachUnobservedPlayerGoal;
+import de.codemorra.sheeper.entity.goal.BabyBumpPlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
@@ -127,6 +128,7 @@ public class SheeperEntity extends Sheep {
     protected void registerGoals() {
         super.registerGoals();
         this.goalSelector.addGoal(2, new ApproachUnobservedPlayerGoal(this));
+        this.goalSelector.addGoal(2, new BabyBumpPlayerGoal(this));
     }
 
     /**
