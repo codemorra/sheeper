@@ -7,6 +7,8 @@ import de.codemorra.sheeper.entity.goal.BabyBumpPlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.ai.goal.BreedGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -53,28 +55,45 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Creates the offspring of this Sheeper entity when breeding with another
-     * parent.
+     * Creates offspring with vanilla sheep color inheritance.
+     * Two Sheeper always produce a Sheeper. Mixed pairs have a 50% chance of
+     * producing a Sheeper and a 50% chance of producing a vanilla sheep.
      *
      * @param level       the server level in which the offspring will exist
      * @param otherParent the other parent involved in breeding
-     * @return the newly created Sheeper offspring, or null if creation fails
+     * @return the sheep or Sheeper offspring, or null if Sheeper creation fails
      */
     @Override
     @Nullable
-    public SheeperEntity getBreedOffspring(ServerLevel level, AgeableMob otherParent) {
-        // Create a new Sheeper entity as the offspring.
+    public Sheep getBreedOffspring(ServerLevel level, AgeableMob otherParent) {
+        // Use vanilla breeding to determine the inherited wool color for either baby type.
+        Sheep vanillaOffspring = super.getBreedOffspring(level, otherParent);
+
+        // Roll only for mixed pairs; two Sheeper must always produce a Sheeper.
+        if (!(otherParent instanceof SheeperEntity) && random.nextBoolean()) {
+            return vanillaOffspring;
+        }
+
         SheeperEntity offspring = ModEntities.SHEEPER.get().create(level);
 
+        // Abort if entity creation failed.
         if (offspring == null) {
             return null;
         }
 
-        // Set the color of the offspring based on the vanilla sheep breeding result.
-        Sheep vanillaOffspring = super.getBreedOffspring(level, otherParent);
         offspring.setColor(vanillaOffspring.getColor());
-
         return offspring;
+    }
+
+    /**
+     * Allows breeding with another sheep or Sheeper when both are in love.
+     *
+     * @param other the other animal to check for mating compatibility
+     * @return true if this entity can mate with the other animal, false otherwise
+     */
+    @Override
+    public boolean canMate(Animal other) {
+        return other != this && other instanceof Sheep && isInLove() && other.isInLove();
     }
 
     /**
@@ -123,12 +142,16 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Registers the goals for this Sheeper entity, including the custom approach
-     * unobserved player goal.
+     * Registers ordinary sheep goals, mixed breeding, and special Sheeper behavior.
      */
     @Override
     protected void registerGoals() {
         super.registerGoals();
+
+        // Replace the inherited same-class partner search with one that includes both sheep types.
+        this.goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof BreedGoal);
+        this.goalSelector.addGoal(2, new BreedGoal(this, 1.0D, Sheep.class));
+
         this.goalSelector.addGoal(2, new ApproachUnobservedPlayerGoal(this));
         this.goalSelector.addGoal(2, new BabyBumpPlayerGoal(this));
     }
