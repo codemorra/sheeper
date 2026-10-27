@@ -1,0 +1,76 @@
+package de.codemorra.sheeper.registry;
+
+import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.block.SheeperWoolBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+/**
+ * Registers blocks for the Sheeper mod.
+ */
+public class ModBlocks {
+    private static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS,
+            SheeperMod.MODID);
+
+    public static final RegistryObject<SheeperWoolBlock> WHITE_SHEEPER_WOOL = registerWool("white_sheeper_wool",
+            Blocks.WHITE_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> ORANGE_SHEEPER_WOOL = registerWool("orange_sheeper_wool",
+            Blocks.ORANGE_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> MAGENTA_SHEEPER_WOOL = registerWool("magenta_sheeper_wool",
+            Blocks.MAGENTA_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> LIGHT_BLUE_SHEEPER_WOOL = registerWool(
+            "light_blue_sheeper_wool", Blocks.LIGHT_BLUE_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> YELLOW_SHEEPER_WOOL = registerWool("yellow_sheeper_wool",
+            Blocks.YELLOW_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> LIME_SHEEPER_WOOL = registerWool("lime_sheeper_wool",
+            Blocks.LIME_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> PINK_SHEEPER_WOOL = registerWool("pink_sheeper_wool",
+            Blocks.PINK_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> GRAY_SHEEPER_WOOL = registerWool("gray_sheeper_wool",
+            Blocks.GRAY_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> LIGHT_GRAY_SHEEPER_WOOL = registerWool(
+            "light_gray_sheeper_wool", Blocks.LIGHT_GRAY_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> CYAN_SHEEPER_WOOL = registerWool("cyan_sheeper_wool",
+            Blocks.CYAN_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> PURPLE_SHEEPER_WOOL = registerWool("purple_sheeper_wool",
+            Blocks.PURPLE_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> BLUE_SHEEPER_WOOL = registerWool("blue_sheeper_wool",
+            Blocks.BLUE_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> BROWN_SHEEPER_WOOL = registerWool("brown_sheeper_wool",
+            Blocks.BROWN_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> GREEN_SHEEPER_WOOL = registerWool("green_sheeper_wool",
+            Blocks.GREEN_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> RED_SHEEPER_WOOL = registerWool("red_sheeper_wool",
+            Blocks.RED_WOOL);
+    public static final RegistryObject<SheeperWoolBlock> BLACK_SHEEPER_WOOL = registerWool("black_sheeper_wool",
+            Blocks.BLACK_WOOL);
+
+    private ModBlocks() {
+    }
+
+    /**
+     * Registers a wool variant using the physical properties of its vanilla color.
+     * Tags, models, recipes, and loot tables are defined separately as resources.
+     *
+     * @param name the registry path within the Sheeper namespace
+     * @param vanillaWool the vanilla wool block whose properties are copied
+     * @return the deferred reference to the wool block
+     */
+    private static RegistryObject<SheeperWoolBlock> registerWool(String name, Block vanillaWool) {
+        return BLOCKS.register(name, () -> new SheeperWoolBlock(BlockBehaviour.Properties.copy(vanillaWool)));
+    }
+
+    /**
+     * Connects block registration to the mod lifecycle event bus.
+     *
+     * @param eventBus the mod event bus
+     */
+    public static void register(IEventBus eventBus) {
+        BLOCKS.register(eventBus);
+    }
+}
