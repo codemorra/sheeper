@@ -1,4 +1,20 @@
 {
   "entity.sheeper.sheeper": "Sheeper",
-  "item.sheeper.sheeper_spawn_egg": "Sheeper Spawn Egg"
+  "item.sheeper.sheeper_spawn_egg": "Sheeper Spawn Egg",
+  "block.sheeper.white_sheeper_wool": "White Sheeper Wool",
+  "block.sheeper.orange_sheeper_wool": "Orange Sheeper Wool",
+  "block.sheeper.magenta_sheeper_wool": "Magenta Sheeper Wool",
+  "block.sheeper.light_blue_sheeper_wool": "Light Blue Sheeper Wool",
+  "block.sheeper.yellow_sheeper_wool": "Yellow Sheeper Wool",
+  "block.sheeper.lime_sheeper_wool": "Lime Sheeper Wool",
+  "block.sheeper.pink_sheeper_wool": "Pink Sheeper Wool",
+  "block.sheeper.gray_sheeper_wool": "Gray Sheeper Wool",
+  "block.sheeper.light_gray_sheeper_wool": "Light Gray Sheeper Wool",
+  "block.sheeper.cyan_sheeper_wool": "Cyan Sheeper Wool",
+  "block.sheeper.purple_sheeper_wool": "Purple Sheeper Wool",
+  "block.sheeper.blue_sheeper_wool": "Blue Sheeper Wool",
+  "block.sheeper.brown_sheeper_wool": "Brown Sheeper Wool",
+  "block.sheeper.green_sheeper_wool": "Green Sheeper Wool",
+  "block.sheeper.red_sheeper_wool": "Red Sheeper Wool",
+  "block.sheeper.black_sheeper_wool": "Black Sheeper Wool"
 }
