@@ -5,6 +5,7 @@ import de.codemorra.sheeper.block.SheeperWoolBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.item.DyeColor;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -54,10 +55,38 @@ public class ModBlocks {
     }
 
     /**
+     * Resolves a fleece color to its registered Sheeper wool block.
+     * Call only after block registration has completed.
+     *
+     * @param color the fleece color
+     * @return the matching wool block
+     */
+    public static SheeperWoolBlock getWool(DyeColor color) {
+        return switch (color) {
+            case WHITE -> WHITE_SHEEPER_WOOL.get();
+            case ORANGE -> ORANGE_SHEEPER_WOOL.get();
+            case MAGENTA -> MAGENTA_SHEEPER_WOOL.get();
+            case LIGHT_BLUE -> LIGHT_BLUE_SHEEPER_WOOL.get();
+            case YELLOW -> YELLOW_SHEEPER_WOOL.get();
+            case LIME -> LIME_SHEEPER_WOOL.get();
+            case PINK -> PINK_SHEEPER_WOOL.get();
+            case GRAY -> GRAY_SHEEPER_WOOL.get();
+            case LIGHT_GRAY -> LIGHT_GRAY_SHEEPER_WOOL.get();
+            case CYAN -> CYAN_SHEEPER_WOOL.get();
+            case PURPLE -> PURPLE_SHEEPER_WOOL.get();
+            case BLUE -> BLUE_SHEEPER_WOOL.get();
+            case BROWN -> BROWN_SHEEPER_WOOL.get();
+            case GREEN -> GREEN_SHEEPER_WOOL.get();
+            case RED -> RED_SHEEPER_WOOL.get();
+            case BLACK -> BLACK_SHEEPER_WOOL.get();
+        };
+    }
+
+    /**
      * Registers a wool variant using the physical properties of its vanilla color.
      * Tags, models, recipes, and loot tables are defined separately as resources.
      *
-     * @param name the registry path within the Sheeper namespace
+     * @param name        the registry path within the Sheeper namespace
      * @param vanillaWool the vanilla wool block whose properties are copied
      * @return the deferred reference to the wool block
      */

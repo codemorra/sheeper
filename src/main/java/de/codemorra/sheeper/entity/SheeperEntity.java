@@ -1,24 +1,34 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.UUID;
+import java.util.List;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.ApproachUnobservedPlayerGoal;
 import de.codemorra.sheeper.entity.goal.BabyBumpPlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.registry.ModBlocks;
+import de.codemorra.sheeper.SheeperMod;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.ai.goal.BreedGoal;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -55,6 +65,68 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
+     * Preserves inherited shearing state, sounds, and quantities while replacing
+     * vanilla wool with Sheeper wool. The caller spawns the returned stacks.
+     */
+    @Override
+    public List<ItemStack> onSheared(
+            @Nullable Player player, ItemStack item, Level world, BlockPos pos, int fortune) {
+        List<ItemStack> drops = super.onSheared(player, item, world, pos, fortune);
+
+        drops.replaceAll(stack -> new ItemStack(ModBlocks.getWool(getColor()), stack.getCount()));
+
+        return drops;
+    }
+
+    /**
+     * Handles direct shearing, including dispensers, on the server.
+     * Callers check readiness before invoking this method. Unlike onSheared, this
+     * path spawns its own drops with vanilla quantities and motion.
+     *
+     * @param soundSource the sound category supplied by the caller
+     */
+    @Override
+    public void shear(SoundSource soundSource) {
+        if (getLevel().isClientSide) {
+            return;
+        }
+
+        getLevel().playSound(
+                null, this, SoundEvents.SHEEP_SHEAR, soundSource, 1.0F, 1.0F);
+        setSheared(true);
+
+        int count = 1 + random.nextInt(3);
+
+        for (int i = 0; i < count; i++) {
+            ItemEntity drop = spawnAtLocation(ModBlocks.getWool(getColor()), 1);
+
+            if (drop != null) {
+                drop.setDeltaMovement(drop.getDeltaMovement().add(
+                        (random.nextFloat() - random.nextFloat()) * 0.1F,
+                        random.nextFloat() * 0.05F,
+                        (random.nextFloat() - random.nextFloat()) * 0.1F));
+            }
+        }
+    }
+
+    /**
+     * Selects color-specific wool-only loot, or empty loot when sheared.
+     * Baby and doMobLoot checks remain in the inherited death-loot pipeline.
+     *
+     * @return the loot table for the current fleece state
+     */
+    @Override
+    public ResourceLocation getDefaultLootTable() {
+        if (isSheared()) {
+            return BuiltInLootTables.EMPTY;
+        }
+
+        return ResourceLocation.fromNamespaceAndPath(
+                SheeperMod.MODID,
+                "entities/sheeper/" + getColor().getName());
+    }
+
+    /**
      * Creates offspring with vanilla sheep color inheritance.
      * Two Sheeper always produce a Sheeper. Mixed pairs have a 50% chance of
      * producing a Sheeper and a 50% chance of producing a vanilla sheep.
@@ -66,7 +138,8 @@ public class SheeperEntity extends Sheep {
     @Override
     @Nullable
     public Sheep getBreedOffspring(ServerLevel level, AgeableMob otherParent) {
-        // Use vanilla breeding to determine the inherited wool color for either baby type.
+        // Use vanilla breeding to determine the inherited wool color for either baby
+        // type.
         Sheep vanillaOffspring = super.getBreedOffspring(level, otherParent);
 
         // Roll only for mixed pairs; two Sheeper must always produce a Sheeper.
@@ -148,7 +221,8 @@ public class SheeperEntity extends Sheep {
     protected void registerGoals() {
         super.registerGoals();
 
-        // Replace the inherited same-class partner search with one that includes both sheep types.
+        // Replace the inherited same-class partner search with one that includes both
+        // sheep types.
         this.goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof BreedGoal);
         this.goalSelector.addGoal(2, new BreedGoal(this, 1.0D, Sheep.class));
 

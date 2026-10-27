@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    "sheeper:white_sheeper_wool",
+    "sheeper:orange_sheeper_wool",
+    "sheeper:magenta_sheeper_wool",
+    "sheeper:light_blue_sheeper_wool",
+    "sheeper:yellow_sheeper_wool",
+    "sheeper:lime_sheeper_wool",
+    "sheeper:pink_sheeper_wool",
+    "sheeper:gray_sheeper_wool",
+    "sheeper:light_gray_sheeper_wool",
+    "sheeper:cyan_sheeper_wool",
+    "sheeper:purple_sheeper_wool",
+    "sheeper:blue_sheeper_wool",
+    "sheeper:brown_sheeper_wool",
+    "sheeper:green_sheeper_wool",
+    "sheeper:red_sheeper_wool",
+    "sheeper:black_sheeper_wool"
+  ]
+}
