@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "group": "sheeper_wool",
+  "ingredients": [
+    {
+      "item": "minecraft:green_dye"
+    },
+    {
+      "item": "sheeper:white_sheeper_wool"
+    }
+  ],
+  "result": {
+    "item": "sheeper:green_sheeper_wool",
+    "count": 1
+  }
+}
