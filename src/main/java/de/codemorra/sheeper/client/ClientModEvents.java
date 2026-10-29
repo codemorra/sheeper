@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.client.renderer.SheeperRenderer;
+import de.codemorra.sheeper.client.renderer.PrimedSheeperWoolRenderer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -28,5 +29,9 @@ public class ClientModEvents {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(
                 ModEntities.SHEEPER.get(), SheeperRenderer::new);
+
+        event.registerEntityRenderer(
+                ModEntities.PRIMED_SHEEPER_WOOL.get(),
+                PrimedSheeperWoolRenderer::new);
     }
 }
