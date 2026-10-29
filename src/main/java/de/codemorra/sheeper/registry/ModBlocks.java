@@ -19,37 +19,37 @@ public class ModBlocks {
             SheeperMod.MODID);
 
     public static final RegistryObject<SheeperWoolBlock> WHITE_SHEEPER_WOOL = registerWool("white_sheeper_wool",
-            Blocks.WHITE_WOOL);
+            Blocks.WHITE_WOOL, DyeColor.WHITE);
     public static final RegistryObject<SheeperWoolBlock> ORANGE_SHEEPER_WOOL = registerWool("orange_sheeper_wool",
-            Blocks.ORANGE_WOOL);
+            Blocks.ORANGE_WOOL, DyeColor.ORANGE);
     public static final RegistryObject<SheeperWoolBlock> MAGENTA_SHEEPER_WOOL = registerWool("magenta_sheeper_wool",
-            Blocks.MAGENTA_WOOL);
+            Blocks.MAGENTA_WOOL, DyeColor.MAGENTA);
     public static final RegistryObject<SheeperWoolBlock> LIGHT_BLUE_SHEEPER_WOOL = registerWool(
-            "light_blue_sheeper_wool", Blocks.LIGHT_BLUE_WOOL);
+            "light_blue_sheeper_wool", Blocks.LIGHT_BLUE_WOOL, DyeColor.LIGHT_BLUE);
     public static final RegistryObject<SheeperWoolBlock> YELLOW_SHEEPER_WOOL = registerWool("yellow_sheeper_wool",
-            Blocks.YELLOW_WOOL);
+            Blocks.YELLOW_WOOL, DyeColor.YELLOW);
     public static final RegistryObject<SheeperWoolBlock> LIME_SHEEPER_WOOL = registerWool("lime_sheeper_wool",
-            Blocks.LIME_WOOL);
+            Blocks.LIME_WOOL, DyeColor.LIME);
     public static final RegistryObject<SheeperWoolBlock> PINK_SHEEPER_WOOL = registerWool("pink_sheeper_wool",
-            Blocks.PINK_WOOL);
+            Blocks.PINK_WOOL, DyeColor.PINK);
     public static final RegistryObject<SheeperWoolBlock> GRAY_SHEEPER_WOOL = registerWool("gray_sheeper_wool",
-            Blocks.GRAY_WOOL);
+            Blocks.GRAY_WOOL, DyeColor.GRAY);
     public static final RegistryObject<SheeperWoolBlock> LIGHT_GRAY_SHEEPER_WOOL = registerWool(
-            "light_gray_sheeper_wool", Blocks.LIGHT_GRAY_WOOL);
+            "light_gray_sheeper_wool", Blocks.LIGHT_GRAY_WOOL, DyeColor.LIGHT_GRAY);
     public static final RegistryObject<SheeperWoolBlock> CYAN_SHEEPER_WOOL = registerWool("cyan_sheeper_wool",
-            Blocks.CYAN_WOOL);
+            Blocks.CYAN_WOOL, DyeColor.CYAN);
     public static final RegistryObject<SheeperWoolBlock> PURPLE_SHEEPER_WOOL = registerWool("purple_sheeper_wool",
-            Blocks.PURPLE_WOOL);
+            Blocks.PURPLE_WOOL, DyeColor.PURPLE);
     public static final RegistryObject<SheeperWoolBlock> BLUE_SHEEPER_WOOL = registerWool("blue_sheeper_wool",
-            Blocks.BLUE_WOOL);
+            Blocks.BLUE_WOOL, DyeColor.BLUE);
     public static final RegistryObject<SheeperWoolBlock> BROWN_SHEEPER_WOOL = registerWool("brown_sheeper_wool",
-            Blocks.BROWN_WOOL);
+            Blocks.BROWN_WOOL, DyeColor.BROWN);
     public static final RegistryObject<SheeperWoolBlock> GREEN_SHEEPER_WOOL = registerWool("green_sheeper_wool",
-            Blocks.GREEN_WOOL);
+            Blocks.GREEN_WOOL, DyeColor.GREEN);
     public static final RegistryObject<SheeperWoolBlock> RED_SHEEPER_WOOL = registerWool("red_sheeper_wool",
-            Blocks.RED_WOOL);
+            Blocks.RED_WOOL, DyeColor.RED);
     public static final RegistryObject<SheeperWoolBlock> BLACK_SHEEPER_WOOL = registerWool("black_sheeper_wool",
-            Blocks.BLACK_WOOL);
+            Blocks.BLACK_WOOL, DyeColor.BLACK);
 
     private ModBlocks() {
     }
@@ -88,10 +88,13 @@ public class ModBlocks {
      *
      * @param name        the registry path within the Sheeper namespace
      * @param vanillaWool the vanilla wool block whose properties are copied
+     * @param color       the fixed color of this wool variant
      * @return the deferred reference to the wool block
      */
-    private static RegistryObject<SheeperWoolBlock> registerWool(String name, Block vanillaWool) {
-        return BLOCKS.register(name, () -> new SheeperWoolBlock(BlockBehaviour.Properties.copy(vanillaWool)));
+    private static RegistryObject<SheeperWoolBlock> registerWool(
+            String name, Block vanillaWool, DyeColor color) {
+        return BLOCKS.register(name, () -> new SheeperWoolBlock(
+                BlockBehaviour.Properties.copy(vanillaWool), color));
     }
 
     /**
