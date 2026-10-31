@@ -22,7 +22,15 @@ While unobserved, adult Sheeper silently approach nearby Survival and Adventure 
 
 Baby Sheeper move faster and approach randomly selected Survival and Adventure players, even while being watched. They bump players without dealing direct damage, retreat, and pause before choosing another target. Babies use the same detection radius as adults. Taking damage makes them explode immediately with a smaller explosion. Using a Sheeper spawn egg on a Sheeper creates a baby Sheeper. Babies grow into adults and lose their movement speed bonus.
 
-All Sheeper explosions respect the mobGriefing game rule.
+Adult and baby Sheeper explosions respect the mobGriefing game rule.
+
+Sheeper wool comes in all 16 vanilla colors. On ordinary death, unshorn adult Sheeper drop one matching wool block. Shearing by hand or dispenser yields 1–3 matching wool blocks. Sheeper no longer drop vanilla mutton.
+
+White Sheeper wool can be dyed using vanilla dyes. It cannot be used to craft vanilla wool products such as beds or carpets. Its animated sparkle overlay preserves the underlying vanilla or resource-pack wool texture.
+
+Placed Sheeper wool acts as TNT when ignited, including redstone activation and chain reactions with TNT and other Sheeper wool. These explosions destroy surrounding blocks independently of mobGriefing.
+
+Use shears to harvest it safely. Mining with any other tool or by hand causes a small immediate explosion that damages and knocks back entities without destroying surrounding blocks or dropping wool. Creative mining is safe and produces no drops.
 
 Settings are stored in `config/sheeper-common.toml`. The detection radius, observation angle, fuse distance, fuse duration, adult explosion strength, and natural spawn chance are configurable. The effective fuse distance cannot exceed the detection radius. `naturalSpawnChance` is a percentage from 0 to 100; 0 disables natural replacement, while 100 replaces every naturally spawning sheep.
 
