@@ -1,0 +1,59 @@
+{
+  "render_type": "minecraft:translucent",
+  "ambientocclusion": false,
+  "textures": {
+    "sparks": "sheeper:block/sheeper_wool_sparks",
+    "particle": "#sparks"
+  },
+  "elements": [
+    {
+      "from": [-0.01, -0.01, -0.01],
+      "to": [16.01, 16.01, 16.01],
+      "shade": false,
+      "faces": {
+        "down": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#sparks",
+          "cullface": "down",
+          "emissivity": 15,
+          "ambientocclusion": false
+        },
+        "up": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#sparks",
+          "cullface": "up",
+          "emissivity": 15,
+          "ambientocclusion": false
+        },
+        "north": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#sparks",
+          "cullface": "north",
+          "emissivity": 15,
+          "ambientocclusion": false
+        },
+        "south": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#sparks",
+          "cullface": "south",
+          "emissivity": 15,
+          "ambientocclusion": false
+        },
+        "west": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#sparks",
+          "cullface": "west",
+          "emissivity": 15,
+          "ambientocclusion": false
+        },
+        "east": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#sparks",
+          "cullface": "east",
+          "emissivity": 15,
+          "ambientocclusion": false
+        }
+      }
+    }
+  ]
+}
