@@ -1,6 +1,20 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/block",
+  "loader": "forge:composite",
   "textures": {
-    "all": "minecraft:block/green_wool"
-  }
+    "particle": "minecraft:block/green_wool"
+  },
+  "children": {
+    "base": {
+      "parent": "minecraft:block/cube_all",
+      "render_type": "minecraft:solid",
+      "textures": {
+        "all": "minecraft:block/green_wool"
+      }
+    },
+    "sparks": {
+      "parent": "sheeper:block/sheeper_wool_sparks"
+    }
+  },
+  "item_render_order": ["base", "sparks"]
 }
