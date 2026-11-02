@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smelting",
+  "ingredient": {
+    "item": "sheeper:raw_sheeper_mutton"
+  },
+  "result": "sheeper:cooked_sheeper_mutton",
+  "experience": 0.35,
+  "cookingtime": 200
+}

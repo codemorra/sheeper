@@ -40,6 +40,11 @@ public class ModItems {
             () -> new Item(new Item.Properties()
                     .tab(CreativeModeTab.TAB_FOOD)));
 
+    // Cooked Sheeper Mutton item registration
+    public static final RegistryObject<Item> COOKED_SHEEPER_MUTTON = ITEMS.register("cooked_sheeper_mutton",
+            () -> new Item(new Item.Properties()
+                    .tab(CreativeModeTab.TAB_FOOD)));
+
     // Sheeper Wool item registrations
     public static final RegistryObject<BlockItem> WHITE_SHEEPER_WOOL = registerWoolItem(ModBlocks.WHITE_SHEEPER_WOOL);
     public static final RegistryObject<BlockItem> ORANGE_SHEEPER_WOOL = registerWoolItem(ModBlocks.ORANGE_SHEEPER_WOOL);
