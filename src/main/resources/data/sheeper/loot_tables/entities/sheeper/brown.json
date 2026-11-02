@@ -9,6 +9,15 @@
           "name": "sheeper:brown_sheeper_wool"
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "name": "sheeper:entities/sheeper"
+        }
+      ]
     }
   ]
 }

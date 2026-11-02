@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:item/generated",
+  "loader": "forge:item_layers",
+  "textures": {
+    "layer0": "minecraft:item/mutton",
+    "layer1": "sheeper:item/sheeper_mutton_sparks"
+  },
+  "emissive_layers": [1]
+}
