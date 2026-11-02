@@ -12,43 +12,47 @@ Place the downloaded JAR in your Minecraft installation's `mods` folder. See the
 
 ## Project Status
 
-Each naturally spawning sheep has a configurable chance to be replaced by a Sheeper (5% by default), both during world generation and later spawning.
+Sheeper look like ordinary sheep, but approach when you look away and explode if they get close enough. Their wool can be used as an explosive block, and their meat brings both rewards and risks: prepare it in a smoker and keep milk handy.
 
-Sheeper can be bred with wheat, just like normal sheep. Two Sheeper always produce a baby Sheeper. A Sheeper and a normal sheep have a 50% chance of producing either type. Two normal sheep always produce a normal sheep. Offspring inherit wool colors using vanilla sheep breeding rules.
+### Finding and breeding
 
-The Sheeper can also be summoned using `/summon sheeper:sheeper` or a spawn egg. It uses vanilla sheep models and textures.
+- **Natural spawning:** Each naturally spawning sheep has a configurable chance to become a Sheeper, including during world generation. The default chance is 5%.
+- **Spawning them yourself:** Use `/summon sheeper:sheeper` or a spawn egg. Using a Sheeper spawn egg on a Sheeper creates a baby. Sheeper use the vanilla sheep model and textures.
+- **Breeding:** Feed them wheat. Two Sheeper produce a Sheeper; a mixed sheep/Sheeper pair has a 50% chance of either type. Two normal sheep produce a normal sheep. Wool colors follow vanilla inheritance rules.
 
-While unobserved, adult Sheeper silently approach nearby Survival and Adventure players with glowing red eyes. Within fuse range, they stop, bleat, and start a countdown while swelling and turning red. Observation by a living Survival or Adventure player, or leaving fuse range, cancels and fully resets the countdown. Visual warning effects fade smoothly when cancelled.
+### Sheeper behavior
 
-Baby Sheeper move faster and approach randomly selected Survival and Adventure players, even while being watched. They bump players without dealing direct damage, retreat, and pause before choosing another target. Babies use the same detection radius as adults. Taking damage makes them explode immediately with a smaller explosion. Using a Sheeper spawn egg on a Sheeper creates a baby Sheeper. Babies grow into adults and lose their movement speed bonus.
+- **Adults approach when unobserved.** Their eyes glow red as they pursue nearby Survival or Adventure players. At close range, they stop, bleat, swell, turn red, and count down to an explosion.
+- **Looking back stops the countdown.** Observation by any eligible nearby player, or leaving fuse range, cancels and fully resets it. The visual warning fades smoothly. Creative players and spectators are ignored.
+- **Babies are faster and less cautious.** They approach even while watched, bump players without direct damage, then retreat and pause. Taking damage makes them explode immediately with a smaller blast. Their extra speed disappears when they grow up.
+- **Mob explosions respect `mobGriefing`.** Sheeper that detonate themselves leave no wool or meat behind.
 
-Adult and baby Sheeper explosions respect the mobGriefing game rule.
+### Explosive wool
 
-Sheeper wool comes in all 16 vanilla colors. On ordinary death, unshorn adult Sheeper drop one matching wool block. Shearing by hand or dispenser yields 1–3 matching wool blocks. Sheeper no longer drop vanilla mutton.
+- **Collect all 16 colors.** Unshorn adults drop one matching wool block on ordinary death. Shearing by hand or dispenser yields 1–3 blocks. White Sheeper wool can be dyed, but Sheeper wool cannot replace normal wool in recipes for beds or carpets.
+- **Harvest with shears.** Breaking placed wool with another tool or by hand causes a small blast with damage and knockback, without dropping wool or destroying surrounding blocks and dropped items. Creative mining is safe and produces no drops.
+- **Ignite it like TNT.** Fire, redstone, and explosion chains can prime Sheeper wool. Primed wool explodes destructively and can chain with both TNT and other Sheeper wool. These block explosions are independent of `mobGriefing`.
+- **Sparkles preserve texture packs.** The animated overlay sits over the vanilla or resource-pack wool texture, including while the wool is primed.
 
-Adult Sheeper also drop 1–2 raw Sheeper mutton on ordinary death, with additional drops from Looting. Sheared adults still drop meat; babies and Sheeper detonating themselves do not. Raw and cooked Sheeper mutton have an animated sparkle overlay over the vanilla or resource-pack meat texture.
+### Sheeper mutton
 
-Use a smoker to safely prepare Sheeper mutton. Heating it in a furnace or on either type of campfire starts a three-second warning before a small blast damages and knocks back nearby entities. One piece of meat is consumed; the appliance drops its normal loot and remaining contents. Removing the meat or extinguishing the appliance resets the warning. Surrounding blocks and dropped items survive the blast.
+- **Drops:** Adults drop 1–2 raw Sheeper mutton on ordinary death, with extra drops from Looting. Sheared adults still drop meat; babies do not.
+- **Safe preparation:** Use a smoker. Heating it in a furnace or on either type of lit campfire starts a three-second warning, then a small blast. One piece of meat is consumed; the appliance drops its normal loot and remaining contents. Removing the meat or extinguishing the appliance resets the warning. The blast damages and knocks back nearby entities while preserving surrounding blocks and dropped items.
+- **Keep raw drops away from fire.** A dropped raw stack detonates on contact with fire, soul fire, lava, or a lit campfire. Surrounding blocks and other dropped items survive. Cooked meat does not detonate on fire contact.
+- **Eating it raw:** For six seconds, take half a heart of base damage every second, hear a quiet blast, and receive a small push in a random horizontal direction.
+- **Eating it cooked:** Gain 50% movement speed for ten seconds, but take half a heart of base damage every two seconds. The blasts are quieter and add no knockback.
+- **Both eating effects can be lethal.** Damage bypasses armor, and nutrition matches the corresponding vanilla mutton. Eating another piece refreshes its effect without stacking it. Raw and cooked effects can run together; drinking milk ends both. Creative players and spectators are unaffected.
+- **Pulsing red glow:** Skin and screen turn red with a fast rise and slow decay. Cooked meat uses one quarter of the tint strength.
+- **Vapor with every burst:** Raw meat produces three quick puffs at each outlet: mouth/nose, both ears, and the rear. Head puffs are orange-red; rear puffs are green with a warm red tint. Cooked meat produces larger green rear puffs throughout the effect, plus three orange-red rear puffs at each burst.
+- **Visible to nearby players:** Skin pulses and vapor are visible to others, and burst sounds can be heard nearby. The screen tint affects only the player who ate the meat. Both meat items also have animated sparkles over their vanilla or resource-pack textures.
 
-Dropped raw Sheeper mutton detonates on contact with fire, soul fire, lava, or a lit campfire, consuming the entire dropped stack. These small blasts preserve surrounding blocks and other dropped items. Cooked Sheeper mutton does not detonate on fire contact.
+### Configuration
 
-Eating raw Sheeper mutton restores the same hunger and saturation as vanilla raw mutton, but causes six seconds of internal bursts. Each second, the player takes half a heart of base damage that bypasses armor and receives a small push in a random horizontal direction, accompanied by a quiet blast sound. The damage can be lethal. Eating another piece refreshes the duration; drinking milk ends it. These bursts do not harm nearby entities or blocks. Creative players and spectators are unaffected.
+Settings are stored in `config/sheeper-common.toml`.
 
-Cooked Sheeper mutton restores the same hunger and saturation as vanilla cooked mutton and increases movement speed by 50% for ten seconds. The player takes half a heart of armor-bypassing base damage every two seconds with a quieter blast sound and no added knockback. This damage can also be lethal. Eating another cooked piece refreshes the duration without stacking the speed bonus. Raw and cooked countdowns run independently, and drinking milk ends both. Creative players and spectators are unaffected.
-
-While either eating effect is active, the player's skin has a red glow that pulses with the internal bursts. Armor keeps its normal appearance, with the skin tint visible through transparent texture gaps. The affected player also sees a red screen tint with stronger edges, leaving the HUD clear. Skin and screen use the same pulse curve: a fast rise, slow decay, lingering tint between bursts, and a final two-second fade. Cooked meat uses one quarter of the raw meat's tint strength for both skin and screen. Food-induced damage flashes are replaced by these smooth pulses.
-
-Raw-meat bursts release three quick vapor puffs per outlet, about 100 milliseconds apart. Mouth/nose and ears emit orange-red vapor; the rear emits green vapor with a warm red tint. Cooked meat instead produces a continuous stream of larger green rear puffs throughout its active effect, with three additional orange-red rear puffs at each internal burst and no mouth/nose or ear puffs. Nearby players see the puffs and skin pulses and hear the burst sounds; the screen tint affects only the player who ate the meat. Decreased particles reduces puff size further; Minimal particles hides the vapor.
-
-White Sheeper wool can be dyed using vanilla dyes. It cannot be used to craft vanilla wool products such as beds or carpets. Its animated sparkle overlay preserves the underlying vanilla or resource-pack wool texture.
-
-Placed Sheeper wool acts as TNT when ignited, including redstone activation and chain reactions with TNT and other Sheeper wool. These explosions destroy surrounding blocks independently of mobGriefing.
-
-Use shears to harvest it safely. Mining with any other tool or by hand causes a small immediate explosion that damages and knocks back entities without destroying surrounding blocks or dropping wool. Creative mining is safe and produces no drops.
-
-Settings are stored in `config/sheeper-common.toml`. The detection radius, observation angle, fuse distance, fuse duration, adult explosion strength, and natural spawn chance are configurable. The effective fuse distance cannot exceed the detection radius. `naturalSpawnChance` is a percentage from 0 to 100; 0 disables natural replacement, while 100 replaces every naturally spawning sheep.
-
-Baby movement speed, bump knockback, minimum and maximum attack pauses, and explosion strength are also configurable. Equal minimum and maximum pause values produce a fixed pause. If the maximum is below the minimum, the minimum is used for both.
+- **Adults and spawning:** Adjust detection radius, observation angle, fuse distance, fuse duration, adult explosion strength, and natural spawn chance. Fuse distance is capped at the detection radius. Spawn chance ranges from 0% (disabled) to 100% (every naturally spawning sheep).
+- **Babies:** Adjust extra movement speed, bump knockback, explosion strength, and the minimum/maximum pause between attacks.
+- **Attack pauses:** Equal minimum and maximum values give a fixed pause. A maximum below the minimum is treated as equal to the minimum.
 
 ## Development Environment
 
