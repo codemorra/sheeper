@@ -2,22 +2,18 @@ package de.codemorra.sheeper.event;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModItems;
+import de.codemorra.sheeper.util.SheeperMuttonExplosion;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.entity.CampfireBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
-import net.minecraftforge.event.level.ExplosionEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
@@ -32,8 +28,6 @@ import java.util.WeakHashMap;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class SheeperMuttonCookingEvents {
-    private static final DamageSource COOKING_DAMAGE = DamageSource.explosion((LivingEntity) null);
-
     private static final int WARNING_TICKS = 60;
 
     private static final String COOKING_TICKS = SheeperMod.MODID + ":unsafe_cooking_ticks";
@@ -55,12 +49,10 @@ public class SheeperMuttonCookingEvents {
 
         level.destroyBlock(pos, true);
 
-        level.explode(
-                null, COOKING_DAMAGE, null,
+        SheeperMuttonExplosion.explode(level,
                 pos.getX() + 0.5,
                 pos.getY() + 0.5,
-                pos.getZ() + 0.5,
-                1.0F, false, Explosion.BlockInteraction.NONE);
+                pos.getZ() + 0.5);
     }
 
     /**
@@ -73,12 +65,10 @@ public class SheeperMuttonCookingEvents {
 
         level.destroyBlock(pos, true);
 
-        level.explode(
-                null, COOKING_DAMAGE, null,
+        SheeperMuttonExplosion.explode(level,
                 pos.getX() + 0.5,
                 pos.getY() + 0.5,
-                pos.getZ() + 0.5,
-                1.0F, false, Explosion.BlockInteraction.NONE);
+                pos.getZ() + 0.5);
     }
 
     /**
@@ -238,18 +228,5 @@ public class SheeperMuttonCookingEvents {
 
         data.putInt(COOKING_TICKS, elapsed);
         campfire.setChanged();
-    }
-
-    /**
-     * Excludes dropped items from cooking blasts.
-     */
-    @SubscribeEvent
-    public static void onExplosionDetonate(ExplosionEvent.Detonate event) {
-        if (event.getExplosion().getDamageSource() != COOKING_DAMAGE) {
-            return;
-        }
-
-        event.getAffectedEntities().removeIf(
-                entity -> entity instanceof ItemEntity);
     }
 }

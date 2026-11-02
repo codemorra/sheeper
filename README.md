@@ -26,6 +26,12 @@ Adult and baby Sheeper explosions respect the mobGriefing game rule.
 
 Sheeper wool comes in all 16 vanilla colors. On ordinary death, unshorn adult Sheeper drop one matching wool block. Shearing by hand or dispenser yields 1–3 matching wool blocks. Sheeper no longer drop vanilla mutton.
 
+Adult Sheeper also drop 1–2 raw Sheeper mutton on ordinary death, with additional drops from Looting. Sheared adults still drop meat; babies and Sheeper detonating themselves do not. Raw and cooked Sheeper mutton have an animated sparkle overlay over the vanilla or resource-pack meat texture.
+
+Use a smoker to safely prepare Sheeper mutton. Heating it in a furnace or on either type of campfire starts a three-second warning before a small blast damages and knocks back nearby entities. One piece of meat is consumed; the appliance drops its normal loot and remaining contents. Removing the meat or extinguishing the appliance resets the warning. Surrounding blocks and dropped items survive the blast.
+
+Dropped raw Sheeper mutton detonates on contact with fire, soul fire, lava, or a lit campfire, consuming the entire dropped stack. These small blasts preserve surrounding blocks and other dropped items. Cooked Sheeper mutton does not detonate on fire contact.
+
 White Sheeper wool can be dyed using vanilla dyes. It cannot be used to craft vanilla wool products such as beds or carpets. Its animated sparkle overlay preserves the underlying vanilla or resource-pack wool texture.
 
 Placed Sheeper wool acts as TNT when ignited, including redstone activation and chain reactions with TNT and other Sheeper wool. These explosions destroy surrounding blocks independently of mobGriefing.
