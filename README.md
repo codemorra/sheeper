@@ -38,6 +38,8 @@ Cooked Sheeper mutton restores the same hunger and saturation as vanilla cooked 
 
 While either eating effect is active, the player's skin has a red glow that pulses with the internal bursts. Armor keeps its normal appearance, with the skin tint visible through transparent texture gaps. The affected player also sees a red screen tint with stronger edges, leaving the HUD clear. Skin and screen use the same pulse curve: a fast rise, slow decay, lingering tint between bursts, and a final two-second fade. Cooked meat uses one quarter of the raw meat's tint strength for both skin and screen. Food-induced damage flashes are replaced by these smooth pulses.
 
+Raw-meat bursts release three quick vapor puffs per outlet, about 100 milliseconds apart. Mouth/nose and ears emit orange-red vapor; the rear emits green vapor with a warm red tint. Cooked meat instead produces a continuous stream of larger green rear puffs throughout its active effect, with three additional orange-red rear puffs at each internal burst and no mouth/nose or ear puffs. Nearby players see the puffs and skin pulses and hear the burst sounds; the screen tint affects only the player who ate the meat. Decreased particles reduces puff size further; Minimal particles hides the vapor.
+
 White Sheeper wool can be dyed using vanilla dyes. It cannot be used to craft vanilla wool products such as beds or carpets. Its animated sparkle overlay preserves the underlying vanilla or resource-pack wool texture.
 
 Placed Sheeper wool acts as TNT when ignited, including redstone activation and chain reactions with TNT and other Sheeper wool. These explosions destroy surrounding blocks independently of mobGriefing.
