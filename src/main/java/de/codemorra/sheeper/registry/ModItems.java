@@ -46,6 +46,7 @@ public class ModItems {
     // Cooked Sheeper Mutton item registration
     public static final RegistryObject<Item> COOKED_SHEEPER_MUTTON = ITEMS.register("cooked_sheeper_mutton",
             () -> new Item(new Item.Properties()
+                    .food(Foods.COOKED_MUTTON)
                     .tab(CreativeModeTab.TAB_FOOD)));
 
     // Sheeper Wool item registrations

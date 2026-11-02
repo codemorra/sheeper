@@ -32,6 +32,10 @@ Use a smoker to safely prepare Sheeper mutton. Heating it in a furnace or on eit
 
 Dropped raw Sheeper mutton detonates on contact with fire, soul fire, lava, or a lit campfire, consuming the entire dropped stack. These small blasts preserve surrounding blocks and other dropped items. Cooked Sheeper mutton does not detonate on fire contact.
 
+Eating raw Sheeper mutton restores the same hunger and saturation as vanilla raw mutton, but causes six seconds of internal bursts. Each second, the player takes half a heart of base damage that bypasses armor and receives a small push in a random horizontal direction, accompanied by a quiet blast sound. The damage can be lethal. Eating another piece refreshes the duration; drinking milk ends it. These bursts do not harm nearby entities or blocks. Creative players and spectators are unaffected.
+
+Cooked Sheeper mutton restores the same hunger and saturation as vanilla cooked mutton and increases movement speed by 50% for ten seconds. The player takes half a heart of armor-bypassing base damage every two seconds with a quieter blast sound and no added knockback. This damage can also be lethal. Eating another cooked piece refreshes the duration without stacking the speed bonus. Raw and cooked countdowns run independently, and drinking milk ends both. Creative players and spectators are unaffected.
+
 White Sheeper wool can be dyed using vanilla dyes. It cannot be used to craft vanilla wool products such as beds or carpets. Its animated sparkle overlay preserves the underlying vanilla or resource-pack wool texture.
 
 Placed Sheeper wool acts as TNT when ignited, including redstone activation and chain reactions with TNT and other Sheeper wool. These explosions destroy surrounding blocks independently of mobGriefing.
