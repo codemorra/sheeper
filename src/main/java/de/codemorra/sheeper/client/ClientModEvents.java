@@ -5,10 +5,13 @@ import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.client.renderer.SheeperRenderer;
 import de.codemorra.sheeper.client.renderer.PrimedSheeperWoolRenderer;
 import de.codemorra.sheeper.client.renderer.layer.PlayerMuttonTintLayer;
+import de.codemorra.sheeper.client.particle.MuttonCloudParticle;
+import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,6 +21,12 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
+    /** Binds the vapor provider to the shared vanilla smoke sprite animation. */
+    @SubscribeEvent
+    public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
+        event.register(ModParticles.MUTTON_CLOUD.get(), MuttonCloudParticle.Provider::new);
+    }
+
     /**
      * Adds the mutton tint to every registered vanilla player skin model,
      * including the regular and slim variants.

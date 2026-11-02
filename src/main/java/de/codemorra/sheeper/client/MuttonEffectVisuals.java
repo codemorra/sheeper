@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.client.particle.MuttonBurstParticles;
 import de.codemorra.sheeper.network.MuttonVisualPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -23,6 +24,7 @@ import net.minecraftforge.fml.common.Mod;
 public final class MuttonEffectVisuals {
     private static final Map<UUID, State> STATES = new HashMap<>();
     private static final int FADE_TICKS = 40;
+    private static final int COOKED_PUFF_INTERVAL_TICKS = 4;
     private static final float BASE_INTENSITY = 0.30F;
     private static final float PULSE_AMPLITUDE = 0.60F;
     private static final float PULSE_DECAY = 0.94F;
@@ -49,6 +51,17 @@ public final class MuttonEffectVisuals {
         State state = STATES.computeIfAbsent(packet.playerId(), id -> new State());
         state.raw.receive(packet.rawTicks(), packet.rawBurst());
         state.cooked.receive(packet.cookedTicks(), packet.cookedBurst());
+        if ((packet.rawBurst() || packet.cookedBurst()) && Minecraft.getInstance().level != null) {
+            Player player = Minecraft.getInstance().level.getPlayerByUUID(packet.playerId());
+            if (player != null) {
+                if (packet.rawBurst()) {
+                    MuttonBurstParticles.spawnRaw(player);
+                }
+                if (packet.cookedBurst()) {
+                    MuttonBurstParticles.spawnCookedBurst(player);
+                }
+            }
+        }
     }
 
     /**
@@ -84,7 +97,17 @@ public final class MuttonEffectVisuals {
             return;
         }
 
-        STATES.values().removeIf(state -> {
+        MuttonBurstParticles.tick();
+        STATES.entrySet().removeIf(entry -> {
+            State state = entry.getValue();
+            // Cooked vapor is continuous during the active countdown, not the
+            // cosmetic fade. Emit from local ticks rather than packet arrivals.
+            if (state.cooked.ticks > 0 && state.cooked.ticks % COOKED_PUFF_INTERVAL_TICKS == 0) {
+                Player player = minecraft.level.getPlayerByUUID(entry.getKey());
+                if (player != null) {
+                    MuttonBurstParticles.emitCooked(player);
+                }
+            }
             state.raw.tick();
             state.cooked.tick();
             return state.raw.isFinished() && state.cooked.isFinished();
@@ -97,6 +120,7 @@ public final class MuttonEffectVisuals {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         STATES.clear();
+        MuttonBurstParticles.clear();
     }
 
     /**

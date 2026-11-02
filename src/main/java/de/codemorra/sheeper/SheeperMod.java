@@ -5,6 +5,7 @@ import de.codemorra.sheeper.registry.ModItems;
 import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.ModNetwork;
+import de.codemorra.sheeper.registry.ModParticles;
 import com.mojang.logging.LogUtils;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraftforge.fml.common.Mod;
@@ -24,7 +25,8 @@ public class SheeperMod {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     /**
-     * Registers network packets, entities, blocks, items, and configuration.
+     * Registers network packets, entities, blocks, items, particles, and
+     * configuration.
      * 
      * @param context The mod loading context used to register entities, blocks,
      *                items, and
@@ -35,6 +37,7 @@ public class SheeperMod {
         ModEntities.register(context.getModEventBus());
         ModBlocks.register(context.getModEventBus());
         ModItems.register(context.getModEventBus());
+        ModParticles.register(context.getModEventBus());
         context.getModEventBus().addListener(this::registerEntityAttributes);
         context.registerConfig(ModConfig.Type.COMMON, SheeperConfig.SPEC);
         LOGGER.info("SheeperMod initialized");
