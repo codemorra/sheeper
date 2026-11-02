@@ -3,6 +3,7 @@ package de.codemorra.sheeper.registry;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.block.SheeperWoolBlock;
 import de.codemorra.sheeper.item.RawSheeperMuttonItem;
+import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -39,6 +40,7 @@ public class ModItems {
     // Raw Sheeper Mutton item registration
     public static final RegistryObject<Item> RAW_SHEEPER_MUTTON = ITEMS.register("raw_sheeper_mutton",
             () -> new RawSheeperMuttonItem(new Item.Properties()
+                    .food(Foods.MUTTON)
                     .tab(CreativeModeTab.TAB_FOOD)));
 
     // Cooked Sheeper Mutton item registration
