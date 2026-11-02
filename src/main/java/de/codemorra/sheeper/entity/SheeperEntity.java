@@ -22,7 +22,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.Explosion;
-import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.ResourceLocation;
@@ -110,7 +109,7 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Selects color-specific wool-only loot, or empty loot when sheared.
+     * Selects meat-only loot when sheared, or meat and matching wool otherwise.
      * Baby and doMobLoot checks remain in the inherited death-loot pipeline.
      *
      * @return the loot table for the current fleece state
@@ -118,7 +117,8 @@ public class SheeperEntity extends Sheep {
     @Override
     public ResourceLocation getDefaultLootTable() {
         if (isSheared()) {
-            return BuiltInLootTables.EMPTY;
+            return ResourceLocation.fromNamespaceAndPath(
+                    SheeperMod.MODID, "entities/sheeper");
         }
 
         return ResourceLocation.fromNamespaceAndPath(
