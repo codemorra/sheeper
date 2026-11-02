@@ -36,6 +36,8 @@ Eating raw Sheeper mutton restores the same hunger and saturation as vanilla raw
 
 Cooked Sheeper mutton restores the same hunger and saturation as vanilla cooked mutton and increases movement speed by 50% for ten seconds. The player takes half a heart of armor-bypassing base damage every two seconds with a quieter blast sound and no added knockback. This damage can also be lethal. Eating another cooked piece refreshes the duration without stacking the speed bonus. Raw and cooked countdowns run independently, and drinking milk ends both. Creative players and spectators are unaffected.
 
+While either eating effect is active, the player's skin has a red glow that pulses with the internal bursts. Armor keeps its normal appearance, with the skin tint visible through transparent texture gaps. The affected player also sees a red screen tint with stronger edges, leaving the HUD clear. Skin and screen use the same pulse curve: a fast rise, slow decay, lingering tint between bursts, and a final two-second fade. Cooked meat uses one quarter of the raw meat's tint strength for both skin and screen. Food-induced damage flashes are replaced by these smooth pulses.
+
 White Sheeper wool can be dyed using vanilla dyes. It cannot be used to craft vanilla wool products such as beds or carpets. Its animated sparkle overlay preserves the underlying vanilla or resource-pack wool texture.
 
 Placed Sheeper wool acts as TNT when ignited, including redstone activation and chain reactions with TNT and other Sheeper wool. These explosions destroy surrounding blocks independently of mobGriefing.
