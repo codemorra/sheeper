@@ -1,6 +1,8 @@
 package de.codemorra.sheeper.block;
 
 import de.codemorra.sheeper.entity.PrimedSheeperWool;
+import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.registry.ModSounds;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,7 +20,6 @@ import net.minecraft.world.level.block.TntBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.gameevent.GameEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.common.ToolActions;
 import javax.annotation.Nullable;
@@ -63,7 +64,7 @@ public class SheeperWoolBlock extends TntBlock {
         level.addFreshEntity(primed);
         level.playSound(
                 null, primed.getX(), primed.getY(), primed.getZ(),
-                SoundEvents.TNT_PRIMED, SoundSource.BLOCKS, 1.0F, 1.0F);
+                ModSounds.WARNING_FUSE.get(), SoundSource.BLOCKS, 1.0F, 1.0F);
         level.gameEvent(igniter, GameEvent.PRIME_FUSE, pos);
     }
 
@@ -81,7 +82,8 @@ public class SheeperWoolBlock extends TntBlock {
                 level, pos, color, explosion.getSourceMob());
 
         int fuse = primed.getFuse();
-        primed.setFuse(level.random.nextInt(fuse / 4) + fuse / 8);
+        // Configured fuses may be shorter than vanilla's; nextInt must stay positive.
+        primed.setFuse(Math.max(1, level.random.nextInt(Math.max(1, fuse / 4)) + fuse / 8));
 
         level.addFreshEntity(primed);
     }
@@ -127,9 +129,11 @@ public class SheeperWoolBlock extends TntBlock {
         player.awardStat(Stats.BLOCK_MINED.get(this));
         player.causeFoodExhaustion(0.005F);
 
-        level.explode(
-                null, UNSAFE_MINING_DAMAGE, null,
-                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                1.0F, false, Explosion.BlockInteraction.NONE);
+        float strength = SheeperConfig.WOOL_MINING_STRENGTH.get().floatValue();
+        if (strength > 0.0F) {
+            level.explode(null, UNSAFE_MINING_DAMAGE, null,
+                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                    strength, false, Explosion.BlockInteraction.NONE);
+        }
     }
 }

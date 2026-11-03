@@ -28,7 +28,8 @@ public class SheeperBreedingEvents {
             return;
         }
 
-        // Restrict this addition to vanilla sheep; Sheeper register their own breeding goal.
+        // Restrict this addition to vanilla sheep; Sheeper register their own breeding
+        // goal.
         if (!(event.getEntity() instanceof Sheep sheep) || sheep.getType() != EntityType.SHEEP) {
             return;
         }

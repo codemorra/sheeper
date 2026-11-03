@@ -19,9 +19,10 @@ import net.minecraftforge.network.NetworkEvent;
  * @param rawTicks    remaining server-side raw-meat ticks; zero means inactive
  * @param cookedTicks remaining server-side cooked-meat ticks; zero means
  *                    inactive
- * @param rawBurst    whether a raw-meat burst occurred, even if its countdown
+ * @param rawBurst    whether a raw internal explosion occurred, even if its
+ *                    countdown
  *                    just ended
- * @param cookedBurst whether a cooked-meat burst occurred, even if its
+ * @param cookedBurst whether a cooked internal explosion occurred, even if its
  *                    countdown just ended
  * @param foodDamage  whether the player accepted damage from this burst,
  *                    allowing

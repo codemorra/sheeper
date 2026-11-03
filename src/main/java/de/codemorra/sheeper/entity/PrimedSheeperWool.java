@@ -1,11 +1,13 @@
 package de.codemorra.sheeper.entity;
 
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -49,7 +51,7 @@ public class PrimedSheeperWool extends PrimedTnt {
                 0.2,
                 -Math.cos(angle) * 0.02);
 
-        setFuse(80);
+        setFuse(Math.max(1, SheeperConfig.secondsToTicks(SheeperConfig.WOOL_FUSE_SECONDS.get())));
         setColor(color);
         this.igniter = igniter;
 
@@ -68,6 +70,18 @@ public class PrimedSheeperWool extends PrimedTnt {
     @Nullable
     public LivingEntity getOwner() {
         return igniter;
+    }
+
+    /**
+     * Uses the current configured strength while retaining TNT-style block
+     * interaction.
+     */
+    @Override
+    protected void explode() {
+        float strength = SheeperConfig.WOOL_PRIMED_STRENGTH.get().floatValue();
+        if (!level.isClientSide && strength > 0.0F) {
+            level.explode(this, getX(), getY(0.0625D), getZ(), strength, Explosion.BlockInteraction.BREAK);
+        }
     }
 
     @Override

@@ -35,7 +35,7 @@ public final class MuttonScreenOverlay {
         if (minecraft.player == null || minecraft.getCameraEntity() != minecraft.player) {
             return;
         }
-        float intensity = MuttonEffectVisuals.getIntensity(minecraft.player, partialTick);
+        float intensity = MuttonEffectVisuals.getScreenIntensity(minecraft.player, partialTick);
         if (intensity <= 0.001F) {
             return;
         }

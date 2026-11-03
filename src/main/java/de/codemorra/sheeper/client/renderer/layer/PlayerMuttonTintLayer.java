@@ -37,7 +37,7 @@ public final class PlayerMuttonTintLayer extends RenderLayer<AbstractClientPlaye
             AbstractClientPlayer player, float limbSwing, float limbSwingAmount,
             float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
         // Skin and viewport share the same curve and cooked/raw strength ratio.
-        float intensity = MuttonEffectVisuals.getIntensity(player, partialTick);
+        float intensity = MuttonEffectVisuals.getSkinIntensity(player, partialTick);
         if (player.isInvisible() || intensity <= 0.001F) {
             return;
         }

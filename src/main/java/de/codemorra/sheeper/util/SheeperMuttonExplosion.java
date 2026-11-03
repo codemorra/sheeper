@@ -25,10 +25,15 @@ public final class SheeperMuttonExplosion {
      * blocks.
      * Cooking callers remove the affected appliance separately before invoking
      * this.
+     * A non-positive strength skips the explosion entirely, including vanilla's
+     * minimum damage behavior for a zero-radius blast.
      */
-    public static void explode(ServerLevel level, double x, double y, double z) {
+    public static void explode(ServerLevel level, double x, double y, double z, float strength) {
+        if (strength <= 0.0F) {
+            return;
+        }
         level.explode(null, DAMAGE_SOURCE, null, x, y, z,
-                1.0F, false, Explosion.BlockInteraction.NONE);
+                strength, false, Explosion.BlockInteraction.NONE);
     }
 
     /**

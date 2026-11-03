@@ -4,8 +4,10 @@ import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.registry.ModItems;
 import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.SheeperClientConfig;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.registry.ModParticles;
+import de.codemorra.sheeper.registry.ModSounds;
 import com.mojang.logging.LogUtils;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraftforge.fml.common.Mod;
@@ -25,8 +27,8 @@ public class SheeperMod {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     /**
-     * Registers network packets, entities, blocks, items, particles, and
-     * configuration.
+     * Registers network packets, entities, blocks, items, particles, sounds, and
+     * gameplay/client configuration.
      * 
      * @param context The mod loading context used to register entities, blocks,
      *                items, and
@@ -38,8 +40,10 @@ public class SheeperMod {
         ModBlocks.register(context.getModEventBus());
         ModItems.register(context.getModEventBus());
         ModParticles.register(context.getModEventBus());
+        ModSounds.register(context.getModEventBus());
         context.getModEventBus().addListener(this::registerEntityAttributes);
         context.registerConfig(ModConfig.Type.COMMON, SheeperConfig.SPEC);
+        context.registerConfig(ModConfig.Type.CLIENT, SheeperClientConfig.SPEC);
         LOGGER.info("SheeperMod initialized");
     }
 

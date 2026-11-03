@@ -2,9 +2,9 @@ package de.codemorra.sheeper.entity.goal;
 
 import de.codemorra.sheeper.entity.SheeperEntity;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.registry.ModSounds;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.sounds.SoundEvents;
 
 import java.util.EnumSet;
 
@@ -126,7 +126,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
 
         // Play the warning once when a new fuse starts.
         if (fuseTicks == 0) {
-            sheeper.playSound(SoundEvents.SHEEP_AMBIENT, 1.0F, 1.0F);
+            sheeper.playSound(ModSounds.WARNING_BLEAT.get(), 1.0F, 1.0F);
         }
 
         fuseTicks++;
