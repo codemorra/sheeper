@@ -30,6 +30,39 @@ public class SheeperConfig {
             .comment("Duration in seconds for which the fuse remains active.")
             .defineInRange("sheeper.fuseDuration", 1.5, 0.05, 60.0);
 
+    // Adult retaliation settings. Detection radius also limits angry pursuit.
+    public static final ForgeConfigSpec.DoubleValue RETALIATION_SPEED_MULTIPLIER = BUILDER
+            .comment("Movement-speed multiplier while pursuing the first attacking player.")
+            .defineInRange("sheeper.retaliation.speedMultiplier", 1.5, 0.1, 3.0);
+
+    // Retaliation fuse duration settings.
+    public static final ForgeConfigSpec.DoubleValue RETALIATION_FUSE_DURATION = BUILDER
+            .comment("Minimum ignition time in seconds before contact can trigger a retaliation burst.",
+                    "Ignition starts within melee range and resets when the target leaves that range.")
+            .defineInRange("sheeper.retaliation.fuseDuration", 0.5, 0.05, 10.0);
+
+    // Retaliation pause settings.
+    public static final ForgeConfigSpec.DoubleValue RETALIATION_PAUSE = BUILDER
+            .comment("Pause in seconds after a retaliation burst before pursuing the same player again.")
+            .defineInRange("sheeper.retaliation.pauseSeconds", 0.75, 0.0, 1.0);
+
+    // Burst settings.
+    public static final ForgeConfigSpec.DoubleValue BURST_RADIUS = BUILDER
+            .comment("Radius in blocks of a Sheeper's non-destructive burst.")
+            .defineInRange("sheeper.burst.radius", 3.0, 1.0, 8.0);
+
+    // Burst damage settings.
+    public static final ForgeConfigSpec.DoubleValue BURST_DAMAGE = BUILDER
+            .comment("Base burst damage in health points (1 = half a heart). 0 disables damage.",
+                    "Normal armor, damage immunity, and explosion protection still apply.")
+            .defineInRange("sheeper.burst.damage", 2.0, 0.0, 40.0);
+
+    // Burst knockback settings.
+    public static final ForgeConfigSpec.DoubleValue BURST_KNOCKBACK = BUILDER
+            .comment("Burst knockback strength, reduced by distance, cover, and knockback resistance.",
+                    "0 disables the additional burst knockback.")
+            .defineInRange("sheeper.burst.knockback", 1.2, 0.0, 3.0);
+
     // Natural spawn chance for Sheeper.
     public static final ForgeConfigSpec.DoubleValue NATURAL_SPAWN_CHANCE = BUILDER
             .comment("Percentage chance to replace each naturally spawning sheep with a Sheeper.",

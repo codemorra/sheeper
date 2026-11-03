@@ -35,7 +35,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
      */
     @Override
     public boolean canUse() {
-        if (sheeper.isBaby()) {
+        if (sheeper.isBaby() || sheeper.isAggressive()) {
             return false;
         }
 
@@ -50,7 +50,7 @@ public class ApproachUnobservedPlayerGoal extends Goal {
      */
     @Override
     public boolean canContinueToUse() {
-        if (sheeper.isBaby()) {
+        if (sheeper.isBaby() || sheeper.isAggressive()) {
             return false;
         }
 
