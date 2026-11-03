@@ -8,7 +8,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.phys.Vec3;
@@ -29,6 +31,26 @@ public final class SheeperBurst {
      * @param sheeper the source and center of the burst
      */
     public static void explode(SheeperEntity sheeper) {
+        explode(sheeper, false);
+    }
+
+    /**
+     * Creates the ordinary death burst while preserving dropped items and
+     * experience, including loot from other deaths in the same chain reaction.
+     *
+     * @param sheeper the dying source of the burst
+     */
+    public static void explodeOnDeath(SheeperEntity sheeper) {
+        explode(sheeper, true);
+    }
+
+    /**
+     * Applies the shared burst effects, optionally shielding death drops.
+     *
+     * @param sheeper       the source and center of the burst
+     * @param preserveDrops whether dropped items and experience are excluded
+     */
+    private static void explode(SheeperEntity sheeper, boolean preserveDrops) {
         if (!(sheeper.getLevel() instanceof ServerLevel level)) {
             return;
         }
@@ -45,6 +67,10 @@ public final class SheeperBurst {
                 1, 0.0D, 0.0D, 0.0D, 0.0D);
 
         for (Entity entity : level.getEntities(sheeper, sheeper.getBoundingBox().inflate(radius))) {
+            if (preserveDrops && (entity instanceof ItemEntity || entity instanceof ExperienceOrb)) {
+                continue;
+            }
+
             if (entity.isSpectator() || entity.ignoreExplosion() || entity.isInvulnerableTo(source)
                     || entity instanceof Player player && player.isCreative()) {
                 continue;

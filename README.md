@@ -25,6 +25,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 - **Adults approach when unobserved.** Their eyes glow red as they pursue nearby Survival or Adventure players. At close range, they stop, bleat, swell, turn red, and count down to an explosion.
 - **Looking back stops the countdown.** Observation by any eligible nearby player, or leaving fuse range, cancels and fully resets it. The visual warning fades smoothly. Creative players and spectators are ignored.
 - **Attacked adults retaliate.** Red eyes stay lit as they chase the first attacker, even while watched. A short hiss and slight swelling precede a contact burst: one heart of base damage and strong knockback to nearby entities, without self-damage or block destruction. They pause briefly, then attack again until the target dies or leaves detection range.
+- **Adult deaths cause a burst.** Ordinary deaths leave normal loot and experience without destroying blocks. Every damaging fire hit triggers a small burst; a fatal fire hit also makes them swell, turn red, and self-destruct without loot. A non-fire killing blow still causes an ordinary death, even while burning.
 - **Babies are faster and less cautious.** They approach even while watched, bump players without direct damage, then retreat and pause. Taking damage makes them explode immediately with a smaller blast. Their extra speed disappears when they grow up.
 - **Mob explosions respect `mobGriefing`.** Sheeper that detonate themselves leave no wool or meat behind.
 
@@ -53,7 +54,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, and `wool`.
 
-- **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
+- **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
 - **Babies:** Extra speed, bump knockback, explosion strength, and minimum/maximum attack pauses. A maximum pause below the minimum is treated as equal to the minimum.
 - **Mixed breeding:** Chance of Sheeper offspring from a mixed pair, from 0% to 100%; default 50%.
