@@ -1,10 +1,11 @@
 package de.codemorra.sheeper.event;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModItems;
+import de.codemorra.sheeper.registry.ModSounds;
 import de.codemorra.sheeper.util.SheeperMuttonExplosion;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -28,8 +29,6 @@ import java.util.WeakHashMap;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class SheeperMuttonCookingEvents {
-    private static final int WARNING_TICKS = 60;
-
     private static final String COOKING_TICKS = SheeperMod.MODID + ":unsafe_cooking_ticks";
 
     private static final Set<BlockEntity> COOKING_BLOCKS = Collections.synchronizedSet(
@@ -52,7 +51,7 @@ public class SheeperMuttonCookingEvents {
         SheeperMuttonExplosion.explode(level,
                 pos.getX() + 0.5,
                 pos.getY() + 0.5,
-                pos.getZ() + 0.5);
+                pos.getZ() + 0.5, SheeperConfig.COOKING_EXPLOSION_STRENGTH.get().floatValue());
     }
 
     /**
@@ -68,7 +67,7 @@ public class SheeperMuttonCookingEvents {
         SheeperMuttonExplosion.explode(level,
                 pos.getX() + 0.5,
                 pos.getY() + 0.5,
-                pos.getZ() + 0.5);
+                pos.getZ() + 0.5, SheeperConfig.COOKING_EXPLOSION_STRENGTH.get().floatValue());
     }
 
     /**
@@ -141,7 +140,7 @@ public class SheeperMuttonCookingEvents {
 
         // Reset cooking progress if the furnace is not heating or has no raw Sheeper
         // mutton
-        if (!heating || !hasMutton) {
+        if (!SheeperConfig.UNSAFE_COOKING_ENABLED.get() || !heating || !hasMutton) {
             if (data.contains(COOKING_TICKS)) {
                 data.remove(COOKING_TICKS);
                 furnace.setChanged();
@@ -155,7 +154,7 @@ public class SheeperMuttonCookingEvents {
         if (elapsed == 0) {
             level.playSound(
                     null, furnace.getBlockPos(),
-                    SoundEvents.TNT_PRIMED,
+                    ModSounds.WARNING_FUSE.get(),
                     SoundSource.BLOCKS,
                     1.0F, 1.0F);
         }
@@ -163,7 +162,7 @@ public class SheeperMuttonCookingEvents {
         elapsed++;
 
         // Check if cooking has reached the warning threshold
-        if (elapsed >= WARNING_TICKS) {
+        if (elapsed >= SheeperConfig.secondsToTicks(SheeperConfig.COOKING_WARNING_SECONDS.get())) {
             data.remove(COOKING_TICKS);
             furnace.removeItem(0, 1);
             explodeFurnace(level, furnace.getBlockPos());
@@ -197,7 +196,7 @@ public class SheeperMuttonCookingEvents {
 
         // Reset cooking progress if the campfire is not heating or has no raw Sheeper
         // mutton
-        if (!heating || muttonSlot == -1) {
+        if (!SheeperConfig.UNSAFE_COOKING_ENABLED.get() || !heating || muttonSlot == -1) {
             if (data.contains(COOKING_TICKS)) {
                 data.remove(COOKING_TICKS);
                 campfire.setChanged();
@@ -211,7 +210,7 @@ public class SheeperMuttonCookingEvents {
         if (elapsed == 0) {
             level.playSound(
                     null, campfire.getBlockPos(),
-                    SoundEvents.TNT_PRIMED,
+                    ModSounds.WARNING_FUSE.get(),
                     SoundSource.BLOCKS,
                     1.0F, 1.0F);
         }
@@ -219,7 +218,7 @@ public class SheeperMuttonCookingEvents {
         elapsed++;
 
         // Check if cooking has reached the warning threshold
-        if (elapsed >= WARNING_TICKS) {
+        if (elapsed >= SheeperConfig.secondsToTicks(SheeperConfig.COOKING_WARNING_SECONDS.get())) {
             data.remove(COOKING_TICKS);
             campfire.getItems().get(muttonSlot).shrink(1);
             explodeCampfire(level, campfire.getBlockPos());

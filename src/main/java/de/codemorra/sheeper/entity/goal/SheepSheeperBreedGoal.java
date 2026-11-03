@@ -45,7 +45,8 @@ public class SheepSheeperBreedGoal extends BreedGoal {
                 animal.getBoundingBox().inflate(8.0D))) {
             double distance = animal.distanceToSqr(candidate);
 
-            // Ask the Sheeper about compatibility because vanilla sheep reject other classes.
+            // Ask the Sheeper about compatibility because vanilla sheep reject other
+            // classes.
             // Keep the nearest compatible partner.
             if (candidate.canMate(animal) && distance < nearestDistance) {
                 partner = candidate;

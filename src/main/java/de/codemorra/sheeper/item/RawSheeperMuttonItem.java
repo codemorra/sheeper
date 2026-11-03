@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.item;
 
 import de.codemorra.sheeper.util.SheeperMuttonExplosion;
+import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
@@ -28,7 +29,7 @@ public class RawSheeperMuttonItem extends Item {
     @Override
     public boolean onEntityItemUpdate(ItemStack stack, ItemEntity entity) {
         if (!(entity.getLevel() instanceof ServerLevel level)
-                || entity.isRemoved() || stack.isEmpty()) {
+                || entity.isRemoved() || stack.isEmpty() || !SheeperConfig.MUTTON_FIRE_ENABLED.get()) {
             return false;
         }
 
@@ -45,7 +46,7 @@ public class RawSheeperMuttonItem extends Item {
      */
     @Override
     public void onDestroyed(ItemEntity entity, DamageSource source) {
-        if (source.isFire() && !entity.isRemoved()
+        if (SheeperConfig.MUTTON_FIRE_ENABLED.get() && source.isFire() && !entity.isRemoved()
                 && entity.getLevel() instanceof ServerLevel level) {
             detonate(entity, level);
         }
@@ -84,6 +85,7 @@ public class RawSheeperMuttonItem extends Item {
         // Remove the entire stack before the blast so it cannot trigger twice.
         entity.discard();
         // Keep the blast center above the collision surface the item rests on.
-        SheeperMuttonExplosion.explode(level, entity.getX(), entity.getY(0.5D), entity.getZ());
+        SheeperMuttonExplosion.explode(level, entity.getX(), entity.getY(0.5D), entity.getZ(),
+                SheeperConfig.MUTTON_FIRE_STRENGTH.get().floatValue());
     }
 }

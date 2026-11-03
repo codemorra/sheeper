@@ -128,8 +128,8 @@ public class SheeperEntity extends Sheep {
 
     /**
      * Creates offspring with vanilla sheep color inheritance.
-     * Two Sheeper always produce a Sheeper. Mixed pairs have a 50% chance of
-     * producing a Sheeper and a 50% chance of producing a vanilla sheep.
+     * Two Sheeper always produce a Sheeper. Mixed pairs use the configured
+     * Sheeper offspring chance; vanilla color inheritance remains unchanged.
      *
      * @param level       the server level in which the offspring will exist
      * @param otherParent the other parent involved in breeding
@@ -143,7 +143,8 @@ public class SheeperEntity extends Sheep {
         Sheep vanillaOffspring = super.getBreedOffspring(level, otherParent);
 
         // Roll only for mixed pairs; two Sheeper must always produce a Sheeper.
-        if (!(otherParent instanceof SheeperEntity) && random.nextBoolean()) {
+        if (!(otherParent instanceof SheeperEntity)
+                && random.nextDouble() >= SheeperConfig.MIXED_BREEDING_CHANCE.get() / 100.0D) {
             return vanillaOffspring;
         }
 

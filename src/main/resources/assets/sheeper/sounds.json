@@ -1,0 +1,18 @@
+{
+  "warning_bleat": {
+    "subtitle": "subtitles.entity.sheep.ambient",
+    "sounds": [{ "name": "minecraft:entity.sheep.ambient", "type": "event" }]
+  },
+  "warning_fuse": {
+    "subtitle": "subtitles.entity.tnt.primed",
+    "sounds": [{ "name": "minecraft:entity.tnt.primed", "type": "event" }]
+  },
+  "internal_explosion_raw": {
+    "subtitle": "subtitles.entity.generic.explode",
+    "sounds": [{ "name": "minecraft:entity.generic.explode", "type": "event" }]
+  },
+  "internal_explosion_cooked": {
+    "subtitle": "subtitles.entity.generic.explode",
+    "sounds": [{ "name": "minecraft:entity.generic.explode", "type": "event" }]
+  }
+}

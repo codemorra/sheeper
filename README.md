@@ -12,7 +12,7 @@ Place the downloaded JAR in your Minecraft installation's `mods` folder. See the
 
 ## Project Status
 
-Sheeper look like ordinary sheep, but approach when you look away and explode if they get close enough. Their wool can be used as an explosive block, and their meat brings both rewards and risks: prepare it in a smoker and keep milk handy.
+Sheeper look like ordinary sheep, but approach when you look away and explode if they get close enough. Their wool can be used as an explosive block, and their meat brings both rewards and risks: prepare it in a smoker and keep milk handy. The values described below are the defaults; gameplay and presentation can be configured separately.
 
 ### Finding and breeding
 
@@ -39,20 +39,39 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 - **Drops:** Adults drop 1–2 raw Sheeper mutton on ordinary death, with extra drops from Looting. Sheared adults still drop meat; babies do not.
 - **Safe preparation:** Use a smoker. Heating it in a furnace or on either type of lit campfire starts a three-second warning, then a small blast. One piece of meat is consumed; the appliance drops its normal loot and remaining contents. Removing the meat or extinguishing the appliance resets the warning. The blast damages and knocks back nearby entities while preserving surrounding blocks and dropped items.
 - **Keep raw drops away from fire.** A dropped raw stack detonates on contact with fire, soul fire, lava, or a lit campfire. Surrounding blocks and other dropped items survive. Cooked meat does not detonate on fire contact.
-- **Eating it raw:** For six seconds, take half a heart of base damage every second, hear a quiet blast, and receive a small push in a random horizontal direction.
-- **Eating it cooked:** Gain 50% movement speed for ten seconds, but take half a heart of base damage every two seconds. The blasts are quieter and add no knockback.
+- **Eating it raw:** For six seconds, take half a heart of base damage every second, hear a quiet internal explosion, and receive a small push in a random horizontal direction.
+- **Eating it cooked:** Gain 50% movement speed for ten seconds, but take half a heart of base damage every two seconds. The internal explosions are quieter and add no knockback.
 - **Both eating effects can be lethal.** Damage bypasses armor, and nutrition matches the corresponding vanilla mutton. Eating another piece refreshes its effect without stacking it. Raw and cooked effects can run together; drinking milk ends both. Creative players and spectators are unaffected.
 - **Pulsing red glow:** Skin and screen turn red with a fast rise and slow decay. Cooked meat uses one quarter of the tint strength.
-- **Vapor with every burst:** Raw meat produces three quick puffs at each outlet: mouth/nose, both ears, and the rear. Head puffs are orange-red; rear puffs are green with a warm red tint. Cooked meat produces larger green rear puffs throughout the effect, plus three orange-red rear puffs at each burst.
-- **Visible to nearby players:** Skin pulses and vapor are visible to others, and burst sounds can be heard nearby. The screen tint affects only the player who ate the meat. Both meat items also have animated sparkles over their vanilla or resource-pack textures.
+- **Vapor from internal explosions:** Raw meat produces three quick puffs at each outlet: mouth/nose, both ears, and the rear. Head puffs are orange-red; rear puffs are green with a warm red tint. Cooked meat produces larger green rear puffs throughout the effect, plus three orange-red rear puffs at each internal explosion.
+- **Visible to nearby players:** Skin pulses and vapor are visible to others, and internal explosion sounds can be heard nearby. The screen tint affects only the player who ate the meat. Both meat items also have animated sparkles over their vanilla or resource-pack textures.
 
 ### Configuration
 
-Settings are stored in `config/sheeper-common.toml`.
+**Gameplay: `config/sheeper-common.toml`**
 
-- **Adults and spawning:** Adjust detection radius, observation angle, fuse distance, fuse duration, adult explosion strength, and natural spawn chance. Fuse distance is capped at the detection radius. Spawn chance ranges from 0% (disabled) to 100% (every naturally spawning sheep).
-- **Babies:** Adjust extra movement speed, bump knockback, explosion strength, and the minimum/maximum pause between attacks.
-- **Attack pauses:** Equal minimum and maximum values give a fixed pause. A maximum below the minimum is treated as equal to the minimum.
+The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, and `wool`.
+
+- **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
+- **Babies:** Extra speed, bump knockback, explosion strength, and minimum/maximum attack pauses. A maximum pause below the minimum is treated as equal to the minimum.
+- **Mixed breeding:** Chance of Sheeper offspring from a mixed pair, from 0% to 100%; default 50%.
+- **Raw mutton:** Effect duration, interval and damage of internal explosions, and random knockback.
+- **Cooked mutton:** Effect duration, interval and damage of internal explosions, and the movement-speed bonus.
+- **Unsafe cooking:** Enable/disable the reaction, set its warning time and explosion strength. Disabling the reaction lets furnace/campfire recipes finish normally. Warning time is limited to 9.95 seconds to stay below the default furnace recipe's ten-second cooking time; custom recipes must also take longer than the warning.
+- **Fire contact:** Enable/disable dropped raw mutton detonation and set its explosion strength. With this reaction disabled, raw drops can burn like ordinary items.
+- **Wool:** Unsafe-mining blast strength, primed explosion strength, and normal fuse duration. Explosion chains still shorten the fuse.
+
+Durations and intervals use seconds, rounded up to whole game ticks. Damage uses health points: 1 is half a heart. A zero eating duration disables that food's effect for new meals; zero damage, knockback, or speed disables that component. Ordinary Minecraft damage immunity still applies to very short intervals. Explosion strength 0 suppresses the blast but retains the enabled reaction's consumption and appliance removal. Use the reaction's enable switch to disable it entirely.
+
+Eating durations and normal wool fuses are captured when eating/igniting. New internal-explosion intervals apply after the next scheduled explosion; damage and speed settings are read during the active effect. Other existing Sheeper settings retain their previous behavior.
+
+**Presentation: `config/sheeper-client.toml`**
+
+Each player controls their own visuals and audio. These settings do not change server-side damage, timing, spawning, or breeding.
+
+- **Tint:** Enable skin and screen tint independently; adjust raw/cooked strength, pulse attack/release/decay, and final fade duration. Both tints share the same pulse curve. The default cooked strength is 0.25; final fade defaults to two seconds.
+- **Vapor:** Enable/disable it, set raw/cooked size and puff counts, and adjust sequence spacing and the continuous cooked stream's interval. Minecraft's Minimal particle setting also hides vapor. An existing short sequence finishes with its captured count/spacing; the next uses the new settings.
+- **Sound:** Separate local volume multipliers for warnings, raw internal explosions, and cooked internal explosions. 1 preserves the usual volume and 0 mutes that category, without changing ordinary sheep or TNT sounds.
 
 ## Development Environment
 

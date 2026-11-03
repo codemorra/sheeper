@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 import de.codemorra.sheeper.registry.ModParticles;
+import de.codemorra.sheeper.config.SheeperClientConfig;
+import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.ParticleStatus;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -21,7 +23,6 @@ import net.minecraft.world.phys.Vec3;
  * bursts.
  */
 public final class MuttonBurstParticles {
-    private static final int PUFF_INTERVAL_TICKS = 2;
     private static final List<Sequence> PENDING = new ArrayList<>();
     private static final Vec3 HEAD_COLOR = new Vec3(0.95D, 0.22D, 0.06D);
     private static final Vec3 REAR_COLOR = new Vec3(0.38D, 0.68D, 0.12D);
@@ -37,7 +38,7 @@ public final class MuttonBurstParticles {
     }
 
     /**
-     * Starts three puffs per outlet, separated by two client ticks (about 100 ms).
+     * Starts the configured raw puff sequence (default: three at 100 ms intervals).
      * The first is emitted immediately; subsequent puffs follow the current pose.
      *
      * @param player the client-side player whose burst was received
@@ -46,18 +47,27 @@ public final class MuttonBurstParticles {
         startSequence(player, Emission.RAW_BURST);
     }
 
-    /** Starts three orange-red rear puffs for a synchronized cooked-meat burst. */
+    /**
+     * Starts the configured orange-red rear sequence for a cooked internal
+     * explosion.
+     */
     public static void spawnCookedBurst(Player player) {
         startSequence(player, Emission.COOKED_BURST);
     }
 
     /**
-     * Emits the first puff now and queues the remaining two for this burst type.
+     * Emits the first puff now and queues the configured remaining emissions.
      */
     private static void startSequence(Player player, Emission emission) {
+        int count = emission == Emission.RAW_BURST ? SheeperClientConfig.RAW_PUFF_COUNT.get()
+                : SheeperClientConfig.COOKED_PUFF_COUNT.get();
+        if (count == 0) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
-        if (emit(minecraft, player, emission)) {
-            PENDING.add(new Sequence(player.getUUID(), minecraft.level, emission));
+        if (emit(minecraft, player, emission) && count > 1) {
+            int interval = Math.max(1, SheeperConfig.secondsToTicks(SheeperClientConfig.PUFF_INTERVAL_SECONDS.get()));
+            PENDING.add(new Sequence(player.getUUID(), minecraft.level, emission, count - 1, interval));
         }
     }
 
@@ -70,7 +80,7 @@ public final class MuttonBurstParticles {
     }
 
     /**
-     * Emits the two delayed puffs on the client thread. Sequences cannot cross
+     * Emits delayed puffs on the client thread. Sequences cannot cross
      * dimensions or continue after the player disappears from the client world.
      */
     public static void tick() {
@@ -90,7 +100,7 @@ public final class MuttonBurstParticles {
             if (player == null || !emit(minecraft, player, sequence.emission) || --sequence.remaining == 0) {
                 iterator.remove();
             } else {
-                sequence.delay = PUFF_INTERVAL_TICKS;
+                sequence.delay = sequence.interval;
             }
         }
     }
@@ -101,15 +111,16 @@ public final class MuttonBurstParticles {
     }
 
     /**
-     * Emits raw puffs from all outlets, or green stream/orange-red burst puffs only
-     * from
-     * the rear for cooked meat. Particle settings control visibility and size.
+     * Emits raw puffs from all outlets, or green stream/orange-red explosion puffs
+     * only from the rear for cooked meat. Particle settings control visibility and
+     * size.
      *
      * @return whether the sequence may continue for this visible player
      */
     private static boolean emit(Minecraft minecraft, Player player, Emission emission) {
         if (minecraft.level == null || minecraft.player == null || !player.isAlive()
                 || player.isInvisible() || player.isCreative() || player.isSpectator()
+                || !SheeperClientConfig.PARTICLES_ENABLED.get()
                 || minecraft.player.distanceToSqr(player) > 32.0D * 32.0D) {
             return false;
         }
@@ -119,7 +130,12 @@ public final class MuttonBurstParticles {
             return false;
         }
         boolean raw = emission == Emission.RAW_BURST;
-        float scale = (raw ? 1.0F : 1.30F) * (status == ParticleStatus.DECREASED ? 0.8F : 1.0F);
+        float scale = (raw ? SheeperClientConfig.RAW_PARTICLE_SIZE.get()
+                : SheeperClientConfig.COOKED_PARTICLE_SIZE.get()).floatValue()
+                * (status == ParticleStatus.DECREASED ? 0.8F : 1.0F);
+        if (scale == 0.0F) {
+            return false;
+        }
 
         if (raw) {
             Vec3 headForward = Vec3.directionFromRotation(player.getXRot(), player.yHeadRot);
@@ -162,18 +178,25 @@ public final class MuttonBurstParticles {
         }
     }
 
-    /** Retains only the source identity, world, and two outstanding emissions. */
+    /**
+     * Captures a sequence's count and timing so setting changes affect the next
+     * sequence.
+     */
     private static final class Sequence {
         private final UUID playerId;
         private final ClientLevel level;
         private final Emission emission;
-        private int delay = PUFF_INTERVAL_TICKS;
-        private int remaining = 2;
+        private final int interval;
+        private int delay;
+        private int remaining;
 
-        private Sequence(UUID playerId, ClientLevel level, Emission emission) {
+        private Sequence(UUID playerId, ClientLevel level, Emission emission, int remaining, int interval) {
             this.playerId = playerId;
             this.level = level;
             this.emission = emission;
+            this.remaining = remaining;
+            this.interval = interval;
+            this.delay = interval;
         }
     }
 }

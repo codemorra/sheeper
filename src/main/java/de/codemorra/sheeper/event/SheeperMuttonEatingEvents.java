@@ -5,13 +5,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModItems;
+import de.codemorra.sheeper.registry.ModSounds;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.network.MuttonVisualPacket;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -27,7 +28,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Applies internal bursts after eating Sheeper mutton and a speed bonus for
+ * Applies internal explosions after eating Sheeper mutton and a speed bonus for
  * cooked meat. Separate saved countdowns refresh rather than stack across
  * meals.
  */
@@ -37,16 +38,9 @@ public final class SheeperMuttonEatingEvents {
     private static final Map<UUID, Integer> LAST_VISUAL_STATES = new HashMap<>();
     private static final String RAW_TICKS = SheeperMod.MODID + ":raw_mutton_ticks";
     private static final String COOKED_TICKS = SheeperMod.MODID + ":cooked_mutton_ticks";
-    private static final int RAW_DURATION_TICKS = 120;
-    private static final int RAW_BURST_INTERVAL = 20;
-    private static final int COOKED_DURATION_TICKS = 200;
-    private static final int COOKED_BURST_INTERVAL = 40;
-    private static final float BURST_DAMAGE = 1.0F;
-    private static final double BURST_PUSH = 0.12D;
-    private static final AttributeModifier COOKED_SPEED_BOOST = new AttributeModifier(
-            UUID.fromString("27539948-57fb-49be-934c-7c1b97fc5982"),
-            "Cooked Sheeper mutton speed boost", 0.5D,
-            AttributeModifier.Operation.MULTIPLY_TOTAL);
+    private static final String RAW_EXPLOSION_WAIT = SheeperMod.MODID + ":raw_explosion_wait";
+    private static final String COOKED_EXPLOSION_WAIT = SheeperMod.MODID + ":cooked_explosion_wait";
+    private static final UUID COOKED_SPEED_BOOST_ID = UUID.fromString("27539948-57fb-49be-934c-7c1b97fc5982");
 
     private SheeperMuttonEatingEvents() {
     }
@@ -63,13 +57,17 @@ public final class SheeperMuttonEatingEvents {
 
         // Determine which item was consumed and update the corresponding countdown.
         if (event.getItem().is(ModItems.RAW_SHEEPER_MUTTON.get())) {
-            player.getPersistentData().putInt(RAW_TICKS, RAW_DURATION_TICKS);
+            startCountdown(player.getPersistentData(), RAW_TICKS, RAW_EXPLOSION_WAIT,
+                    SheeperConfig.RAW_MUTTON_DURATION.get(), SheeperConfig.RAW_MUTTON_INTERVAL.get());
         } else if (event.getItem().is(ModItems.COOKED_SHEEPER_MUTTON.get())) {
-            player.getPersistentData().putInt(COOKED_TICKS, COOKED_DURATION_TICKS);
-            updateSpeedBoost(player, isEligible(player));
+            startCountdown(player.getPersistentData(), COOKED_TICKS, COOKED_EXPLOSION_WAIT,
+                    SheeperConfig.COOKED_MUTTON_DURATION.get(), SheeperConfig.COOKED_MUTTON_INTERVAL.get());
+            updateSpeedBoost(player, isEligible(player) && player.getPersistentData().getInt(COOKED_TICKS) > 0);
         } else if (event.getItem().is(Items.MILK_BUCKET)) {
             player.getPersistentData().remove(RAW_TICKS);
             player.getPersistentData().remove(COOKED_TICKS);
+            player.getPersistentData().remove(RAW_EXPLOSION_WAIT);
+            player.getPersistentData().remove(COOKED_EXPLOSION_WAIT);
             updateSpeedBoost(player, false);
         } else {
             return;
@@ -79,7 +77,7 @@ public final class SheeperMuttonEatingEvents {
 
     /**
      * Advances both countdowns and keeps the speed bonus in sync with cooked meat.
-     * Raw meat bursts once per second; cooked meat bursts every two seconds.
+     * Each variant uses its configured internal-explosion interval.
      */
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -93,23 +91,28 @@ public final class SheeperMuttonEatingEvents {
         if (!player.isAlive()) {
             data.remove(RAW_TICKS);
             data.remove(COOKED_TICKS);
+            data.remove(RAW_EXPLOSION_WAIT);
+            data.remove(COOKED_EXPLOSION_WAIT);
             updateSpeedBoost(player, false);
             syncVisuals(player, false, false, false, false);
             return;
         }
 
-        boolean rawBurst = advanceCountdown(data, RAW_TICKS, RAW_BURST_INTERVAL);
-        boolean cookedBurst = advanceCountdown(data, COOKED_TICKS, COOKED_BURST_INTERVAL);
+        boolean rawBurst = advanceCountdown(data, RAW_TICKS, RAW_EXPLOSION_WAIT,
+                SheeperConfig.secondsToTicks(SheeperConfig.RAW_MUTTON_INTERVAL.get()));
+        boolean cookedBurst = advanceCountdown(data, COOKED_TICKS, COOKED_EXPLOSION_WAIT,
+                SheeperConfig.secondsToTicks(SheeperConfig.COOKED_MUTTON_INTERVAL.get()));
         boolean eligible = isEligible(player);
 
         updateSpeedBoost(player, eligible && data.getInt(COOKED_TICKS) > 0);
 
         boolean foodDamage = false;
         if (eligible && (rawBurst || cookedBurst)) {
-            // Combine simultaneous bursts so hurt immunity does not swallow one.
-            float damage = (rawBurst ? BURST_DAMAGE : 0.0F)
-                    + (cookedBurst ? BURST_DAMAGE : 0.0F);
-            foodDamage = burst(level, player, damage, rawBurst);
+            // Combine simultaneous internal explosions so hurt immunity does not swallow
+            // one.
+            float damage = (rawBurst ? SheeperConfig.RAW_MUTTON_DAMAGE.get().floatValue() : 0.0F)
+                    + (cookedBurst ? SheeperConfig.COOKED_MUTTON_DAMAGE.get().floatValue() : 0.0F);
+            foodDamage = internalExplosion(level, player, damage, rawBurst);
         }
         syncVisuals(player, rawBurst || cookedBurst, rawBurst, cookedBurst, foodDamage);
     }
@@ -207,23 +210,50 @@ public final class SheeperMuttonEatingEvents {
     }
 
     /**
-     * Decrements one saved countdown and reports whether a burst is due.
-     * The final burst occurs on the tick that removes the countdown.
+     * Captures duration/initial interval at consumption; a zero duration clears
+     * this variant.
      */
-    private static boolean advanceCountdown(CompoundTag data, String key, int interval) {
+    private static void startCountdown(CompoundTag data, String key, String waitKey,
+            double durationSeconds, double intervalSeconds) {
+        int duration = SheeperConfig.secondsToTicks(durationSeconds);
+        if (duration == 0) {
+            data.remove(key);
+            data.remove(waitKey);
+        } else {
+            data.putInt(key, duration);
+            data.putInt(waitKey, Math.max(1, SheeperConfig.secondsToTicks(intervalSeconds)));
+        }
+    }
+
+    /**
+     * Advances duration and an independent interval countdown. This ensures an
+     * arbitrary duration still waits a full interval before the first explosion.
+     * New interval settings take effect after the next scheduled explosion.
+     */
+    private static boolean advanceCountdown(CompoundTag data, String key, String waitKey, int interval) {
         if (!data.contains(key)) {
+            data.remove(waitKey);
             return false;
         }
 
-        int remaining = data.getInt(key) - 1;
-        // Update the remaining countdown before checking for a burst.
+        int intervalTicks = Math.max(1, interval);
+        int previousRemaining = data.getInt(key);
+        int remaining = previousRemaining - 1;
+        // Older saved effects have no independent interval counter. Preserve their
+        // remaining phase until the next internal explosion, then use this config.
+        int legacyPhase = previousRemaining % intervalTicks;
+        int wait = (data.contains(waitKey) ? data.getInt(waitKey)
+                : legacyPhase == 0 ? intervalTicks : legacyPhase) - 1;
+        // Update the remaining countdown before checking for an internal explosion.
         if (remaining <= 0) {
             data.remove(key);
+            data.remove(waitKey);
         } else {
             data.putInt(key, remaining);
+            data.putInt(waitKey, wait <= 0 ? intervalTicks : wait);
         }
 
-        return remaining >= 0 && remaining % interval == 0;
+        return remaining >= 0 && wait <= 0;
     }
 
     /**
@@ -243,36 +273,42 @@ public final class SheeperMuttonEatingEvents {
             return;
         }
 
-        // Apply or remove the speed boost based on the active state.
-        if (active && !speed.hasModifier(COOKED_SPEED_BOOST)) {
-            speed.addTransientModifier(COOKED_SPEED_BOOST);
-        } else if (!active && speed.hasModifier(COOKED_SPEED_BOOST)) {
-            speed.removeModifier(COOKED_SPEED_BOOST.getId());
+        double amount = SheeperConfig.COOKED_MUTTON_SPEED_PERCENT.get() / 100.0D;
+        AttributeModifier current = speed.getModifier(COOKED_SPEED_BOOST_ID);
+        // A config reload replaces only our modifier, without stacking or altering
+        // other bonuses.
+        if (current != null && (!active || amount == 0.0D || current.getAmount() != amount)) {
+            speed.removeModifier(COOKED_SPEED_BOOST_ID);
+        }
+        if (active && amount > 0.0D && speed.getModifier(COOKED_SPEED_BOOST_ID) == null) {
+            speed.addTransientModifier(new AttributeModifier(COOKED_SPEED_BOOST_ID,
+                    "Cooked Sheeper mutton speed boost", amount, AttributeModifier.Operation.MULTIPLY_TOTAL));
         }
     }
 
     /**
-     * Applies a personal burst without a real area explosion.
+     * Applies a personal internal explosion without a real area explosion.
      *
      * @param level  the server world receiving the sound
      * @param player the affected player
-     * @param damage combined base damage from all bursts due this tick
-     * @param push   whether raw meat also adds a random horizontal impulse
+     * @param damage combined base damage from all internal explosions due this tick
+     * @param raw    whether raw meat also adds its configured horizontal impulse
      * @return whether damage was accepted, allowing replacement of its vanilla
      *         flash
      */
-    private static boolean burst(ServerLevel level, Player player, float damage, boolean push) {
+    private static boolean internalExplosion(ServerLevel level, Player player, float damage, boolean raw) {
         // Sound and personal damage avoid real explosions affecting bystanders.
         level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS,
-                push ? 0.2F : 0.12F, push ? 1.6F : 1.8F);
+                raw ? ModSounds.RAW_INTERNAL_EXPLOSION.get() : ModSounds.COOKED_INTERNAL_EXPLOSION.get(),
+                SoundSource.PLAYERS, raw ? 0.2F : 0.12F, raw ? 1.6F : 1.8F);
         // Generic damage bypasses armor and uses the standard death message.
-        boolean damaged = player.hurt(DamageSource.GENERIC, damage);
+        boolean damaged = damage > 0.0F && player.hurt(DamageSource.GENERIC, damage);
 
         // Apply the burst push only if the player survived the damage.
-        if (push && player.isAlive()) {
+        double push = SheeperConfig.RAW_MUTTON_PUSH.get();
+        if (raw && push > 0.0D && player.isAlive()) {
             double angle = player.getRandom().nextDouble() * Math.PI * 2.0D;
-            player.push(Math.cos(angle) * BURST_PUSH, 0.0D, Math.sin(angle) * BURST_PUSH);
+            player.push(Math.cos(angle) * push, 0.0D, Math.sin(angle) * push);
             // Player motion is client-controlled; explicitly synchronize this push.
             player.hurtMarked = true;
         }

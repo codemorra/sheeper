@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.SheeperClientConfig;
+import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.client.particle.MuttonBurstParticles;
 import de.codemorra.sheeper.network.MuttonVisualPacket;
 import net.minecraft.client.Minecraft;
@@ -23,12 +25,8 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class MuttonEffectVisuals {
     private static final Map<UUID, State> STATES = new HashMap<>();
-    private static final int FADE_TICKS = 40;
-    private static final int COOKED_PUFF_INTERVAL_TICKS = 4;
     private static final float BASE_INTENSITY = 0.30F;
     private static final float PULSE_AMPLITUDE = 0.60F;
-    private static final float PULSE_DECAY = 0.94F;
-    private static final float COOKED_STRENGTH = 0.25F;
 
     private MuttonEffectVisuals() {
     }
@@ -75,8 +73,27 @@ public final class MuttonEffectVisuals {
     public static float getIntensity(Player player, float partialTick) {
         State state = visibleState(player);
         return state == null ? 0.0F
-                : Math.max(state.raw.getIntensity(partialTick),
-                        state.cooked.getIntensity(partialTick) * COOKED_STRENGTH);
+                : Mth.clamp(Math.max(state.raw.getIntensity(partialTick)
+                        * SheeperClientConfig.RAW_TINT_STRENGTH.get().floatValue(),
+                        state.cooked.getIntensity(partialTick)
+                                * SheeperClientConfig.COOKED_TINT_STRENGTH.get().floatValue()),
+                        0.0F, 1.0F);
+    }
+
+    /**
+     * Applies the independent skin visibility preference without changing the
+     * shared curve.
+     */
+    public static float getSkinIntensity(Player player, float partialTick) {
+        return SheeperClientConfig.SKIN_TINT_ENABLED.get() ? getIntensity(player, partialTick) : 0.0F;
+    }
+
+    /**
+     * Applies the independent viewport preference without changing the shared
+     * curve.
+     */
+    public static float getScreenIntensity(Player player, float partialTick) {
+        return SheeperClientConfig.SCREEN_TINT_ENABLED.get() ? getIntensity(player, partialTick) : 0.0F;
     }
 
     /** Returns cached state only for living Survival or Adventure players. */
@@ -98,11 +115,13 @@ public final class MuttonEffectVisuals {
         }
 
         MuttonBurstParticles.tick();
+        int streamInterval = Math.max(1, SheeperConfig.secondsToTicks(
+                SheeperClientConfig.COOKED_STREAM_INTERVAL_SECONDS.get()));
         STATES.entrySet().removeIf(entry -> {
             State state = entry.getValue();
             // Cooked vapor is continuous during the active countdown, not the
             // cosmetic fade. Emit from local ticks rather than packet arrivals.
-            if (state.cooked.ticks > 0 && state.cooked.ticks % COOKED_PUFF_INTERVAL_TICKS == 0) {
+            if (state.cooked.ticks > 0 && state.cooked.ticks % streamInterval == 0) {
                 Player player = minecraft.level.getPlayerByUUID(entry.getKey());
                 if (player != null) {
                     MuttonBurstParticles.emitCooked(player);
@@ -142,6 +161,7 @@ public final class MuttonEffectVisuals {
         private float previousIntensity;
         private float intensity;
         private int fadeTicks;
+        private int fadeDurationTicks;
         private float fadeStart;
 
         /**
@@ -166,14 +186,15 @@ public final class MuttonEffectVisuals {
             previousIntensity = intensity;
             if (ticks > 0) {
                 float target = BASE_INTENSITY + pulse;
-                float response = target > intensity ? 0.85F : 0.12F;
+                float response = (target > intensity ? SheeperClientConfig.PULSE_ATTACK.get()
+                        : SheeperClientConfig.PULSE_RELEASE.get()).floatValue();
                 intensity += (target - intensity) * response;
-                pulse *= PULSE_DECAY;
+                pulse *= SheeperClientConfig.PULSE_DECAY.get().floatValue();
                 if (--ticks == 0) {
                     startFade(false);
                 }
             } else if (fadeTicks > 0) {
-                float progress = 1.0F - (float) --fadeTicks / FADE_TICKS;
+                float progress = 1.0F - (float) --fadeTicks / fadeDurationTicks;
                 // Smoothstep reaches zero with a flat slope instead of cutting off.
                 float smooth = progress * progress * (3.0F - 2.0F * progress);
                 intensity = fadeStart * (1.0F - smooth);
@@ -187,7 +208,13 @@ public final class MuttonEffectVisuals {
         private void startFade(boolean finalBurst) {
             fadeStart = finalBurst ? Math.max(intensity, BASE_INTENSITY + PULSE_AMPLITUDE) : intensity;
             intensity = fadeStart;
-            fadeTicks = FADE_TICKS;
+            // Capture the fade duration so reloading settings cannot divide by zero
+            // mid-fade.
+            fadeDurationTicks = SheeperConfig.secondsToTicks(SheeperClientConfig.FADE_SECONDS.get());
+            fadeTicks = fadeDurationTicks;
+            if (fadeTicks == 0) {
+                intensity = 0.0F;
+            }
             pulse = 0.0F;
         }
 
