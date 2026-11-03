@@ -8,8 +8,11 @@ import de.codemorra.sheeper.entity.goal.BabyBumpPlayerGoal;
 import de.codemorra.sheeper.entity.goal.RetaliatePlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.registry.ModBlocks;
+import de.codemorra.sheeper.registry.ModSounds;
+import de.codemorra.sheeper.util.SheeperBurst;
 import de.codemorra.sheeper.SheeperMod;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.animal.Animal;
@@ -46,6 +49,11 @@ public class SheeperEntity extends Sheep {
     private static final EntityDataAccessor<Float> DATA_FUSE_PROGRESS = SynchedEntityData
             .defineId(SheeperEntity.class, EntityDataSerializers.FLOAT);
 
+    private static final EntityDataAccessor<Boolean> DATA_FIRE_DEATH_ACTIVE = SynchedEntityData
+            .defineId(SheeperEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final String FIRE_DEATH_TAG = "SheeperFireDeath";
+
     private static final UUID BABY_SPEED_BOOST_ID = UUID.fromString("d38eec79-e36c-4c91-b01e-dce9bc04792d");
 
     private float previousVisualFuseProgress;
@@ -53,6 +61,8 @@ public class SheeperEntity extends Sheep {
     private float previousVisualWarningIntensity;
     private float visualWarningIntensity;
     private boolean exploded;
+    private int fireDeathTicks;
+    private int fireDeathDuration;
 
     @Nullable
     private Player retaliationTarget;
@@ -65,6 +75,44 @@ public class SheeperEntity extends Sheep {
      */
     public SheeperEntity(EntityType<? extends Sheep> entityType, Level level) {
         super(entityType, level);
+    }
+
+    /**
+     * Saves a pending fatal-fire fuse so unloading the chunk cannot skip the final
+     * explosion. Ordinary sheep state is still handled by the inherited method.
+     *
+     * @param tag the entity's saved data
+     */
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+
+        if (isFireDeathActive()) {
+            CompoundTag fireDeath = new CompoundTag();
+            fireDeath.putInt("Ticks", fireDeathTicks);
+            fireDeath.putInt("Duration", fireDeathDuration);
+            tag.put(FIRE_DEATH_TAG, fireDeath);
+        }
+    }
+
+    /**
+     * Restores the fatal-fire sequence without repeating death events or loot.
+     *
+     * @param tag the entity's saved data
+     */
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+
+        if (!isBaby() && isDeadOrDying() && tag.contains(FIRE_DEATH_TAG, 10)) {
+            CompoundTag fireDeath = tag.getCompound(FIRE_DEATH_TAG);
+            fireDeathDuration = Math.max(1, fireDeath.getInt("Duration"));
+            fireDeathTicks = Mth.clamp(fireDeath.getInt("Ticks"), 0, fireDeathDuration);
+            entityData.set(DATA_FIRE_DEATH_ACTIVE, true);
+            dead = true;
+            deathTime = 0;
+            setWarningState(true, (float) fireDeathTicks / fireDeathDuration);
+        }
     }
 
     /**
@@ -217,6 +265,7 @@ public class SheeperEntity extends Sheep {
         super.defineSynchedData();
         this.entityData.define(DATA_WARNING_ACTIVE, false);
         this.entityData.define(DATA_FUSE_PROGRESS, 0.0f);
+        this.entityData.define(DATA_FIRE_DEATH_ACTIVE, false);
     }
 
     /**
@@ -267,6 +316,11 @@ public class SheeperEntity extends Sheep {
      */
     public boolean isWarningActive() {
         return entityData.get(DATA_WARNING_ACTIVE) || isAggressive();
+    }
+
+    /** @return true while a fatal fire hit is counting down to self-detonation */
+    public boolean isFireDeathActive() {
+        return entityData.get(DATA_FIRE_DEATH_ACTIVE);
     }
 
     /**
@@ -445,6 +499,7 @@ public class SheeperEntity extends Sheep {
      * Applies ordinary damage and knockback before reacting to a real health or
      * absorption loss. Babies explode; surviving adults retain the first eligible
      * player attacker until that focus becomes invalid, including projectile hits.
+     * Non-fatal fire damage also triggers a burst without harming its source.
      */
     @Override
     public boolean hurt(DamageSource source, float amount) {
@@ -457,17 +512,106 @@ public class SheeperEntity extends Sheep {
         if (!getLevel().isClientSide && hitAccepted && healthAfter < healthBefore) {
             if (isBaby()) {
                 explode();
-            } else if (isAlive() && getRetaliationTarget() == null
-                    && source.getEntity() instanceof Player player && isEligiblePlayer(player)
-                    && player.getLevel() == getLevel()
-                    && distanceToSqr(player) <= Mth.square(SheeperConfig.DETECTION_RADIUS.get())) {
-                retaliationTarget = player;
-                setAggressive(true);
-                setWarningState(true, 0.0F);
+            } else if (isAlive()) {
+                if (getRetaliationTarget() == null
+                        && source.getEntity() instanceof Player player && isEligiblePlayer(player)
+                        && player.getLevel() == getLevel()
+                        && distanceToSqr(player) <= Mth.square(SheeperConfig.DETECTION_RADIUS.get())) {
+                    retaliationTarget = player;
+                    setAggressive(true);
+                    setWarningState(true, 0.0F);
+                }
+
+                if (source.isFire()) {
+                    SheeperBurst.explode(this);
+                }
             }
         }
 
         return hitAccepted;
+    }
+
+    /**
+     * Preserves the inherited death hooks and kill credit. Ordinary adult deaths
+     * burst after loot has dropped; fatal fire damage bursts once and starts an
+     * irreversible final fuse. Being on fire alone does not change a non-fire
+     * killing blow.
+     *
+     * @param source the damage source that caused death
+     */
+    @Override
+    public void die(DamageSource source) {
+        if (getLevel().isClientSide || isBaby()) {
+            super.die(source);
+            return;
+        }
+
+        if (dead || exploded || isRemoved()) {
+            return;
+        }
+
+        // Set this before super.die so its loot callback can suppress fire drops.
+        entityData.set(DATA_FIRE_DEATH_ACTIVE, source.isFire());
+        super.die(source);
+
+        if (!dead) {
+            // A cancelled Forge death must not leave a fatal-fire sequence active.
+            entityData.set(DATA_FIRE_DEATH_ACTIVE, false);
+            return;
+        }
+
+        retaliationTarget = null;
+        setAggressive(false);
+        getNavigation().stop();
+
+        if (isFireDeathActive()) {
+            fireDeathTicks = 0;
+            fireDeathDuration = SheeperConfig.secondsToTicks(SheeperConfig.getFuseDuration());
+            deathTime = 0;
+            setWarningState(true, 0.0F);
+            playSound(ModSounds.WARNING_FUSE.get(), 1.0F, 1.0F);
+            // The fatal fire hit still bursts before the final self-explosion.
+            SheeperBurst.explode(this);
+        } else {
+            setWarningState(false, 0.0F);
+            SheeperBurst.explodeOnDeath(this);
+        }
+    }
+
+    /**
+     * Suppresses all death drops, including equipment and experience, only for the
+     * fatal-fire sequence. Other deaths retain vanilla loot and Forge drop hooks.
+     *
+     * @param source the fatal damage source
+     */
+    @Override
+    protected void dropAllDeathLoot(DamageSource source) {
+        if (!isFireDeathActive()) {
+            super.dropAllDeathLoot(source);
+        }
+    }
+
+    /**
+     * Keeps a fire-killed adult upright and visible while the synchronized warning
+     * reaches full swelling and tint. Ordinary deaths retain vanilla removal.
+     */
+    @Override
+    protected void tickDeath() {
+        if (!isFireDeathActive()) {
+            super.tickDeath();
+            return;
+        }
+
+        // Do not advance vanilla's death roll or its twenty-tick removal timer.
+        deathTime = 0;
+        if (!getLevel().isClientSide) {
+            fireDeathTicks++;
+            setWarningState(true, Math.min(1.0F, (float) fireDeathTicks / fireDeathDuration));
+
+            if (fireDeathTicks >= fireDeathDuration) {
+                explode();
+            }
+        }
     }
 
     /**

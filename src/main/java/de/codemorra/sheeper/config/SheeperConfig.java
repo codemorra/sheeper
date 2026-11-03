@@ -27,7 +27,8 @@ public class SheeperConfig {
 
     // Fuse duration in seconds.
     public static final ForgeConfigSpec.DoubleValue FUSE_DURATION = BUILDER
-            .comment("Duration in seconds for which the fuse remains active.")
+            .comment("Fuse duration in seconds for stealth and fatal-fire self-explosions.",
+                    "Fatal-fire duration is captured when the killing hit is accepted.")
             .defineInRange("sheeper.fuseDuration", 1.5, 0.05, 60.0);
 
     // Adult retaliation settings. Detection radius also limits angry pursuit.
