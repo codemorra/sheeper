@@ -5,6 +5,7 @@ import java.util.List;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.ApproachUnobservedPlayerGoal;
 import de.codemorra.sheeper.entity.goal.BabyBumpPlayerGoal;
+import de.codemorra.sheeper.entity.goal.RetaliatePlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.SheeperMod;
@@ -52,6 +53,9 @@ public class SheeperEntity extends Sheep {
     private float previousVisualWarningIntensity;
     private float visualWarningIntensity;
     private boolean exploded;
+
+    @Nullable
+    private Player retaliationTarget;
 
     /**
      * Constructs a new Sheeper entity with the specified entity type and level.
@@ -227,23 +231,25 @@ public class SheeperEntity extends Sheep {
         this.goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof BreedGoal);
         this.goalSelector.addGoal(2, new BreedGoal(this, 1.0D, Sheep.class));
 
+        // Retaliation overrides panic and stealth, but does not reserve jumping.
+        this.goalSelector.addGoal(0, new RetaliatePlayerGoal(this));
         this.goalSelector.addGoal(2, new ApproachUnobservedPlayerGoal(this));
         this.goalSelector.addGoal(2, new BabyBumpPlayerGoal(this));
     }
 
     /**
-     * Plays ordinary ambient sounds only when no unobserved target exists.
-     * The explicit fuse warning is handled separately by the approach goal.
+     * Plays ordinary ambient sounds only outside retaliation and stealth pursuit.
+     * Each pursuit goal handles its own explicit fuse warning.
      */
     @Override
     public void playAmbientSound() {
-        if (findApproachingTarget() == null) {
+        if (!isAggressive() && findApproachingTarget() == null) {
             super.playAmbientSound();
         }
     }
 
     /**
-     * Updates the visual warning strate from the server side to the client side.
+     * Updates the visual warning state from the server side to the client side.
      * Inactive warnings always have zero fuse progress.
      *
      * @param active       whether the warning state is active
@@ -255,12 +261,12 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Checks whether the warning state is currently active.
+     * Checks whether a pursuit warning or persistent retaliation eyes are active.
      *
      * @return true if the warning is active, false otherwise
      */
     public boolean isWarningActive() {
-        return entityData.get(DATA_WARNING_ACTIVE);
+        return entityData.get(DATA_WARNING_ACTIVE) || isAggressive();
     }
 
     /**
@@ -279,6 +285,13 @@ public class SheeperEntity extends Sheep {
      */
     @Override
     public void tick() {
+        if (!getLevel().isClientSide && retaliationTarget != null && getRetaliationTarget() == null) {
+            // Clear invalid focus before the goals choose this tick's behavior.
+            retaliationTarget = null;
+            setAggressive(false);
+            setWarningState(false, 0.0F);
+        }
+
         super.tick();
 
         if (getLevel().isClientSide) {
@@ -311,7 +324,31 @@ public class SheeperEntity extends Sheep {
      * @return the interpolated visual warning intensity
      */
     public float getVisualWarningIntensity(float partialTicks) {
+        // Mob's inherited synchronized aggression flag lights the eyes immediately.
+        if (isAggressive()) {
+            return 1.0F;
+        }
+
         return Mth.lerp(partialTicks, previousVisualWarningIntensity, visualWarningIntensity);
+    }
+
+    /**
+     * Returns the retained attacker while that player can still be pursued.
+     * Observation does not matter; death, removal, changing dimensions or game
+     * mode, and leaving the ordinary detection radius end eligibility.
+     *
+     * @return the valid retaliation target, or null if retaliation must end
+     */
+    @Nullable
+    public Player getRetaliationTarget() {
+        if (retaliationTarget == null || isBaby() || !isAlive()
+                || retaliationTarget.isRemoved() || retaliationTarget.getLevel() != getLevel()
+                || !isEligiblePlayer(retaliationTarget)) {
+            return null;
+        }
+
+        double radius = SheeperConfig.DETECTION_RADIUS.get();
+        return distanceToSqr(retaliationTarget) <= radius * radius ? retaliationTarget : null;
     }
 
     /**
@@ -405,8 +442,9 @@ public class SheeperEntity extends Sheep {
     }
 
     /**
-     * Handles damage taken by the Sheeper.
-     * Triggers an explosion if a baby Sheeper takes damage.
+     * Applies ordinary damage and knockback before reacting to a real health or
+     * absorption loss. Babies explode; surviving adults retain the first eligible
+     * player attacker until that focus becomes invalid, including projectile hits.
      */
     @Override
     public boolean hurt(DamageSource source, float amount) {
@@ -416,9 +454,17 @@ public class SheeperEntity extends Sheep {
 
         float healthAfter = getHealth() + getAbsorptionAmount();
 
-        // Trigger an explosion if a baby Sheeper takes damage and the hit was accepted.
-        if (!getLevel().isClientSide && isBaby() && hitAccepted && healthAfter < healthBefore) {
-            explode();
+        if (!getLevel().isClientSide && hitAccepted && healthAfter < healthBefore) {
+            if (isBaby()) {
+                explode();
+            } else if (isAlive() && getRetaliationTarget() == null
+                    && source.getEntity() instanceof Player player && isEligiblePlayer(player)
+                    && player.getLevel() == getLevel()
+                    && distanceToSqr(player) <= Mth.square(SheeperConfig.DETECTION_RADIUS.get())) {
+                retaliationTarget = player;
+                setAggressive(true);
+                setWarningState(true, 0.0F);
+            }
         }
 
         return hitAccepted;
