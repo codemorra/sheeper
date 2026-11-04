@@ -1,0 +1,124 @@
+import groovy.json.JsonSlurper
+
+// Checks wool-resource completeness and model/texture references without starting Minecraft.
+tasks.register('verifyModResources') {
+    group = 'verification'
+    description = 'Checks that every Sheeper wool variant has its referenced assets and English name.'
+    inputs.files(sourceSets.main.resources)
+    doLast {
+        def root = file('src/main/resources')
+        def colors = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray',
+                      'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black']
+        def json = new JsonSlurper()
+        def language = json.parse(new File(root, 'assets/sheeper/lang/en_us.json'))
+        def requireFile = { String path ->
+            def target = new File(root, path)
+            if (!target.isFile()) {
+                throw new GradleException("Missing mod resource: ${path}")
+            }
+            target
+        }
+        def requireModel = { String name ->
+            if (name.startsWith('sheeper:')) {
+                requireFile("assets/sheeper/models/${name.substring('sheeper:'.length())}.json")
+            }
+        }
+
+        colors.each { color ->
+            def name = "${color}_sheeper_wool"
+            ['blockstates', 'models/block', 'models/item'].each { directory ->
+                requireFile("assets/sheeper/${directory}/${name}.json")
+            }
+            requireFile("data/sheeper/loot_tables/blocks/${name}.json")
+            requireFile("data/sheeper/loot_tables/entities/sheeper/${color}.json")
+            if (!language["block.sheeper.${name}"]) {
+                throw new GradleException("Missing English block name: ${name}")
+            }
+        }
+        fileTree(new File(root, 'assets/sheeper/models')).matching { include '**/*.json' }.each { modelFile ->
+            def model = json.parse(modelFile)
+            if (model.parent) requireModel(model.parent)
+            model.overrides?.each { requireModel(it.model) }
+            model.textures?.values()?.each { texture ->
+                if (texture.startsWith('sheeper:')) {
+                    requireFile("assets/sheeper/textures/${texture.substring('sheeper:'.length())}.png")
+                }
+            }
+        }
+        fileTree(new File(root, 'assets/sheeper/blockstates')).matching { include '*.json' }.each { stateFile ->
+            json.parse(stateFile).variants?.values()?.each { variant ->
+                (variant instanceof List ? variant : [variant]).each { requireModel(it.model) }
+            }
+        }
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn 'verifyModResources'
+}
+
+// Checks release metadata and keeps test classes/scenes out of the mod JAR.
+tasks.register('verifyReleaseContents') {
+    group = 'verification'
+    description = 'Checks that the release JAR contains mod metadata and excludes GameTest code and scenes.'
+    dependsOn 'assemble'
+    doLast {
+        def archive = tasks.named('jar').get().archiveFile.get().asFile
+        new java.util.zip.ZipFile(archive).withCloseable { jar ->
+            if (jar.getEntry('META-INF/mods.toml') == null || jar.getEntry('de/codemorra/sheeper/SheeperMod.class') == null) {
+                throw new GradleException('The release JAR is missing mod metadata or its entry point.')
+            }
+            def leaked = jar.entries().findAll {
+                it.name.startsWith('de/codemorra/sheeper/gametest/') || it.name.startsWith('data/sheeper/structures/test_')
+            }
+            if (!leaked.isEmpty()) {
+                throw new GradleException("GameTest files leaked into the release JAR: ${leaked*.name}")
+            }
+        }
+    }
+}
+
+// Configure lazily: ForgeGradle creates its run tasks after evaluating the build.
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    dependsOn 'gameTestClasses'
+    mustRunAfter 'build'
+    timeout = java.time.Duration.ofMinutes(10)
+    doFirst {
+        // Only generated test state is removed. Development worlds/configs in run/ stay intact.
+        delete layout.buildDirectory.dir('gametest/run'), layout.buildDirectory.dir('reports/gametest')
+        layout.buildDirectory.dir('gametest/run').get().asFile.mkdirs()
+        layout.buildDirectory.dir('reports/gametest').get().asFile.mkdirs()
+    }
+}
+
+// Checks that every registered test produced one successful result.
+tasks.register('verifyGameTestResults') {
+    group = 'verification'
+    description = 'Requires a complete, successful GameTest report rather than accepting an empty test run.'
+    dependsOn 'runGameTestServer'
+    doLast {
+        def directory = layout.buildDirectory.dir('reports/gametest').get().asFile
+        def manifest = new File(directory, 'expected-tests.txt')
+        def report = new File(directory, 'results.xml')
+        if (!manifest.isFile() || !report.isFile()) {
+            throw new GradleException('The GameTest manifest or result report is missing. See build/gametest/run/logs/.')
+        }
+        def expected = manifest.readLines('UTF-8').findAll { !it.isBlank() }
+        def document = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(report)
+        def testCases = document.getElementsByTagName('testcase')
+        def actual = (0..<testCases.length).collect { testCases.item(it).getAttribute('name') }
+        if (expected.isEmpty() || expected.size() != expected.toSet().size()
+                || actual.size() != expected.size() || actual.toSet() != expected.toSet()
+                || document.getElementsByTagName('failure').length != 0
+                || document.getElementsByTagName('skipped').length != 0) {
+            throw new GradleException("GameTest results are incomplete or unsuccessful: expected ${expected.size()}, reported ${actual.size()}. See ${report}.")
+        }
+        logger.lifecycle("Verified ${actual.size()} required GameTests. Report: ${report}")
+    }
+}
+
+tasks.register('verifyMod') {
+    group = 'verification'
+    description = 'Builds the release JAR and runs resource checks and all required Sheeper GameTests.'
+    dependsOn 'build', 'verifyReleaseContents', 'verifyGameTestResults'
+}
