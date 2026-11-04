@@ -1,9 +1,9 @@
 import groovy.json.JsonSlurper
 
-// Checks wool-resource completeness and model/texture references without starting Minecraft.
+// Checks wool/carpet completeness and model/texture references without starting Minecraft.
 tasks.register('verifyModResources') {
     group = 'verification'
-    description = 'Checks that every Sheeper wool variant has its referenced assets and English name.'
+    description = 'Checks that every Sheeper wool/carpet variant has its resources and English name.'
     inputs.files(sourceSets.main.resources)
     doLast {
         def root = file('src/main/resources')
@@ -25,19 +25,25 @@ tasks.register('verifyModResources') {
         }
 
         colors.each { color ->
-            def name = "${color}_sheeper_wool"
-            ['blockstates', 'models/block', 'models/item'].each { directory ->
-                requireFile("assets/sheeper/${directory}/${name}.json")
+            ['wool', 'carpet'].each { material ->
+                def name = "${color}_sheeper_${material}"
+                ['blockstates', 'models/block', 'models/item'].each { directory ->
+                    requireFile("assets/sheeper/${directory}/${name}.json")
+                }
+                requireFile("data/sheeper/loot_tables/blocks/${name}.json")
+                if (material == 'carpet') requireFile("data/sheeper/recipes/${name}.json")
+                if (!language["block.sheeper.${name}"]) {
+                    throw new GradleException("Missing English block name: ${name}")
+                }
             }
-            requireFile("data/sheeper/loot_tables/blocks/${name}.json")
             requireFile("data/sheeper/loot_tables/entities/sheeper/${color}.json")
-            if (!language["block.sheeper.${name}"]) {
-                throw new GradleException("Missing English block name: ${name}")
-            }
         }
         fileTree(new File(root, 'assets/sheeper/models')).matching { include '**/*.json' }.each { modelFile ->
             def model = json.parse(modelFile)
             if (model.parent) requireModel(model.parent)
+            model.children?.values()?.each { child ->
+                if (child.parent) requireModel(child.parent)
+            }
             model.overrides?.each { requireModel(it.model) }
             model.textures?.values()?.each { texture ->
                 if (texture.startsWith('sheeper:')) {

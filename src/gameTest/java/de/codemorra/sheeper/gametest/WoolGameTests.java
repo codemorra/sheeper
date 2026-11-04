@@ -15,6 +15,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
 
 /**
  * Safe/unsafe mining, a representative colored shearing, and redstone ignition.
@@ -26,11 +27,12 @@ final class WoolGameTests {
     static void add(List<SheeperGameTests.Scenario> tests) {
         // Checks that shears harvest matching wool without a blast or nearby damage.
         tests.add(
-                new SheeperGameTests.Scenario("shears_safely_harvest_wool", context -> mining(context, Items.SHEARS)));
+                new SheeperGameTests.Scenario("shears_safely_harvest_wool",
+                        context -> mining(context, Items.SHEARS, ModBlocks.PURPLE_SHEEPER_WOOL.get())));
         // Checks that unsafe mining blasts without wool drops while preserving marker
         // items and blocks.
         tests.add(new SheeperGameTests.Scenario("unsafe_mining_preserves_surroundings",
-                context -> mining(context, Items.AIR)));
+                context -> mining(context, Items.AIR, ModBlocks.PURPLE_SHEEPER_WOOL.get())));
         // Checks that redstone creates matching primed wool and completes its
         // configured fuse once.
         tests.add(new SheeperGameTests.Scenario("redstone_primes_matching_wool", WoolGameTests::ignition));
@@ -40,20 +42,22 @@ final class WoolGameTests {
                 context -> shearing(context, DyeColor.BLUE)));
     }
 
-    private static void mining(GameTestContext context, Item tool) {
+    /** Exercises the same real survival mining path for wool and carpet scenes. */
+    static void mining(GameTestContext context, Item tool, Block block) {
         TestPlayer player = context.player(12, 1, 16);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(tool));
-        Item wool = ModBlocks.PURPLE_SHEEPER_WOOL.get().asItem();
-        context.setBlock(12, 1, 12, ModBlocks.PURPLE_SHEEPER_WOOL.get());
+        Item harvested = block.asItem();
+        context.setBlock(12, 1, 12, block);
         context.setBlock(12, 1, 13, Blocks.DIRT);
         ItemEntity marker = context.item(Items.DIAMOND, 3, 13, 1, 12);
         Cow victim = context.spawn(EntityType.COW, 13, 1, 12);
         victim.setNoAi(true);
         float health = victim.getHealth();
-        context.expect(player.gameMode.destroyBlock(context.pos(12, 1, 12)), "Server mining must remove the wool");
+        context.expect(player.gameMode.destroyBlock(context.pos(12, 1, 12)), "Server mining must remove the block");
         context.at(3, () -> {
             boolean unsafe = tool != Items.SHEARS;
-            context.expect(context.count(wool) == (unsafe ? 0 : 1), "Only safe mining must drop matching wool");
+            context.expect(context.count(harvested) == (unsafe ? 0 : 1),
+                    "Only safe mining must drop the matching item");
             context.expect(context.explosions.size() == (unsafe ? 1 : 0), "Only unsafe mining must cause a blast");
             context.expect(!marker.isRemoved() && marker.getItem().getCount() == 3,
                     "Mining must preserve the known marker stack");
