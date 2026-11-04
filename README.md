@@ -93,6 +93,24 @@ Run from the project directory:
 
 The generated mod JAR is located in `build/libs/`.
 
+## Verification
+
+Run the automated verification with Java 17:
+
+```bash
+./gradlew verifyMod
+```
+
+- Builds the mod, checks wool resources and JAR contents, and runs the GameTests.
+- Covers representative fuse/cancellation, death loot, wool interactions, cooking, eating/milk, baby damage, natural replacement, dye-recipe, and packet contracts.
+- Each run uses a fresh test world in `build/gametest/run/`; development worlds and configuration in `run/` are preserved. Test classes and scenes are excluded from the mod JAR.
+- Stops on the first failed test and fails on missing/incomplete results. Results are in `build/reports/gametest/results.xml`; server logs are in `build/gametest/run/logs/`.
+- Pull requests targeting `main` automatically run the same verification with Java 17. Reports and server logs are uploaded as the `verification-reports` artifact, including on failure.
+- For a build without tests, use `./gradlew assemble`. To compile the test sources without running them, use `./gradlew gameTestClasses`.
+- To modify the shared test arena, edit `scripts/generate_test_arena.py` and regenerate it with `python scripts/generate_test_arena.py`. Running the tests does not require Python.
+
+The suite does not replace manual gameplay checks for AI movement, breeding, fire reactions, explosion chains, visuals, sound, and multiplayer synchronization.
+
 ## Run the Development Client
 
 ```bash
