@@ -1,13 +1,11 @@
 package de.codemorra.sheeper.block;
 
 import de.codemorra.sheeper.entity.PrimedSheeperWool;
-import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModSounds;
+import de.codemorra.sheeper.util.SheeperWoolMining;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.stats.Stats;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -30,9 +28,6 @@ import javax.annotation.Nullable;
  * Block instances are shared by all placed blocks of the same registered type.
  */
 public class SheeperWoolBlock extends TntBlock {
-    /** Identifies unsafe-mining blasts for the item-protection event handler. */
-    public static final DamageSource UNSAFE_MINING_DAMAGE = DamageSource.explosion((LivingEntity) null);
-
     // Color belongs to the registered variant; fuse state belongs to each primed
     // entity.
     private final DyeColor color;
@@ -126,14 +121,6 @@ public class SheeperWoolBlock extends TntBlock {
             return;
         }
 
-        player.awardStat(Stats.BLOCK_MINED.get(this));
-        player.causeFoodExhaustion(0.005F);
-
-        float strength = SheeperConfig.WOOL_MINING_STRENGTH.get().floatValue();
-        if (strength > 0.0F) {
-            level.explode(null, UNSAFE_MINING_DAMAGE, null,
-                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                    strength, false, Explosion.BlockInteraction.NONE);
-        }
+        SheeperWoolMining.unsafeHarvest(level, player, pos, this);
     }
 }
