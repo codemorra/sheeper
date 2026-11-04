@@ -2,6 +2,7 @@ package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.block.SheeperWoolBlock;
+import de.codemorra.sheeper.block.SheeperCarpetBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -51,6 +52,40 @@ public class ModBlocks {
     public static final RegistryObject<SheeperWoolBlock> BLACK_SHEEPER_WOOL = registerWool("black_sheeper_wool",
             Blocks.BLACK_WOOL, DyeColor.BLACK);
 
+    // Sheeper carpets use the physical properties of their vanilla color.
+    public static final RegistryObject<SheeperCarpetBlock> WHITE_SHEEPER_CARPET = registerCarpet(
+            "white_sheeper_carpet", Blocks.WHITE_CARPET, DyeColor.WHITE);
+    public static final RegistryObject<SheeperCarpetBlock> ORANGE_SHEEPER_CARPET = registerCarpet(
+            "orange_sheeper_carpet", Blocks.ORANGE_CARPET, DyeColor.ORANGE);
+    public static final RegistryObject<SheeperCarpetBlock> MAGENTA_SHEEPER_CARPET = registerCarpet(
+            "magenta_sheeper_carpet", Blocks.MAGENTA_CARPET, DyeColor.MAGENTA);
+    public static final RegistryObject<SheeperCarpetBlock> LIGHT_BLUE_SHEEPER_CARPET = registerCarpet(
+            "light_blue_sheeper_carpet", Blocks.LIGHT_BLUE_CARPET, DyeColor.LIGHT_BLUE);
+    public static final RegistryObject<SheeperCarpetBlock> YELLOW_SHEEPER_CARPET = registerCarpet(
+            "yellow_sheeper_carpet", Blocks.YELLOW_CARPET, DyeColor.YELLOW);
+    public static final RegistryObject<SheeperCarpetBlock> LIME_SHEEPER_CARPET = registerCarpet(
+            "lime_sheeper_carpet", Blocks.LIME_CARPET, DyeColor.LIME);
+    public static final RegistryObject<SheeperCarpetBlock> PINK_SHEEPER_CARPET = registerCarpet(
+            "pink_sheeper_carpet", Blocks.PINK_CARPET, DyeColor.PINK);
+    public static final RegistryObject<SheeperCarpetBlock> GRAY_SHEEPER_CARPET = registerCarpet(
+            "gray_sheeper_carpet", Blocks.GRAY_CARPET, DyeColor.GRAY);
+    public static final RegistryObject<SheeperCarpetBlock> LIGHT_GRAY_SHEEPER_CARPET = registerCarpet(
+            "light_gray_sheeper_carpet", Blocks.LIGHT_GRAY_CARPET, DyeColor.LIGHT_GRAY);
+    public static final RegistryObject<SheeperCarpetBlock> CYAN_SHEEPER_CARPET = registerCarpet(
+            "cyan_sheeper_carpet", Blocks.CYAN_CARPET, DyeColor.CYAN);
+    public static final RegistryObject<SheeperCarpetBlock> PURPLE_SHEEPER_CARPET = registerCarpet(
+            "purple_sheeper_carpet", Blocks.PURPLE_CARPET, DyeColor.PURPLE);
+    public static final RegistryObject<SheeperCarpetBlock> BLUE_SHEEPER_CARPET = registerCarpet(
+            "blue_sheeper_carpet", Blocks.BLUE_CARPET, DyeColor.BLUE);
+    public static final RegistryObject<SheeperCarpetBlock> BROWN_SHEEPER_CARPET = registerCarpet(
+            "brown_sheeper_carpet", Blocks.BROWN_CARPET, DyeColor.BROWN);
+    public static final RegistryObject<SheeperCarpetBlock> GREEN_SHEEPER_CARPET = registerCarpet(
+            "green_sheeper_carpet", Blocks.GREEN_CARPET, DyeColor.GREEN);
+    public static final RegistryObject<SheeperCarpetBlock> RED_SHEEPER_CARPET = registerCarpet(
+            "red_sheeper_carpet", Blocks.RED_CARPET, DyeColor.RED);
+    public static final RegistryObject<SheeperCarpetBlock> BLACK_SHEEPER_CARPET = registerCarpet(
+            "black_sheeper_carpet", Blocks.BLACK_CARPET, DyeColor.BLACK);
+
     private ModBlocks() {
     }
 
@@ -95,6 +130,21 @@ public class ModBlocks {
             String name, Block vanillaWool, DyeColor color) {
         return BLOCKS.register(name, () -> new SheeperWoolBlock(
                 BlockBehaviour.Properties.copy(vanillaWool), color));
+    }
+
+    /**
+     * Registers a carpet variant; assets, recipes, and drops are separate
+     * resources.
+     *
+     * @param name          the registry path within the Sheeper namespace
+     * @param vanillaCarpet the vanilla carpet whose properties are copied
+     * @param color         the fixed color of this carpet variant
+     * @return the deferred reference to the carpet block
+     */
+    private static RegistryObject<SheeperCarpetBlock> registerCarpet(
+            String name, Block vanillaCarpet, DyeColor color) {
+        return BLOCKS.register(name, () -> new SheeperCarpetBlock(
+                BlockBehaviour.Properties.copy(vanillaCarpet), color));
     }
 
     /**

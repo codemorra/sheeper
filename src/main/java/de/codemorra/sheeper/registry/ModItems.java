@@ -1,12 +1,12 @@
 package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.block.SheeperWoolBlock;
 import de.codemorra.sheeper.item.RawSheeperMuttonItem;
 import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -50,35 +50,72 @@ public class ModItems {
                     .tab(CreativeModeTab.TAB_FOOD)));
 
     // Sheeper Wool item registrations
-    public static final RegistryObject<BlockItem> WHITE_SHEEPER_WOOL = registerWoolItem(ModBlocks.WHITE_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> ORANGE_SHEEPER_WOOL = registerWoolItem(ModBlocks.ORANGE_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> MAGENTA_SHEEPER_WOOL = registerWoolItem(
+    public static final RegistryObject<BlockItem> WHITE_SHEEPER_WOOL = registerBlockItem(ModBlocks.WHITE_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> ORANGE_SHEEPER_WOOL = registerBlockItem(
+            ModBlocks.ORANGE_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> MAGENTA_SHEEPER_WOOL = registerBlockItem(
             ModBlocks.MAGENTA_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> LIGHT_BLUE_SHEEPER_WOOL = registerWoolItem(
+    public static final RegistryObject<BlockItem> LIGHT_BLUE_SHEEPER_WOOL = registerBlockItem(
             ModBlocks.LIGHT_BLUE_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> YELLOW_SHEEPER_WOOL = registerWoolItem(ModBlocks.YELLOW_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> LIME_SHEEPER_WOOL = registerWoolItem(ModBlocks.LIME_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> PINK_SHEEPER_WOOL = registerWoolItem(ModBlocks.PINK_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> GRAY_SHEEPER_WOOL = registerWoolItem(ModBlocks.GRAY_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> LIGHT_GRAY_SHEEPER_WOOL = registerWoolItem(
+    public static final RegistryObject<BlockItem> YELLOW_SHEEPER_WOOL = registerBlockItem(
+            ModBlocks.YELLOW_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> LIME_SHEEPER_WOOL = registerBlockItem(ModBlocks.LIME_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> PINK_SHEEPER_WOOL = registerBlockItem(ModBlocks.PINK_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> GRAY_SHEEPER_WOOL = registerBlockItem(ModBlocks.GRAY_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> LIGHT_GRAY_SHEEPER_WOOL = registerBlockItem(
             ModBlocks.LIGHT_GRAY_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> CYAN_SHEEPER_WOOL = registerWoolItem(ModBlocks.CYAN_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> PURPLE_SHEEPER_WOOL = registerWoolItem(ModBlocks.PURPLE_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> BLUE_SHEEPER_WOOL = registerWoolItem(ModBlocks.BLUE_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> BROWN_SHEEPER_WOOL = registerWoolItem(ModBlocks.BROWN_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> GREEN_SHEEPER_WOOL = registerWoolItem(ModBlocks.GREEN_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> RED_SHEEPER_WOOL = registerWoolItem(ModBlocks.RED_SHEEPER_WOOL);
-    public static final RegistryObject<BlockItem> BLACK_SHEEPER_WOOL = registerWoolItem(ModBlocks.BLACK_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> CYAN_SHEEPER_WOOL = registerBlockItem(ModBlocks.CYAN_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> PURPLE_SHEEPER_WOOL = registerBlockItem(
+            ModBlocks.PURPLE_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> BLUE_SHEEPER_WOOL = registerBlockItem(ModBlocks.BLUE_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> BROWN_SHEEPER_WOOL = registerBlockItem(ModBlocks.BROWN_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> GREEN_SHEEPER_WOOL = registerBlockItem(ModBlocks.GREEN_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> RED_SHEEPER_WOOL = registerBlockItem(ModBlocks.RED_SHEEPER_WOOL);
+    public static final RegistryObject<BlockItem> BLACK_SHEEPER_WOOL = registerBlockItem(ModBlocks.BLACK_SHEEPER_WOOL);
+
+    // Sheeper carpet item registrations
+    public static final RegistryObject<BlockItem> WHITE_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.WHITE_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> ORANGE_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.ORANGE_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> MAGENTA_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.MAGENTA_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> LIGHT_BLUE_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.LIGHT_BLUE_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> YELLOW_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.YELLOW_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> LIME_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.LIME_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> PINK_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.PINK_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> GRAY_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.GRAY_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> LIGHT_GRAY_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.LIGHT_GRAY_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> CYAN_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.CYAN_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> PURPLE_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.PURPLE_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> BLUE_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.BLUE_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> BROWN_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.BROWN_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> GREEN_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.GREEN_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> RED_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.RED_SHEEPER_CARPET);
+    public static final RegistryObject<BlockItem> BLACK_SHEEPER_CARPET = registerBlockItem(
+            ModBlocks.BLACK_SHEEPER_CARPET);
 
     /**
-     * Registers a placeable item under the same registry path as its wool block.
+     * Registers a placeable item under the same registry path as its block.
      * The ID is available immediately; the block is resolved inside the supplier
      * after block registration has completed.
      *
-     * @param block the deferred reference to the wool block
+     * @param block the deferred reference to the block
      * @return the deferred reference to its inventory item
      */
-    private static RegistryObject<BlockItem> registerWoolItem(RegistryObject<SheeperWoolBlock> block) {
+    private static RegistryObject<BlockItem> registerBlockItem(RegistryObject<? extends Block> block) {
         return ITEMS.register(block.getId().getPath(),
                 () -> new BlockItem(block.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
     }
