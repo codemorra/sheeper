@@ -49,6 +49,8 @@ final class DataGameTests {
     }
 
     private static void dyeRecipes(GameTestContext context) {
+        // Temporary failure to verify the required pull-request check; remove after verification.
+        context.expect(false, "Intentional CI failure: verify pull-request merge protection");
         CraftingContainer grid = grid();
         grid.setItem(0, new ItemStack(ModBlocks.WHITE_SHEEPER_WOOL.get()));
         grid.setItem(1, new ItemStack(Items.BLUE_DYE));
