@@ -31,10 +31,17 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 ### Explosive wool
 
-- **Collect all 16 colors.** Unshorn adults drop one matching wool block on ordinary death. Shearing by hand or dispenser yields 1–3 blocks. White Sheeper wool can be dyed, but Sheeper wool cannot replace normal wool in recipes for beds or carpets.
+- **Collect all 16 colors.** Unshorn adults drop one matching wool block on ordinary death. Shearing by hand or dispenser yields 1–3 blocks. White Sheeper wool can be dyed, but Sheeper wool cannot replace normal wool in recipes for beds or vanilla carpets.
 - **Harvest with shears.** Breaking placed wool with another tool or by hand causes a small blast with damage and knockback, without dropping wool or destroying surrounding blocks and dropped items. Creative mining is safe and produces no drops.
 - **Ignite it like TNT.** Fire, redstone, and explosion chains can prime Sheeper wool. Primed wool explodes destructively and can chain with both TNT and other Sheeper wool. These block explosions are independent of `mobGriefing`.
 - **Sparkles preserve texture packs.** The animated overlay sits over the vanilla or resource-pack wool texture, including while the wool is primed.
+
+### Explosive carpets
+
+- **Craft all 16 colors.** Two matching Sheeper wool blocks side by side yield three matching carpets, with the same sparkling wool textures.
+- **Watch your step.** Grounded living entities trigger an immediate explosion that consumes the carpet without drops. Crouching or sneaking is safe; Creative players and spectators do not trigger it.
+- **Area damage and launch.** Exposed entities within two blocks take one heart of base damage and are launched upward and away. Armor and explosion protection apply; walls provide cover. Surrounding blocks remain intact, with no TNT or wool ignition.
+- **Harvest with shears.** Other survival tools cause the same mini-explosion as unsafe wool mining, without carpet drops or damage to surrounding blocks and dropped items. Creative mining is safe without drops.
 
 ### Sheeper mutton
 
@@ -52,7 +59,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 **Gameplay: `config/sheeper-common.toml`**
 
-The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, and `wool`.
+The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, and `carpet`.
 
 - **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
@@ -62,7 +69,8 @@ The server's copy controls gameplay in multiplayer. All settings are grouped und
 - **Cooked mutton:** Effect duration, interval and damage of internal explosions, and the movement-speed bonus.
 - **Unsafe cooking:** Enable/disable the reaction, set its warning time and explosion strength. Disabling the reaction lets furnace/campfire recipes finish normally. Warning time is limited to 9.95 seconds to stay below the default furnace recipe's ten-second cooking time; custom recipes must also take longer than the warning.
 - **Fire contact:** Enable/disable dropped raw mutton detonation and set its explosion strength. With this reaction disabled, raw drops can burn like ordinary items.
-- **Wool:** Unsafe-mining blast strength, primed explosion strength, and normal fuse duration. Explosion chains still shorten the fuse.
+- **Wool:** Unsafe-mining blast strength (also used by carpets), primed explosion strength, and normal fuse duration. Explosion chains still shorten the fuse.
+- **Carpets:** Step-explosion radius, base damage, horizontal knockback, and upward push. Distance and cover reduce the launch; cover also reduces damage. Zero damage or impulse disables that component, while stepping still consumes the carpet.
 
 Durations and intervals use seconds, rounded up to whole game ticks. Damage uses health points: 1 is half a heart. A zero eating duration disables that food's effect for new meals; zero damage, knockback, or speed disables that component. Ordinary Minecraft damage immunity still applies to very short intervals. Explosion strength 0 suppresses the blast but retains the enabled reaction's consumption and appliance removal. Use the reaction's enable switch to disable it entirely.
 

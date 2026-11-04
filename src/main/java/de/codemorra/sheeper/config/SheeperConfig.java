@@ -195,7 +195,7 @@ public class SheeperConfig {
     // Unsafe wool mining and primed wool explosion settings.
     public static final ForgeConfigSpec.DoubleValue WOOL_MINING_STRENGTH = BUILDER
             .comment(
-                    "Explosion strength for unsafe wool mining. 0 disables the blast; unsafe mining still drops no wool.")
+                    "Explosion strength for unsafe wool/carpet mining. 0 disables the blast; unsafe mining still drops nothing.")
             .defineInRange("wool.unsafeMiningExplosionStrength", 1.0, 0.0, 8.0);
 
     // Primed wool explosion settings.
@@ -207,6 +207,29 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WOOL_FUSE_SECONDS = BUILDER
             .comment("Normal wool fuse in seconds, captured when ignited. Explosion chains shorten this fuse.")
             .defineInRange("wool.fuseSeconds", 4.0, 0.05, 120.0);
+
+    // Carpet step explosions keep damage and impulse independent of their radius.
+    public static final ForgeConfigSpec.DoubleValue CARPET_RADIUS = BUILDER
+            .comment("Radius in blocks of a carpet step explosion. Walls shield entities.")
+            .defineInRange("carpet.radius", 2.0, 1.0, 8.0);
+
+    // Carpet step explosion damage settings.
+    public static final ForgeConfigSpec.DoubleValue CARPET_DAMAGE = BUILDER
+            .comment("Base step-explosion damage in health points (2 = one heart), reduced by cover.",
+                    "Normal armor, damage immunity, and explosion protection apply. 0 disables damage.")
+            .defineInRange("carpet.damage", 2.0, 0.0, 40.0);
+
+    // Carpet step explosion knockback settings.
+    public static final ForgeConfigSpec.DoubleValue CARPET_KNOCKBACK = BUILDER
+            .comment("Horizontal step-explosion impulse, reduced by distance, cover, and knockback resistance.",
+                    "0 disables the additional horizontal impulse.")
+            .defineInRange("carpet.knockback", 1.0, 0.0, 3.0);
+
+    // Carpet step explosion upward push settings.
+    public static final ForgeConfigSpec.DoubleValue CARPET_UPWARD_PUSH = BUILDER
+            .comment("Upward step-explosion impulse, reduced by distance, cover, and knockback resistance.",
+                    "0 disables the additional upward impulse. Ordinary fall damage still applies.")
+            .defineInRange("carpet.upwardPush", 0.8, 0.0, 2.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
