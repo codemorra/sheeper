@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "group": "sheeper_carpet",
+  "pattern": ["WW"],
+  "key": {
+    "W": {
+      "item": "sheeper:yellow_sheeper_wool"
+    }
+  },
+  "result": {
+    "item": "sheeper:yellow_sheeper_carpet",
+    "count": 3
+  }
+}
