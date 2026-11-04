@@ -10,6 +10,7 @@ import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.network.PacketSendListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -27,6 +28,7 @@ import net.minecraft.world.phys.Vec3;
 final class TestPlayer extends ServerPlayer {
     private Vec3 anchor;
     final List<String> damageEvents = new ArrayList<>();
+    final List<ClientboundSetEntityMotionPacket> motionPackets = new ArrayList<>();
     float foodDamage;
 
     TestPlayer(ServerLevel level, Vec3 position) {
@@ -35,7 +37,11 @@ final class TestPlayer extends ServerPlayer {
         Connection sink = new Connection(PacketFlow.SERVERBOUND) {
             @Override
             public void send(Packet<?> packet, PacketSendListener listener) {
-                // Exercise server-side packet encoding without retaining unsent packets.
+                // Retain only velocity packets needed to check client-side launches.
+                // Other packets are discarded because this player has no real client.
+                if (packet instanceof ClientboundSetEntityMotionPacket motion) {
+                    motionPackets.add(motion);
+                }
             }
         };
         connection = new ServerGamePacketListenerImpl(level.getServer(), sink, this);

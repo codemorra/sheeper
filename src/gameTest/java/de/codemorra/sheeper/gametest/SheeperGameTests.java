@@ -45,6 +45,7 @@ public final class SheeperGameTests {
         List<Scenario> scenarios = new ArrayList<>();
         AdultGameTests.add(scenarios);
         WoolGameTests.add(scenarios);
+        CarpetGameTests.add(scenarios);
         MuttonGameTests.add(scenarios);
         LifecycleGameTests.add(scenarios);
         DataGameTests.add(scenarios);
