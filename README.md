@@ -29,6 +29,12 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 - **Babies are faster and less cautious.** They approach even while watched, bump players without direct damage, then retreat and pause. Taking damage makes them explode immediately with a smaller blast. Their extra speed disappears when they grow up.
 - **Mob explosions respect `mobGriefing`.** Sheeper that detonate themselves leave no wool or meat behind.
 
+### Elemental Sheeper bosses
+
+- **Summoning:** Use `/summon sheeper:lava_sheeper`, `/summon sheeper:lightning_sheeper`, or `/summon sheeper:water_sheeper`.
+- **Elemental appearance:** Lava has dark wool with glowing magma, Lightning has gray wool with moving electrical lines, and Water has cyan wool with a flowing water layer. Matching body colors and particles complete each element. The layers use Minecraft textures and pick up resource-pack replacements for those textures.
+- **Boss foundation:** Each persistent adult boss has an element-colored health bar for players tracking it. Size defaults to twice normal sheep size; maximum health defaults to 100 points pending combat balancing.
+
 ### Explosive wool
 
 - **Collect all 16 colors.** Unshorn adults drop one matching wool block on ordinary death. Shearing by hand or dispenser yields 1–3 blocks. White Sheeper wool can be dyed, but Sheeper wool cannot replace normal wool in recipes for beds or vanilla carpets.
@@ -59,8 +65,9 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 **Gameplay: `config/sheeper-common.toml`**
 
-The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, and `carpet`.
+The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, `carpet`, and `elemental`.
 
+- **Elemental bosses:** Each element has independent `elemental.<element>.size` and `elemental.<element>.maxHealth` settings, where `<element>` is `lava`, `lightning`, or `water`. Size defaults to `2.0` (range `0.5–4.0`); `1.0` matches normal sheep/Sheeper size. Maximum health defaults to `100` (range `1–1024` health points). Changes apply to existing bosses; health changes preserve the remaining health percentage. The server synchronizes size for matching models and hitboxes.
 - **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
 - **Babies:** Extra speed, bump knockback, explosion strength, and minimum/maximum attack pauses. A maximum pause below the minimum is treated as equal to the minimum.
@@ -110,7 +117,7 @@ Run the automated verification with Java 17:
 ```
 
 - Builds the mod, checks wool/carpet resources and JAR contents, and runs the GameTests.
-- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, and packet contracts.
+- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, and packet contracts.
 - Each run uses a fresh test world in `build/gametest/run/`; development worlds and configuration in `run/` are preserved. Test classes and scenes are excluded from the mod JAR.
 - Stops on the first failed test and fails on missing/incomplete results. Results are in `build/reports/gametest/results.xml`; server logs are in `build/gametest/run/logs/`.
 - Pull requests targeting `main` automatically run the same verification with Java 17. Reports and server logs are uploaded as the `verification-reports` artifact, including on failure.

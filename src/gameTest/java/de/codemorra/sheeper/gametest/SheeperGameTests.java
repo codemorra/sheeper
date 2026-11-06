@@ -48,6 +48,7 @@ public final class SheeperGameTests {
         CarpetGameTests.add(scenarios);
         MuttonGameTests.add(scenarios);
         LifecycleGameTests.add(scenarios);
+        ElementalGameTests.add(scenarios);
         DataGameTests.add(scenarios);
 
         List<TestFunction> tests = scenarios.stream().map(scenario -> {
