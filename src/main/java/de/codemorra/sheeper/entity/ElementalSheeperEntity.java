@@ -5,6 +5,11 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,7 +20,9 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -26,22 +33,38 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Shared foundation for sheep-shaped elemental bosses. Sheep supplies the model
  * state and sounds; this class defines the boss lifecycle and interactions.
  */
 public class ElementalSheeperEntity extends Sheep {
+    private static final EntityDataAccessor<Float> DATA_SIZE = SynchedEntityData
+            .defineId(ElementalSheeperEntity.class, EntityDataSerializers.FLOAT);
+
     /** Element identity is fixed by the registered entity type. */
     public enum Element {
-        LAVA(BossEvent.BossBarColor.RED),
-        LIGHTNING(BossEvent.BossBarColor.YELLOW),
-        WATER(BossEvent.BossBarColor.BLUE);
+        LAVA(BossEvent.BossBarColor.RED, DyeColor.BLACK, ParticleTypes.SMALL_FLAME),
+        LIGHTNING(BossEvent.BossBarColor.YELLOW, DyeColor.GRAY, ParticleTypes.ELECTRIC_SPARK),
+        WATER(BossEvent.BossBarColor.BLUE, DyeColor.CYAN, ParticleTypes.DRIPPING_WATER);
 
         private final BossEvent.BossBarColor barColor;
+        private final DyeColor woolColor;
+        private final ParticleOptions particle;
 
-        Element(BossEvent.BossBarColor barColor) {
+        Element(BossEvent.BossBarColor barColor, DyeColor woolColor, ParticleOptions particle) {
             this.barColor = barColor;
+            this.woolColor = woolColor;
+            this.particle = particle;
+        }
+
+        float configuredSize() {
+            return switch (this) {
+                case LAVA -> SheeperConfig.LAVA_SIZE.get().floatValue();
+                case LIGHTNING -> SheeperConfig.LIGHTNING_SIZE.get().floatValue();
+                case WATER -> SheeperConfig.WATER_SIZE.get().floatValue();
+            };
         }
 
         double configuredMaxHealth() {
@@ -60,9 +83,11 @@ public class ElementalSheeperEntity extends Sheep {
     public ElementalSheeperEntity(EntityType<? extends Sheep> type, Level level, Element element) {
         super(type, level);
         this.element = element;
+        super.setColor(element.woolColor);
         bossEvent = new ServerBossEvent(getDisplayName(), element.barColor, BossEvent.BossBarOverlay.PROGRESS);
         setPersistenceRequired();
         if (!level.isClientSide) {
+            entityData.set(DATA_SIZE, element.configuredSize());
             refreshConfiguredHealth();
             setHealth(getMaxHealth());
         }
@@ -75,6 +100,33 @@ public class ElementalSheeperEntity extends Sheep {
 
     public Element getElement() {
         return element;
+    }
+
+    /** Shared scale for the server hitbox and client renderer. */
+    public float getSizeMultiplier() {
+        return entityData.get(DATA_SIZE);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        entityData.define(DATA_SIZE, 1.0F);
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return super.getDimensions(pose).scale(getSizeMultiplier());
+    }
+
+    /**
+     * Rebuilds collision bounds and eye height on both sides after a size update.
+     */
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_SIZE.equals(key)) {
+            refreshDimensions();
+        }
     }
 
     /**
@@ -101,18 +153,63 @@ public class ElementalSheeperEntity extends Sheep {
         // Sheep's implementation expects a grazing goal registered by registerGoals.
     }
 
-    /** Updates the bar from authoritative health and the current display name. */
+    /**
+     * Synchronizes server-controlled boss state and emits local elemental
+     * particles.
+     */
     @Override
     public void tick() {
         super.tick();
         if (!level.isClientSide) {
+            entityData.set(DATA_SIZE, element.configuredSize());
             if (isAlive()) {
                 refreshConfiguredHealth();
             }
             bossEvent.setName(getDisplayName());
             bossEvent.setProgress(Mth.clamp(getHealth() / getMaxHealth(), 0.0F, 1.0F));
             bossEvent.setVisible(isAlive());
+        } else if (isAlive() && !isInvisible() && (tickCount + getId()) % 6 == 0) {
+            spawnElementParticle();
         }
+    }
+
+    /**
+     * Alternates between the flanks, ends, back, and head of the visible fleece.
+     * Coordinates approximate the vanilla sheep model in unscaled blocks, then
+     * follow the boss's size and body rotation. The wool above the head extends
+     * higher than the collision box, so particle placement follows the model.
+     */
+    private void spawnElementParticle() {
+        double side;
+        double forward;
+        double height = 0.7D + random.nextDouble() * 0.48D;
+        int surface = (tickCount + getId()) / 6 % 4;
+        switch (surface) {
+            case 0 -> {
+                side = random.nextBoolean() ? 0.52D : -0.52D;
+                forward = (random.nextDouble() * 2.0D - 1.0D) * 0.6D;
+            }
+            case 1 -> {
+                side = (random.nextDouble() * 2.0D - 1.0D) * 0.34D;
+                forward = random.nextBoolean() ? 0.77D : -0.77D;
+            }
+            case 2 -> {
+                side = (random.nextDouble() * 2.0D - 1.0D) * 0.34D;
+                forward = (random.nextDouble() * 2.0D - 1.0D) * 0.58D;
+                height = 1.24D + random.nextDouble() * 0.005D;
+            }
+            default -> {
+                side = (random.nextDouble() * 2.0D - 1.0D) * 0.21D;
+                forward = 0.56D + (random.nextDouble() * 2.0D - 1.0D) * 0.2D;
+                height = 1.418D + random.nextDouble() * 0.005D;
+            }
+        }
+        Vec3 offset = new Vec3(side, height, forward).scale(getSizeMultiplier())
+                .yRot(-yBodyRot * Mth.DEG_TO_RAD);
+        // Cosmetic particles are local; vanilla client particle settings apply.
+        double upwardSpeed = surface >= 2 ? 0.0D : 0.005D;
+        level.addParticle(element.particle, getX() + offset.x, getY() + offset.y, getZ() + offset.z,
+                0.0D, upwardSpeed, 0.0D);
     }
 
     @Override
