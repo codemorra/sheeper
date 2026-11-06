@@ -2,6 +2,8 @@ package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.SheeperEntity;
+import de.codemorra.sheeper.entity.ElementalSheeperEntity;
+import de.codemorra.sheeper.entity.ElementalSheeperEntity.Element;
 import de.codemorra.sheeper.entity.PrimedSheeperWool;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -33,6 +35,27 @@ public class ModEntities {
                             EntityType.SHEEP.getWidth(),
                             EntityType.SHEEP.getHeight())
                     .build(SheeperMod.MODID + ":sheeper"));
+
+    /**
+     * Summonable elemental boss types sharing the sheep model and boss foundation.
+     */
+    public static final RegistryObject<EntityType<ElementalSheeperEntity>> LAVA_SHEEPER = registerElemental(
+            "lava_sheeper", Element.LAVA);
+    public static final RegistryObject<EntityType<ElementalSheeperEntity>> LIGHTNING_SHEEPER = registerElemental(
+            "lightning_sheeper", Element.LIGHTNING);
+    public static final RegistryObject<EntityType<ElementalSheeperEntity>> WATER_SHEEPER = registerElemental(
+            "water_sheeper", Element.WATER);
+
+    /**
+     * MISC categorizes these bosses separately from naturally spawning creatures.
+     */
+    private static RegistryObject<EntityType<ElementalSheeperEntity>> registerElemental(String name, Element element) {
+        return ENTITY_TYPES.register(name, () -> EntityType.Builder.<ElementalSheeperEntity>of(
+                (type, level) -> new ElementalSheeperEntity(type, level, element), MobCategory.MISC)
+                .sized(EntityType.SHEEP.getWidth(), EntityType.SHEEP.getHeight())
+                .clientTrackingRange(10)
+                .build(SheeperMod.MODID + ":" + name));
+    }
 
     /**
      * Color-preserving primed wool with vanilla TNT dimensions and tracking
