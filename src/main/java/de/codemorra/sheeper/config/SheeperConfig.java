@@ -15,11 +15,23 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = elementalHealth("lightning");
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water");
 
+    /** Server-controlled sizes used for both model rendering and collision. */
+    public static final ForgeConfigSpec.DoubleValue LAVA_SIZE = elementalSize("lava");
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SIZE = elementalSize("lightning");
+    public static final ForgeConfigSpec.DoubleValue WATER_SIZE = elementalSize("water");
+
     private static ForgeConfigSpec.DoubleValue elementalHealth(String element) {
         return BUILDER.comment("Maximum health of the " + element + " Sheeper in health points (2 = one heart).",
                 "100 is a provisional default pending combat balancing.",
                 "Changes apply to existing bosses while preserving their percentage of remaining health.")
                 .defineInRange("elemental." + element + ".maxHealth", 100.0, 1.0, 1024.0);
+    }
+
+    private static ForgeConfigSpec.DoubleValue elementalSize(String element) {
+        return BUILDER.comment("Size multiplier for the " + element + " Sheeper, including its hitbox.",
+                "1.0 = normal sheep/Sheeper size; 2.0 = twice that size.",
+                "The server synchronizes this value to clients; changes apply to existing bosses.")
+                .defineInRange("elemental." + element + ".size", 2.0, 0.5, 4.0);
     }
 
     // Detection radius for the Sheeper entity.
