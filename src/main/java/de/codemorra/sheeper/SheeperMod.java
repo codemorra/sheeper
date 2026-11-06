@@ -1,6 +1,7 @@
 package de.codemorra.sheeper;
 
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.registry.ModItems;
 import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.config.SheeperConfig;
@@ -54,5 +55,8 @@ public class SheeperMod {
      */
     private void registerEntityAttributes(EntityAttributeCreationEvent event) {
         event.put(ModEntities.SHEEPER.get(), Sheep.createAttributes().build());
+        event.put(ModEntities.LAVA_SHEEPER.get(), ElementalSheeperEntity.createBossAttributes().build());
+        event.put(ModEntities.LIGHTNING_SHEEPER.get(), ElementalSheeperEntity.createBossAttributes().build());
+        event.put(ModEntities.WATER_SHEEPER.get(), ElementalSheeperEntity.createBossAttributes().build());
     }
 }

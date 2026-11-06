@@ -10,6 +10,18 @@ public class SheeperConfig {
     // Builder for the Sheeper configuration specification.
     public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
+    /** Independent health settings for the three elemental bosses. */
+    public static final ForgeConfigSpec.DoubleValue LAVA_MAX_HEALTH = elementalHealth("lava");
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = elementalHealth("lightning");
+    public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water");
+
+    private static ForgeConfigSpec.DoubleValue elementalHealth(String element) {
+        return BUILDER.comment("Maximum health of the " + element + " Sheeper in health points (2 = one heart).",
+                "100 is a provisional default pending combat balancing.",
+                "Changes apply to existing bosses while preserving their percentage of remaining health.")
+                .defineInRange("elemental." + element + ".maxHealth", 100.0, 1.0, 1024.0);
+    }
+
     // Detection radius for the Sheeper entity.
     public static final ForgeConfigSpec.DoubleValue DETECTION_RADIUS = BUILDER
             .comment("Maximum distance in blocks for detecting and pursuing players.")
