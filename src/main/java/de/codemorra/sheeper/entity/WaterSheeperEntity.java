@@ -1,5 +1,7 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.Set;
+
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
@@ -11,12 +13,14 @@ import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
 
 /**
- * Water boss foundation; arena generation and combat are implemented
- * separately.
+ * Water boss foundation with incremental arena discovery. Water placement and
+ * combat are implemented separately.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Nullable
     private BlockPos arenaCenter;
+    @Nullable
+    private WaterArenaSearch arenaSearch;
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
@@ -45,11 +49,30 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return Math.min(SheeperConfig.WATER_MOVEMENT_RADIUS.get(), getCombatRadius());
     }
 
+    public boolean isArenaSearchComplete() {
+        return arenaSearch != null && arenaSearch.isComplete();
+    }
+
+    /**
+     * Server-side, read-only surface cells, potentially incomplete during
+     * discovery.
+     */
+    public Set<BlockPos> getArenaSurfacePositions() {
+        return arenaSearch == null ? Set.of() : arenaSearch.getSurfacePositions();
+    }
+
     @Override
     public void tick() {
         if (!level.isClientSide) {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();
+            if (isAlive()) {
+                if (arenaSearch == null) {
+                    arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
+                            SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), SheeperConfig.WATER_ARENA_STEP_HEIGHT.get());
+                }
+                arenaSearch.advance(SheeperConfig.WATER_ARENA_SEARCH_BUDGET.get());
+            }
         }
         super.tick();
     }
@@ -67,5 +90,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         arenaCenter = tag.contains("WaterArenaCenter", Tag.TAG_LONG)
                 ? BlockPos.of(tag.getLong("WaterArenaCenter"))
                 : null;
+        // Derived surface data is rediscovered from the saved origin after loading.
+        arenaSearch = null;
     }
 }
