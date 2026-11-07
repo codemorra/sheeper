@@ -20,17 +20,38 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SIZE = elementalSize("lightning");
     public static final ForgeConfigSpec.DoubleValue WATER_SIZE = elementalSize("water");
 
-    /** Provisional horizontal radii for the upcoming water encounter mechanics. */
+    /** Provisional horizontal radii for the water encounter. */
     public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = BUILDER
             .comment("Horizontal water Sheeper arena and combat radius around its saved spawn position.",
-                    "Provisional default; arena generation and combat are not implemented yet.")
+                    "Captured when surface discovery starts; combat is not implemented yet.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
+    // Provisional horizontal movement radius for the water encounter.
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_RADIUS = BUILDER
             .comment("Horizontal movement radius around the water Sheeper's saved spawn position.",
                     "Capped at combatRadius. Movement restrictions are not implemented yet.")
             .defineInRange("elemental.water.movementRadius", 10.0, 0.0, 128.0);
 
+    // Maximum vertical height difference for the water arena.
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
+            .comment("Maximum surface-cell height difference above or below the saved spawn position.",
+                    "Captured when surface discovery starts.")
+            .defineInRange("elemental.water.arena.heightRange", 10, 0, 64);
+
+    // Maximum height difference between horizontally adjacent arena surface cells.
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_STEP_HEIGHT = BUILDER
+            .comment("Maximum height difference between horizontally adjacent arena surface cells.",
+                    "Captured when surface discovery starts. 0 restricts discovery to one level.")
+            .defineInRange("elemental.water.arena.stepHeight", 1, 0, 4);
+
+    // Maximum number of surface candidates examined per server tick for the water
+    // arena.
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET = BUILDER
+            .comment("Maximum surface candidates examined per water Sheeper per server tick.",
+                    "Unloaded chunks are deferred without being force-loaded.")
+            .defineInRange("elemental.water.arena.searchBudget", 512, 1, 16384);
+
+    // Water-specific elemental configuration helpers.
     private static ForgeConfigSpec.DoubleValue elementalHealth(String element) {
         return BUILDER.comment("Maximum health of the " + element + " Sheeper in health points (2 = one heart).",
                 "100 is a provisional default pending combat balancing.",
@@ -38,6 +59,7 @@ public class SheeperConfig {
                 .defineInRange("elemental." + element + ".maxHealth", 100.0, 1.0, 1024.0);
     }
 
+    // Size multiplier for the water Sheeper, including its hitbox.
     private static ForgeConfigSpec.DoubleValue elementalSize(String element) {
         return BUILDER.comment("Size multiplier for the " + element + " Sheeper, including its hitbox.",
                 "1.0 = normal sheep/Sheeper size; 2.0 = twice that size.",
