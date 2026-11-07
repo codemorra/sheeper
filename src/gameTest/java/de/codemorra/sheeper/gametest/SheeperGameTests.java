@@ -50,6 +50,8 @@ public final class SheeperGameTests {
         LifecycleGameTests.add(scenarios);
         ElementalGameTests.add(scenarios);
         WaterGameTests.add(scenarios);
+        BossWaterGameTests.add(scenarios);
+        WaterWaveGameTests.add(scenarios);
         DataGameTests.add(scenarios);
 
         List<TestFunction> tests = scenarios.stream().map(scenario -> {

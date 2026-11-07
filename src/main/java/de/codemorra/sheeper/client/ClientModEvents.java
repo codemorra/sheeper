@@ -2,6 +2,10 @@ package de.codemorra.sheeper.client;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.registry.ModFluids;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import de.codemorra.sheeper.client.renderer.ElementalSheeperRenderer;
 import de.codemorra.sheeper.client.renderer.SheeperRenderer;
 import de.codemorra.sheeper.client.renderer.PrimedSheeperWoolRenderer;
@@ -22,6 +26,14 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
+    @SubscribeEvent
+    public static void setupFluids(FMLClientSetupEvent event) {
+        event.enqueueWork(() -> {
+            ItemBlockRenderTypes.setRenderLayer(ModFluids.BOSS_WATER.get(), RenderType.translucent());
+            ItemBlockRenderTypes.setRenderLayer(ModFluids.FLOWING_BOSS_WATER.get(), RenderType.translucent());
+        });
+    }
+
     /** Binds the vapor provider to the shared vanilla smoke sprite animation. */
     @SubscribeEvent
     public static void registerParticleProviders(RegisterParticleProvidersEvent event) {

@@ -78,8 +78,9 @@ final class WaterGameTests {
         context.setBlock(10, 3, 9, Blocks.STONE_SLAB);
         WaterArenaSearch search = new WaterArenaSearch(context.level, context.pos(8, 4, 8), 3.0D, 0, 1);
         finish(context, search);
-        context.expect(search.getSurfacePositions().size() == 7,
-                "Only the seven supported cells inside the circular radius may be included");
+        context.expect(search.getSurfacePositions().size() == 8
+                && search.getSurfacePositions().contains(context.pos(8, 4, 9)),
+                "The supported cells and water-replaceable carpet inside the circular radius must be included");
         for (int x = 5; x <= 11; x++) {
             context.expect(search.getSurfacePositions().contains(context.pos(x, 4, 8)),
                     "Solid full-height surfaces and existing water must connect the arena");

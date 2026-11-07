@@ -1,6 +1,12 @@
 package de.codemorra.sheeper;
 
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.registry.ModFluids;
+import de.codemorra.sheeper.fluid.BossWaterlogging;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fluids.FluidInteractionRegistry;
+import net.minecraftforge.common.ForgeMod;
+import net.minecraft.world.level.block.Blocks;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.registry.ModItems;
 import de.codemorra.sheeper.registry.ModBlocks;
@@ -38,14 +44,26 @@ public class SheeperMod {
     public SheeperMod(FMLJavaModLoadingContext context) {
         ModNetwork.register();
         ModEntities.register(context.getModEventBus());
+        ModFluids.register(context.getModEventBus());
         ModBlocks.register(context.getModEventBus());
         ModItems.register(context.getModEventBus());
         ModParticles.register(context.getModEventBus());
         ModSounds.register(context.getModEventBus());
         context.getModEventBus().addListener(this::registerEntityAttributes);
+        context.getModEventBus().addListener(this::commonSetup);
         context.registerConfig(ModConfig.Type.COMMON, SheeperConfig.SPEC);
         context.registerConfig(ModConfig.Type.CLIENT, SheeperClientConfig.SPEC);
         LOGGER.info("SheeperMod initialized");
+    }
+
+    private void commonSetup(FMLCommonSetupEvent event) {
+        event.enqueueWork(() -> {
+            BossWaterlogging.enable();
+            FluidInteractionRegistry.addInteraction(ForgeMod.LAVA_TYPE.get(),
+                    new FluidInteractionRegistry.InteractionInformation(ModFluids.BOSS_WATER_TYPE.get(),
+                            state -> state.isSource() ? Blocks.OBSIDIAN.defaultBlockState()
+                                    : Blocks.COBBLESTONE.defaultBlockState()));
+        });
     }
 
     /**
