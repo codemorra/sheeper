@@ -1,0 +1,10 @@
+{
+  "overrides": [
+    {
+      "files": "src/main/resources/coremods/*.js",
+      "options": {
+        "trailingComma": "none"
+      }
+    }
+  ]
+}
