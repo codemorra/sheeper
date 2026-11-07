@@ -8,6 +8,7 @@ import java.util.UUID;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import net.minecraft.world.BossEvent;
@@ -24,6 +25,37 @@ final class ElementalGameTests {
     static void add(List<SheeperGameTests.Scenario> tests) {
         tests.add(new SheeperGameTests.Scenario("elemental_boss_configuration", ElementalGameTests::configuration));
         tests.add(new SheeperGameTests.Scenario("elemental_boss_bars", ElementalGameTests::bossBars));
+        tests.add(new SheeperGameTests.Scenario("elemental_boss_strength_persistence", ElementalGameTests::strength));
+    }
+
+    private static void strength(GameTestContext context) {
+        for (ElementalSheeperEntity boss : bosses(context)) {
+            context.near(boss.getStrengthMultiplier(), 1.0D, "New bosses must have neutral strength");
+            boss.setStrengthMultiplier(1.75D);
+            CompoundTag saved = boss.saveWithoutId(new CompoundTag());
+            ElementalSheeperEntity loaded = (ElementalSheeperEntity) boss.getType().create(context.level);
+            loaded.load(saved);
+            context.near(loaded.getStrengthMultiplier(), 1.75D, "Individual strength must survive loading");
+            checkSize(context, loaded, boss.getSizeMultiplier());
+            checkHealth(context, loaded, boss.getMaxHealth(), boss.getHealth());
+
+            for (double invalid : new double[] { 0.0D, -1.0D, Double.NaN, Double.POSITIVE_INFINITY }) {
+                boolean rejected = false;
+                try {
+                    loaded.setStrengthMultiplier(invalid);
+                } catch (IllegalArgumentException expected) {
+                    rejected = true;
+                }
+                context.expect(rejected, "Invalid strength must be rejected by the setter");
+                saved.putDouble("StrengthMultiplier", invalid);
+                loaded.load(saved);
+                context.near(loaded.getStrengthMultiplier(), 1.0D, "Invalid saved strength must use neutral strength");
+            }
+            saved.remove("StrengthMultiplier");
+            loaded.load(saved);
+            context.near(loaded.getStrengthMultiplier(), 1.0D, "Older saves must use neutral strength");
+        }
+        context.pass();
     }
 
     private static List<ElementalSheeperEntity> bosses(GameTestContext context) {

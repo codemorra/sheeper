@@ -7,6 +7,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -78,6 +79,7 @@ public class ElementalSheeperEntity extends Sheep {
 
     private final Element element;
     private final ServerBossEvent bossEvent;
+    private double strengthMultiplier = 1.0D;
 
     /** Creates a persistent adult boss with the registered element's bar color. */
     public ElementalSheeperEntity(EntityType<? extends Sheep> type, Level level, Element element) {
@@ -100,6 +102,40 @@ public class ElementalSheeperEntity extends Sheep {
 
     public Element getElement() {
         return element;
+    }
+
+    /**
+     * Individual strength reserved for future scaling; currently changes no stats.
+     */
+    public double getStrengthMultiplier() {
+        return strengthMultiplier;
+    }
+
+    /**
+     * Stores strength independently of installation-wide base settings.
+     *
+     * @param multiplier finite, positive strength multiplier
+     * @throws IllegalArgumentException if the multiplier is not finite and positive
+     */
+    public void setStrengthMultiplier(double multiplier) {
+        if (!Double.isFinite(multiplier) || multiplier <= 0.0D) {
+            throw new IllegalArgumentException("Strength multiplier must be finite and positive");
+        }
+        strengthMultiplier = multiplier;
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putDouble("StrengthMultiplier", strengthMultiplier);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        double multiplier = tag.getDouble("StrengthMultiplier");
+        // Older saves and malformed summon data retain neutral strength.
+        strengthMultiplier = Double.isFinite(multiplier) && multiplier > 0.0D ? multiplier : 1.0D;
     }
 
     /** Shared scale for the server hitbox and client renderer. */

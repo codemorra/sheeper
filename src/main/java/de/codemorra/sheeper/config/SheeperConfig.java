@@ -20,6 +20,17 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SIZE = elementalSize("lightning");
     public static final ForgeConfigSpec.DoubleValue WATER_SIZE = elementalSize("water");
 
+    /** Provisional horizontal radii for the upcoming water encounter mechanics. */
+    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = BUILDER
+            .comment("Horizontal water Sheeper arena and combat radius around its saved spawn position.",
+                    "Provisional default; arena generation and combat are not implemented yet.")
+            .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_RADIUS = BUILDER
+            .comment("Horizontal movement radius around the water Sheeper's saved spawn position.",
+                    "Capped at combatRadius. Movement restrictions are not implemented yet.")
+            .defineInRange("elemental.water.movementRadius", 10.0, 0.0, 128.0);
+
     private static ForgeConfigSpec.DoubleValue elementalHealth(String element) {
         return BUILDER.comment("Maximum health of the " + element + " Sheeper in health points (2 = one heart).",
                 "100 is a provisional default pending combat balancing.",
