@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.block.BossWaterBlock;
 import de.codemorra.sheeper.block.SheeperWoolBlock;
 import de.codemorra.sheeper.block.SheeperCarpetBlock;
 import net.minecraft.world.level.block.Block;
@@ -18,6 +19,9 @@ import net.minecraftforge.registries.RegistryObject;
 public class ModBlocks {
     private static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS,
             SheeperMod.MODID);
+
+    public static final RegistryObject<BossWaterBlock> BOSS_WATER = BLOCKS.register("boss_water",
+            () -> new BossWaterBlock(BlockBehaviour.Properties.copy(Blocks.WATER).noLootTable()));
 
     public static final RegistryObject<SheeperWoolBlock> WHITE_SHEEPER_WOOL = registerWool("white_sheeper_wool",
             Blocks.WHITE_WOOL, DyeColor.WHITE);

@@ -51,6 +51,25 @@ public class SheeperConfig {
                     "Unloaded chunks are deferred without being force-loaded.")
             .defineInRange("elemental.water.arena.searchBudget", 512, 1, 16384);
 
+    // Maximum number of block positions processed per server tick for the water
+    // arena.
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_BLOCK_BUDGET = BUILDER
+            .comment(
+                    "Limits block positions processed per tick when placing or removing arena water to reduce server load spikes.")
+            .defineInRange("elemental.water.arena.blockBudget", 512, 1, 16384);
+
+    // Ticks between outward flood waves for the water arena.
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_FLOOD_WAVE_TICKS = BUILDER
+            .comment("Ticks between outward source layers along the connected terrain (20 ticks = one second).",
+                    "0 disables layer timing and uses only blockBudget. Large layers still respect blockBudget.")
+            .defineInRange("elemental.water.arena.floodWaveIntervalTicks", 1, 0, 200);
+
+    // Ticks between cleanup waves for the water arena.
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_DRAIN_WAVE_TICKS = BUILDER
+            .comment("Ticks between cleanup layers, from the outermost descendants back toward the spawn.",
+                    "0 disables layer timing. Unloaded cells are retried without blocking loaded cleanup.")
+            .defineInRange("elemental.water.arena.drainWaveIntervalTicks", 2, 0, 200);
+
     // Water-specific elemental configuration helpers.
     private static ForgeConfigSpec.DoubleValue elementalHealth(String element) {
         return BUILDER.comment("Maximum health of the " + element + " Sheeper in health points (2 = one heart).",
