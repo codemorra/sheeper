@@ -1,23 +1,32 @@
 package de.codemorra.sheeper.entity;
 
-import java.util.Set;
 import java.util.ArrayDeque;
-import java.util.Queue;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.entity.goal.WaterArenaMoveGoal;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Water boss foundation with incremental discovery and tracked initial water
@@ -32,9 +41,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private Queue<BlockPos> waterPlacement;
     private int placementWave = -1;
     private long nextFloodWaveTick;
+    private boolean spawnPushApplied;
+    private final Queue<UUID> attackOrder = new ArrayDeque<>();
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
+        getNavigation().setCanFloat(true);
     }
 
     /**
@@ -49,7 +61,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Horizontal encounter radius in blocks, reserved for arena and combat logic.
+     * Horizontal arena and combat radius in blocks around the saved origin.
      */
     public double getCombatRadius() {
         return SheeperConfig.WATER_COMBAT_RADIUS.get();
@@ -58,6 +70,127 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     /** Keeps the configured movement area within the encounter area. */
     public double getMovementRadius() {
         return Math.min(SheeperConfig.WATER_MOVEMENT_RADIUS.get(), getCombatRadius());
+    }
+
+    @Override
+    protected void registerGoals() {
+        goalSelector.addGoal(0, new WaterArenaMoveGoal(this));
+    }
+
+    /** Checks a horizontal circle around the center of the saved spawn block. */
+    public boolean isWithinMovementArea(double x, double z) {
+        return horizontalDistanceSquared(x, z) <= getMovementRadius() * getMovementRadius();
+    }
+
+    @Override
+    public void move(MoverType type, Vec3 movement) {
+        if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()
+                && isWithinMovementArea(getX(), getZ())) {
+            double dx = getX() - getArenaCenter().getX() - 0.5D;
+            double dz = getZ() - getArenaCenter().getZ() - 0.5D;
+            // Leave a numerical margin when converting back to world coordinates.
+            double radius = Math.max(0.0D, getMovementRadius() - 1.0E-7D);
+            double radiusSquared = radius * radius;
+            double limitX = Math.sqrt(Math.max(0.0D, radiusSquared - dz * dz));
+            double nextX = Mth.clamp(dx + movement.x, -limitX, limitX);
+            // Keep the whole movement rectangle inside the circle, so sliding along
+            // a collision cannot carry the boss outside when one axis is blocked.
+            double limitZ = Math.sqrt(Math.max(0.0D, radiusSquared - Math.max(dx * dx, nextX * nextX)));
+            double nextZ = Mth.clamp(dz + movement.z, -limitZ, limitZ);
+            movement = new Vec3(nextX - dx, movement.y, nextZ - dz);
+        }
+        super.move(type, movement);
+    }
+
+    private double horizontalDistanceSquared(double x, double z) {
+        BlockPos center = getArenaCenter();
+        double dx = x - (center.getX() + 0.5D);
+        double dz = z - (center.getZ() + 0.5D);
+        return dx * dx + dz * dz;
+    }
+
+    private boolean isEligiblePlayer(ServerPlayer player, double radius, double heightRange) {
+        return player.level == level && player.isAlive() && !player.isRemoved()
+                && !player.isCreative() && !player.isSpectator()
+                && horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
+                && Math.abs(player.getY() - getArenaCenter().getY()) <= heightRange;
+    }
+
+    /**
+     * Current server-side participants, independent of flooding progress or sight.
+     */
+    public List<ServerPlayer> getCombatParticipants() {
+        if (!(level instanceof ServerLevel server) || !isAlive()) {
+            return List.of();
+        }
+        return server.players().stream()
+                .filter(player -> isEligiblePlayer(player, getCombatRadius(),
+                        SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get()))
+                .toList();
+    }
+
+    /**
+     * Advances the shared round-robin order once per attack selection. Invalid
+     * players are removed; returning and new participants join the back of the
+     * queue.
+     * Returns null while combat is paused without participants.
+     */
+    @Nullable
+    public ServerPlayer selectNextAttackTarget() {
+        List<ServerPlayer> participants = getCombatParticipants();
+        Set<UUID> eligible = new HashSet<>();
+        participants.forEach(player -> eligible.add(player.getUUID()));
+        attackOrder.removeIf(id -> !eligible.contains(id));
+        for (ServerPlayer player : participants) {
+            if (!attackOrder.contains(player.getUUID())) {
+                attackOrder.add(player.getUUID());
+            }
+        }
+        UUID next = attackOrder.poll();
+        if (next == null) {
+            setTarget(null);
+            return null;
+        }
+        attackOrder.add(next);
+        ServerPlayer target = participants.stream().filter(player -> player.getUUID().equals(next)).findFirst()
+                .orElseThrow();
+        setTarget(target);
+        return target;
+    }
+
+    private void updateCombatTarget() {
+        List<ServerPlayer> participants = getCombatParticipants();
+        attackOrder.removeIf(id -> participants.stream().noneMatch(player -> player.getUUID().equals(id)));
+        if (getTarget() == null || !participants.contains(getTarget())) {
+            selectNextAttackTarget();
+        }
+    }
+
+    private void applySpawnPush() {
+        if (spawnPushApplied) {
+            return;
+        }
+        spawnPushApplied = true;
+        double horizontal = SheeperConfig.WATER_SPAWN_PUSH_STRENGTH.get();
+        double upward = SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH.get();
+        if (horizontal == 0.0D && upward == 0.0D) {
+            return;
+        }
+        for (ServerPlayer player : ((ServerLevel) level).players()) {
+            if (!isEligiblePlayer(player, SheeperConfig.WATER_SPAWN_PUSH_RADIUS.get(),
+                    SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get())) {
+                continue;
+            }
+            Vec3 direction = new Vec3(player.getX() - getArenaCenter().getX() - 0.5D, 0.0D,
+                    player.getZ() - getArenaCenter().getZ() - 0.5D);
+            if (direction.lengthSqr() < 1.0E-8D) {
+                direction = new Vec3(1.0D, 0.0D, 0.0D);
+            }
+            direction = direction.normalize().scale(horizontal);
+            player.push(direction.x, upward, direction.z);
+            player.connection.send(new ClientboundSetEntityMotionPacket(player));
+            player.hurtMarked = false;
+        }
     }
 
     public boolean isArenaSearchComplete() {
@@ -78,6 +211,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();
             if (isAlive()) {
+                applySpawnPush();
+                updateCombatTarget();
                 if (arenaSearch == null) {
                     arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
                             SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), SheeperConfig.WATER_ARENA_STEP_HEIGHT.get());
@@ -142,6 +277,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putBoolean("WaterSpawnPushApplied", spawnPushApplied);
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
         tag.putString("WaterArenaDimension", level.dimension().location().toString());
     }
@@ -149,6 +285,13 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        // Legacy saved bosses must not push again; fresh summon data has no saved
+        // origin.
+        spawnPushApplied = tag.contains("WaterSpawnPushApplied", Tag.TAG_BYTE)
+                ? tag.getBoolean("WaterSpawnPushApplied")
+                : tag.contains("WaterArenaCenter", Tag.TAG_LONG);
+        attackOrder.clear();
+        setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.
         arenaCenter = tag.contains("WaterArenaCenter", Tag.TAG_LONG)
                 ? BlockPos.of(tag.getLong("WaterArenaCenter"))

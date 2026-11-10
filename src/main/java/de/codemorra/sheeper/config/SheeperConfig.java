@@ -23,14 +23,52 @@ public class SheeperConfig {
     /** Provisional horizontal radii for the water encounter. */
     public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = BUILDER
             .comment("Horizontal water Sheeper arena and combat radius around its saved spawn position.",
-                    "Captured when surface discovery starts; combat is not implemented yet.")
+                    "Surface discovery captures this radius when it starts; combat uses the current value.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
     // Provisional horizontal movement radius for the water encounter.
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_RADIUS = BUILDER
             .comment("Horizontal movement radius around the water Sheeper's saved spawn position.",
-                    "Capped at combatRadius. Movement restrictions are not implemented yet.")
+                    "Capped at combatRadius; measured at the boss's feet.")
             .defineInRange("elemental.water.movementRadius", 10.0, 0.0, 128.0);
+
+    // Maximum vertical height difference for the water combat arena.
+    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_HEIGHT_RANGE = BUILDER
+            .comment("Maximum player feet height difference above or below the saved arena origin.",
+                    "Only living survival/adventure players participate in combat.")
+            .defineInRange("elemental.water.combatHeightRange", 15.0, 0.0, 128.0);
+
+    // Minimum interval between random arena movements.
+    public static final ForgeConfigSpec.IntValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
+            .comment("Minimum ticks between random arena movement targets (20 ticks = one second).")
+            .defineInRange("elemental.water.movement.intervalMinTicks", 100, 1, 12000);
+
+    // Maximum interval between random arena movements.
+    public static final ForgeConfigSpec.IntValue WATER_MOVEMENT_INTERVAL_MAX = BUILDER
+            .comment("Maximum ticks between random arena movement targets; capped below by the minimum.")
+            .defineInRange("elemental.water.movement.intervalMaxTicks", 200, 1, 12000);
+
+    // Navigation speed for random arena movement.
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPEED = BUILDER
+            .comment("Navigation speed multiplier for random arena movement. 0 disables movement.")
+            .defineInRange("elemental.water.movement.speedMultiplier", 1.0, 0.0, 3.0);
+
+    // Horizontal radius for pushing players when the water boss spawns.
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_RADIUS = BUILDER
+            .comment("Players within this horizontal radius are pushed once when the boss spawns.",
+                    "Uses combatHeightRange; only living survival/adventure players are affected.")
+            .defineInRange("elemental.water.spawnPush.radius", 8.0, 0.0, 128.0);
+
+    // Horizontal knockback strength for pushing players when the water boss spawns.
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_STRENGTH = BUILDER
+            .comment(
+                    "Horizontal knockback strength. Higher values push players farther; 0 disables horizontal knockback.")
+            .defineInRange("elemental.water.spawnPush.strength", 3.9, 0.0, 3.9);
+
+    // Upward knockback strength for pushing players when the water boss spawns.
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_UPWARD_STRENGTH = BUILDER
+            .comment("Upward knockback strength. 0 keeps the push horizontal.")
+            .defineInRange("elemental.water.spawnPush.upwardStrength", 1.0, 0.0, 1.0);
 
     // Maximum vertical height difference for the water arena.
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
