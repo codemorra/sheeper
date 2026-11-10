@@ -45,6 +45,16 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private int placementWave = -1;
     private long nextFloodWaveTick;
     private boolean spawnPushApplied;
+
+    private enum AttackPhase {
+        PROJECTILES,
+        REST
+    }
+
+    private AttackPhase attackPhase = AttackPhase.REST;
+    private int attackPhaseTicks;
+    @Nullable
+    private UUID attackTargetId;
     private int projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
     private final Queue<UUID> attackOrder = new ArrayDeque<>();
 
@@ -162,12 +172,58 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return target;
     }
 
-    private void updateCombatTarget() {
-        List<ServerPlayer> participants = getCombatParticipants();
-        attackOrder.removeIf(id -> participants.stream().noneMatch(player -> player.getUUID().equals(id)));
-        if (getTarget() == null || !participants.contains(getTarget())) {
-            selectNextAttackTarget();
+    private void tickAttackPhase() {
+        if (isNoAi()) {
+            return;
         }
+        List<ServerPlayer> participants = getCombatParticipants();
+        if (attackPhase == AttackPhase.PROJECTILES && attackPhaseTicks > 0) {
+            // Resolve the saved focus without selecting a replacement mid-attack.
+            ServerPlayer target = participants.stream()
+                    .filter(player -> player.getUUID().equals(attackTargetId)).findFirst().orElse(null);
+            if (target == null) {
+                beginAttackRest();
+                return;
+            }
+            setTarget(target);
+        }
+        if (participants.isEmpty()) {
+            return;
+        }
+        if (attackPhaseTicks == 0) {
+            // Only implemented attacks participate; later attacks share this timer.
+            ServerPlayer target = selectNextAttackTarget();
+            if (target == null) {
+                return;
+            }
+            attackTargetId = target.getUUID();
+            attackPhase = AttackPhase.PROJECTILES;
+            attackPhaseTicks = randomPhaseTicks(SheeperConfig.WATER_PROJECTILE_DURATION_MIN.get(),
+                    SheeperConfig.WATER_PROJECTILE_DURATION_MAX.get());
+            projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
+        }
+        if (attackPhase == AttackPhase.REST) {
+            attackPhaseTicks--;
+            return;
+        }
+        tickRegularShots();
+        if (--attackPhaseTicks == 0) {
+            beginAttackRest();
+        }
+    }
+
+    private void beginAttackRest() {
+        setTarget(null);
+        attackTargetId = null;
+        attackPhase = AttackPhase.REST;
+        attackPhaseTicks = randomPhaseTicks(SheeperConfig.WATER_ATTACK_PAUSE_MIN.get(),
+                SheeperConfig.WATER_ATTACK_PAUSE_MAX.get());
+    }
+
+    private int randomPhaseTicks(int minimum, int maximum) {
+        // Use a long range so inclusive bounds also support 0..Integer.MAX_VALUE.
+        long range = (long) Math.max(minimum, maximum) - minimum + 1L;
+        return minimum + (int) (random.nextDouble() * range);
     }
 
     private void tickRegularShots() {
@@ -179,7 +235,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             return;
         }
         fireWaterProjectile(getTarget());
-        selectNextAttackTarget();
         projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
     }
 
@@ -259,7 +314,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             getArenaCenter();
             if (isAlive()) {
                 applySpawnPush();
-                updateCombatTarget();
                 if (arenaSearch == null) {
                     arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
                             SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), SheeperConfig.WATER_ARENA_STEP_HEIGHT.get());
@@ -272,12 +326,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         super.tick();
         if (!level.isClientSide && isAlive()) {
+            tickAttackPhase();
             if (!isNoAi() && getTarget() != null) {
                 // Apply after vanilla navigation and look control, which otherwise
                 // turn the head back toward the movement direction between shots.
                 lookAtAttackTarget(getTarget());
             }
-            tickRegularShots();
         }
     }
 
@@ -332,6 +386,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        if (attackTargetId != null) {
+            tag.putUUID("WaterAttackTarget", attackTargetId);
+        }
+        tag.putString("WaterAttackPhase", attackPhase.name());
+        tag.putInt("WaterAttackPhaseTicks", attackPhaseTicks);
         tag.putInt("WaterProjectileCooldown", projectileCooldown);
         tag.putBoolean("WaterSpawnPushApplied", spawnPushApplied);
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
@@ -346,6 +405,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         spawnPushApplied = tag.contains("WaterSpawnPushApplied", Tag.TAG_BYTE)
                 ? tag.getBoolean("WaterSpawnPushApplied")
                 : tag.contains("WaterArenaCenter", Tag.TAG_LONG);
+        attackTargetId = tag.hasUUID("WaterAttackTarget") ? tag.getUUID("WaterAttackTarget") : null;
+        attackPhaseTicks = Math.max(0, tag.getInt("WaterAttackPhaseTicks"));
+        attackPhase = "PROJECTILES".equals(tag.getString("WaterAttackPhase"))
+                ? AttackPhase.PROJECTILES
+                : AttackPhase.REST;
         projectileCooldown = tag.contains("WaterProjectileCooldown", Tag.TAG_INT)
                 ? Mth.clamp(tag.getInt("WaterProjectileCooldown"), 1, SheeperConfig.WATER_PROJECTILE_INTERVAL.get())
                 : SheeperConfig.WATER_PROJECTILE_INTERVAL.get();

@@ -87,8 +87,31 @@ public class SheeperConfig {
 
     // Water projectile interval between shots.
     public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_INTERVAL = BUILDER
-            .comment("Ticks between regular shots while eligible players are present (20 ticks = one second).")
+            .comment("Ticks between shots within a regular projectile phase (20 ticks = one second).")
             .defineInRange("elemental.water.projectile.intervalTicks", 40, 1, 12000);
+
+    // Duration of one regular projectile attack phase.
+    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_DURATION_MIN = BUILDER
+            .comment("Minimum ticks per regular projectile phase (20 ticks = one second).",
+                    "The duration is sampled once at phase start; the first shot waits intervalTicks.")
+            .defineInRange("elemental.water.projectile.durationMinTicks", 80, 1, 1200);
+
+    // Maximum duration of one regular projectile attack phase.
+    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_DURATION_MAX = BUILDER
+            .comment("Maximum ticks per regular projectile phase; capped below by durationMinTicks.")
+            .defineInRange("elemental.water.projectile.durationMaxTicks", 160, 1, 1200);
+
+    // Shared rest period after an attack; existing projectiles keep flying.
+    public static final ForgeConfigSpec.IntValue WATER_ATTACK_PAUSE_MIN = BUILDER
+            .comment("Minimum rest ticks after an attack. No new attacks start during rest.",
+                    "Rest pauses without eligible players. An attack ends if its chosen target becomes ineligible.",
+                    "NoAI pauses both attack and rest timers.")
+            .defineInRange("elemental.water.attack.pauseMinTicks", 40, 0, 1200);
+
+    // Maximum rest period after an attack.
+    public static final ForgeConfigSpec.IntValue WATER_ATTACK_PAUSE_MAX = BUILDER
+            .comment("Maximum rest ticks; capped below by pauseMinTicks. Both may be 0 to disable rest.")
+            .defineInRange("elemental.water.attack.pauseMaxTicks", 80, 0, 1200);
 
     // Water projectile lifetime in ticks.
     public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_LIFETIME = BUILDER
