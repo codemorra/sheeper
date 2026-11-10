@@ -141,6 +141,8 @@ final class WaterCombatGameTests {
     }
 
     private static void movement(GameTestContext context) {
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, 1200);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 1200);
         context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 12000);
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 7.0D);

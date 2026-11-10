@@ -131,7 +131,7 @@ final class WaterProjectileGameTests {
     private static void look(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
         TestPlayer first = context.player(16, 2, 8);
-        TestPlayer second = context.player(8, 2, 16);
+        context.player(8, 2, 16);
         // Stay between shots while the target moves around and above the boss.
         for (int tick = 0; tick < 20; tick++) {
             first.standAt(context.point(tick < 10 ? 16 : 2, 2 + tick % 3, 4 + tick % 8));
@@ -143,8 +143,8 @@ final class WaterProjectileGameTests {
                 "Continuous tracking must also work between shots");
         first.standAt(context.point(100, 2, 8));
         boss.tick();
-        context.expect(boss.getTarget() == second, "An invalid target must be replaced");
-        assertLookingAt(context, boss, second);
+        context.expect(boss.getTarget() == null,
+                "An invalid target must release focus without selecting a replacement");
         context.pass();
     }
 
@@ -158,6 +158,10 @@ final class WaterProjectileGameTests {
     private static void shots(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
         context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 4);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, 8);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 8);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 2);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 2);
         TestPlayer first = context.player(16, 2, 8);
         TestPlayer second = context.player(8, 2, 16);
         for (int tick = 0; tick < 3; tick++) {
@@ -173,8 +177,21 @@ final class WaterProjectileGameTests {
             boss.tick();
         }
         shots = context.entities(WaterProjectile.class);
+        context.expect(shots.size() == 1 && shots.get(0).getDeltaMovement().x > 0.0D,
+                "All shots in one phase must keep the same participant");
+        shots.get(0).discard();
+        context.expect(boss.getTarget() == null, "The start of rest must immediately release focus");
+        for (int tick = 0; tick < 2; tick++) {
+            boss.tick();
+            context.expect(boss.getTarget() == null, "Rest must not select another participant");
+        }
+        for (int tick = 0; tick < 4; tick++) {
+            boss.tick();
+            context.expect(boss.getTarget() == second, "Only the next phase may select the next participant");
+        }
+        shots = context.entities(WaterProjectile.class);
         context.expect(shots.size() == 1 && shots.get(0).getDeltaMovement().z > 0.0D,
-                "The next interval must shoot at the next participant");
+                "The next phase must shoot at its newly selected participant");
         shots.get(0).discard();
         first.standAt(context.point(100, 2, 8));
         second.standAt(context.point(100, 2, 16));
@@ -184,10 +201,15 @@ final class WaterProjectileGameTests {
         context.expect(boss.getTarget() == null && context.entities(WaterProjectile.class).isEmpty(),
                 "Combat without participants must pause shots");
         first.standAt(context.point(16, 2, 8));
+        for (int tick = 0; tick < 2; tick++) {
+            boss.tick();
+            context.expect(boss.getTarget() == null, "Returning players must first complete the remaining rest");
+        }
         for (int tick = 0; tick < 3; tick++) {
             boss.tick();
         }
-        context.expect(context.entities(WaterProjectile.class).isEmpty(), "Paused time must not consume the cooldown");
+        context.expect(context.entities(WaterProjectile.class).isEmpty(),
+                "The next attack must wait its complete shot interval");
         boss.tick();
         context.expect(context.entities(WaterProjectile.class).size() == 1, "Returning players must resume shots");
         context.pass();

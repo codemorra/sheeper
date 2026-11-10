@@ -52,6 +52,7 @@ public final class SheeperGameTests {
         WaterGameTests.add(scenarios);
         WaterCombatGameTests.add(scenarios);
         WaterProjectileGameTests.add(scenarios);
+        WaterAttackGameTests.add(scenarios);
         BossWaterGameTests.add(scenarios);
         WaterWaveGameTests.add(scenarios);
         DataGameTests.add(scenarios);
