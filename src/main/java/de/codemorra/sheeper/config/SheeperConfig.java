@@ -70,6 +70,31 @@ public class SheeperConfig {
             .comment("Upward knockback strength. 0 keeps the push horizontal.")
             .defineInRange("elemental.water.spawnPush.upwardStrength", 1.0, 0.0, 1.0);
 
+    // Base projectile settings; strength scaling is reserved for combat balancing.
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
+            .comment("Damage per water projectile in health points (2 = one heart).")
+            .defineInRange("elemental.water.projectile.damage", 2.0, 0.0, 1024.0);
+
+    // Water projectile speed in blocks per tick.
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_SPEED = BUILDER
+            .comment("Constant water projectile speed in blocks per tick, including underwater.")
+            .defineInRange("elemental.water.projectile.speed", 0.8, 0.05, 3.0);
+
+    // Water projectile knockback on hit.
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_KNOCKBACK = BUILDER
+            .comment("Additional velocity in the projectile's flight direction on an accepted hit.")
+            .defineInRange("elemental.water.projectile.knockback", 0.5, 0.0, 3.0);
+
+    // Water projectile interval between shots.
+    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_INTERVAL = BUILDER
+            .comment("Ticks between regular shots while eligible players are present (20 ticks = one second).")
+            .defineInRange("elemental.water.projectile.intervalTicks", 40, 1, 12000);
+
+    // Water projectile lifetime in ticks.
+    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_LIFETIME = BUILDER
+            .comment("Maximum flight ticks; maximum range is speed multiplied by lifetimeTicks.")
+            .defineInRange("elemental.water.projectile.lifetimeTicks", 100, 1, 12000);
+
     // Maximum vertical height difference for the water arena.
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
             .comment("Maximum surface-cell height difference above or below the saved spawn position.",
