@@ -4,6 +4,7 @@
   "entity.sheeper.lava_sheeper": "Lava Sheeper",
   "entity.sheeper.lightning_sheeper": "Lightning Sheeper",
   "entity.sheeper.water_sheeper": "Water Sheeper",
+  "entity.sheeper.water_projectile": "Water Projectile",
   "item.sheeper.sheeper_spawn_egg": "Sheeper Spawn Egg",
   "item.sheeper.raw_sheeper_mutton": "Raw Sheeper Mutton",
   "item.sheeper.cooked_sheeper_mutton": "Cooked Sheeper Mutton",

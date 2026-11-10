@@ -13,7 +13,9 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.WaterArenaMoveGoal;
+import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.world.WaterArenaData;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -23,6 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
@@ -42,6 +45,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private int placementWave = -1;
     private long nextFloodWaveTick;
     private boolean spawnPushApplied;
+    private int projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
     private final Queue<UUID> attackOrder = new ArrayDeque<>();
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
@@ -166,6 +170,49 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
     }
 
+    private void tickRegularShots() {
+        if (isNoAi() || getTarget() == null) {
+            return;
+        }
+        projectileCooldown = Math.min(projectileCooldown, SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
+        if (--projectileCooldown > 0) {
+            return;
+        }
+        fireWaterProjectile(getTarget());
+        selectNextAttackTarget();
+        projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
+    }
+
+    /**
+     * Fires at the target's current eye position with no prediction or homing.
+     * Shared by regular shots and future volleys; callers own timing and selection.
+     *
+     * @param target living target whose current eye position determines the shot
+     * @return whether a projectile was spawned on the server with a clear sight
+     *         line
+     */
+    public boolean fireWaterProjectile(LivingEntity target) {
+        if (level.isClientSide || !isAlive() || !target.isAlive() || target.level != level
+                || !hasLineOfSight(target)) {
+            return false;
+        }
+        lookAtAttackTarget(target);
+        WaterProjectile projectile = new WaterProjectile(ModEntities.WATER_PROJECTILE.get(), level);
+        projectile.setOwner(this);
+        projectile.setPos(getEyePosition());
+        Vec3 direction = target.getEyePosition().subtract(projectile.position());
+        if (direction.lengthSqr() < 1.0E-8D) {
+            direction = getLookAngle();
+        }
+        projectile.setDeltaMovement(direction.normalize().scale(SheeperConfig.WATER_PROJECTILE_SPEED.get()));
+        return level.addFreshEntity(projectile);
+    }
+
+    private void lookAtAttackTarget(LivingEntity target) {
+        lookAt(EntityAnchorArgument.Anchor.EYES, target.getEyePosition());
+        setYHeadRot(getYRot());
+    }
+
     private void applySpawnPush() {
         if (spawnPushApplied) {
             return;
@@ -224,6 +271,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             }
         }
         super.tick();
+        if (!level.isClientSide && isAlive()) {
+            if (!isNoAi() && getTarget() != null) {
+                // Apply after vanilla navigation and look control, which otherwise
+                // turn the head back toward the movement direction between shots.
+                lookAtAttackTarget(getTarget());
+            }
+            tickRegularShots();
+        }
     }
 
     private void placeArenaWater(ServerLevel level) {
@@ -277,6 +332,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putInt("WaterProjectileCooldown", projectileCooldown);
         tag.putBoolean("WaterSpawnPushApplied", spawnPushApplied);
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
         tag.putString("WaterArenaDimension", level.dimension().location().toString());
@@ -290,6 +346,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         spawnPushApplied = tag.contains("WaterSpawnPushApplied", Tag.TAG_BYTE)
                 ? tag.getBoolean("WaterSpawnPushApplied")
                 : tag.contains("WaterArenaCenter", Tag.TAG_LONG);
+        projectileCooldown = tag.contains("WaterProjectileCooldown", Tag.TAG_INT)
+                ? Mth.clamp(tag.getInt("WaterProjectileCooldown"), 1, SheeperConfig.WATER_PROJECTILE_INTERVAL.get())
+                : SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
         attackOrder.clear();
         setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.

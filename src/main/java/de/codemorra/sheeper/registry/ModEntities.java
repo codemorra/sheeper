@@ -6,6 +6,7 @@ import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity.Element;
 import de.codemorra.sheeper.entity.PrimedSheeperWool;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
+import de.codemorra.sheeper.entity.WaterProjectile;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -50,6 +51,13 @@ public class ModEntities {
                     .sized(EntityType.SHEEP.getWidth(), EntityType.SHEEP.getHeight())
                     .clientTrackingRange(10)
                     .build(SheeperMod.MODID + ":water_sheeper"));
+
+    public static final RegistryObject<EntityType<WaterProjectile>> WATER_PROJECTILE = ENTITY_TYPES.register(
+            "water_projectile", () -> EntityType.Builder.<WaterProjectile>of(WaterProjectile::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build(SheeperMod.MODID + ":water_projectile"));
 
     /**
      * MISC categorizes these bosses separately from naturally spawning creatures.

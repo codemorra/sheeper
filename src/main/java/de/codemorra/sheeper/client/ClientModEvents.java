@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import de.codemorra.sheeper.client.renderer.ElementalSheeperRenderer;
 import de.codemorra.sheeper.client.renderer.SheeperRenderer;
+import de.codemorra.sheeper.client.renderer.WaterProjectileRenderer;
 import de.codemorra.sheeper.client.renderer.PrimedSheeperWoolRenderer;
 import de.codemorra.sheeper.client.renderer.layer.PlayerMuttonTintLayer;
 import de.codemorra.sheeper.client.particle.MuttonCloudParticle;
@@ -78,6 +79,7 @@ public class ClientModEvents {
         event.registerEntityRenderer(ModEntities.LAVA_SHEEPER.get(), ElementalSheeperRenderer::new);
         event.registerEntityRenderer(ModEntities.LIGHTNING_SHEEPER.get(), ElementalSheeperRenderer::new);
         event.registerEntityRenderer(ModEntities.WATER_SHEEPER.get(), ElementalSheeperRenderer::new);
+        event.registerEntityRenderer(ModEntities.WATER_PROJECTILE.get(), WaterProjectileRenderer::new);
 
         event.registerEntityRenderer(
                 ModEntities.SHEEPER.get(), SheeperRenderer::new);
