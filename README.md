@@ -33,7 +33,14 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 - **Summoning:** Use `/summon sheeper:lava_sheeper`, `/summon sheeper:lightning_sheeper`, or `/summon sheeper:water_sheeper`.
 - **Elemental appearance:** Lava has dark wool with glowing magma, Lightning has gray wool with moving electrical lines, and Water has cyan wool with a flowing water layer. Matching body colors and particles complete each element. The layers use Minecraft textures and pick up resource-pack replacements for those textures.
-- **Boss foundation:** Each persistent adult boss has an element-colored health bar for players tracking it. Size defaults to twice normal sheep size; maximum health defaults to 100 points pending combat balancing.
+- **Boss foundation:** Each persistent adult boss has an element-colored health bar for players tracking it. Size defaults to twice normal sheep size; each element has its own maximum-health setting, defaulting to 200 points (100 hearts).
+
+#### Water Sheeper encounter
+
+- **Flooded arena:** The Water Sheeper floods nearby terrain before combat begins. Its water spreads outward and recedes after defeat, preserving existing natural water.
+- **Ranged attacks:** Water projectiles damage and knock back players. Charged salvos are announced by red eyes and track the focused player's movement between shots.
+- **Fountains:** Fishing particles warn of eruptions that launch players into the air. Fountains appear beneath players and across the arena, accompanied by local rain.
+- **Keep your distance:** Players lingering near the boss are pushed away. The fight supports multiple players and rotates its direct attack targets.
 
 ### Explosive wool
 
@@ -68,6 +75,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, `carpet`, and `elemental`.
 
 - **Elemental bosses:** Each element has independent `elemental.<element>.size` and `elemental.<element>.maxHealth` settings, where `<element>` is `lava`, `lightning`, or `water`. Size defaults to `2.0` (range `0.5–4.0`); `1.0` matches normal sheep/Sheeper size. Maximum health defaults to `200` for each element (range `1–1024` health points). Changes apply to existing bosses; health changes preserve the remaining health percentage. The server synchronizes size for matching models and hitboxes.
+- **Water boss:** `elemental.water` groups arena bounds, flooding and cleanup speed, movement, spawn/proximity launches, projectiles, fountains, salvos, and cosmetic rain. Attack weights under `elemental.water.attack` control how often each attack type is selected; all three default to equal weights.
 - **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
 - **Babies:** Extra speed, bump knockback, explosion strength, and minimum/maximum attack pauses. A maximum pause below the minimum is treated as equal to the minimum.
@@ -79,7 +87,7 @@ The server's copy controls gameplay in multiplayer. All settings are grouped und
 - **Wool:** Unsafe-mining blast strength (also used by carpets), primed explosion strength, and normal fuse duration. Explosion chains still shorten the fuse.
 - **Carpets:** Step-explosion radius, base damage, horizontal knockback, and upward push. Distance and cover reduce the launch; cover also reduces damage. Zero damage or impulse disables that component, while stepping still consumes the carpet.
 
-Durations and intervals use seconds, rounded up to whole game ticks. Damage uses health points: 1 is half a heart. A zero eating duration disables that food's effect for new meals; zero damage, knockback, or speed disables that component. Ordinary Minecraft damage immunity still applies to very short intervals. Explosion strength 0 suppresses the blast but retains the enabled reaction's consumption and appliance removal. Use the reaction's enable switch to disable it entirely.
+Durations and intervals use seconds. Projectile speed and particle/processing rates use units per second. Damage uses health points: 1 is half a heart. A zero eating duration disables that food's effect for new meals; zero damage, knockback, or speed disables that component. Ordinary Minecraft damage immunity still applies to very short intervals. Explosion strength 0 suppresses the blast but retains the enabled reaction's consumption and appliance removal. Use the reaction's enable switch to disable it entirely.
 
 Eating durations and normal wool fuses are captured when eating/igniting. New internal-explosion intervals apply after the next scheduled explosion; damage and speed settings are read during the active effect. Other existing Sheeper settings retain their previous behavior.
 
@@ -87,7 +95,7 @@ Eating durations and normal wool fuses are captured when eating/igniting. New in
 
 Each player controls their own visuals and audio. These settings do not change server-side damage, timing, spawning, or breeding.
 
-- **Tint:** Enable skin and screen tint independently; adjust raw/cooked strength, pulse attack/release/decay, and final fade duration. Both tints share the same pulse curve. The default cooked strength is 0.25; final fade defaults to two seconds.
+- **Tint:** Enable skin and screen tint independently; adjust raw/cooked strength, pulse attack/release/decay times in seconds, and final fade duration. Both tints share the same pulse curve. The default cooked strength is 0.25; final fade defaults to two seconds.
 - **Vapor:** Enable/disable it, set raw/cooked size and puff counts, and adjust sequence spacing and the continuous cooked stream's interval. Minecraft's Minimal particle setting also hides vapor. An existing short sequence finishes with its captured count/spacing; the next uses the new settings.
 - **Sound:** Separate local volume multipliers for warnings, raw internal explosions, and cooked internal explosions. 1 preserves the usual volume and 0 mutes that category, without changing ordinary sheep or TNT sounds.
 
@@ -117,7 +125,7 @@ Run the automated verification with Java 17:
 ```
 
 - Builds the mod, checks wool/carpet resources and JAR contents, and runs the GameTests.
-- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, and packet contracts.
+- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water boss arenas/combat/persistence, and packet contracts.
 - Each run uses a fresh test world in `build/gametest/run/`; development worlds and configuration in `run/` are preserved. Test classes and scenes are excluded from the mod JAR.
 - Stops on the first failed test and fails on missing/incomplete results. Results are in `build/reports/gametest/results.xml`; server logs are in `build/gametest/run/logs/`.
 - Pull requests targeting `main` automatically run the same verification with Java 17. Reports and server logs are uploaded as the `verification-reports` artifact, including on failure.
