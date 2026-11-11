@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import de.codemorra.sheeper.client.renderer.layer.ElementalFleeceLayer;
+import de.codemorra.sheeper.client.renderer.layer.WaterSalvoEyesLayer;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import net.minecraft.client.model.SheepModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -19,6 +20,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         super(context);
         model = new ElementalBodyModel(context.bakeLayer(ModelLayers.SHEEP));
         addLayer(new ElementalFleeceLayer(this, context.getModelSet()));
+        addLayer(new WaterSalvoEyesLayer(this, context.getModelSet()));
     }
 
     /**

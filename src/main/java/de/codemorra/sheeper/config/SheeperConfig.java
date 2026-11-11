@@ -101,10 +101,52 @@ public class SheeperConfig {
             .comment("Maximum ticks per regular projectile phase; capped below by durationMinTicks.")
             .defineInRange("elemental.water.projectile.durationMaxTicks", 160, 1, 1200);
 
-    // Probability of choosing fountains instead of projectiles after rest.
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_CHANCE = BUILDER
-            .comment("Probability of choosing fountains instead of projectiles after rest.")
-            .defineInRange("elemental.water.fountain.chance", 0.5, 0.0, 1.0);
+    // Salvo timing uses the same projectile settings as regular shots.
+    public static final ForgeConfigSpec.IntValue WATER_SALVO_PREPARATION = BUILDER
+            .comment("Preparation ticks before the first salvo shot; eyes gradually turn red.")
+            .defineInRange("elemental.water.salvo.preparationTicks", 40, 1, 1200);
+
+    // Minimum salvo firing duration in ticks, excluding preparation.
+    public static final ForgeConfigSpec.IntValue WATER_SALVO_DURATION_MIN = BUILDER
+            .comment("Minimum salvo firing duration in ticks, excluding preparation (20 ticks = one second).",
+                    "Sampled once at phase start; duration continues during sight loss.")
+            .defineInRange("elemental.water.salvo.durationMinTicks", 100, 1, 1200);
+
+    // Maximum salvo firing duration in ticks, excluding preparation.
+    public static final ForgeConfigSpec.IntValue WATER_SALVO_DURATION_MAX = BUILDER
+            .comment("Maximum salvo firing duration; capped below by durationMinTicks.")
+            .defineInRange("elemental.water.salvo.durationMaxTicks", 200, 1, 1200);
+
+    // Interval between salvo shots in ticks.
+    public static final ForgeConfigSpec.IntValue WATER_SALVO_INTERVAL = BUILDER
+            .comment("Ticks between salvo shots (20 ticks = one second).")
+            .defineInRange("elemental.water.salvo.intervalTicks", 6, 1, 1200);
+
+    // Consecutive ticks without sight before aborting a salvo.
+    public static final ForgeConfigSpec.IntValue WATER_SALVO_SIGHT_TIMEOUT = BUILDER
+            .comment("Consecutive ticks without sight before aborting a salvo. Shots pause during sight loss.")
+            .defineInRange("elemental.water.salvo.sightTimeoutTicks", 20, 1, 1200);
+
+    // Ticks for red eyes to fade out after completing or aborting a salvo.
+    public static final ForgeConfigSpec.IntValue WATER_SALVO_EYE_FADE = BUILDER
+            .comment("Ticks for red eyes to fade out after completing or aborting a salvo.")
+            .defineInRange("elemental.water.salvo.eyeFadeTicks", 10, 1, 1200);
+
+    // Relative weight of projectile attacks in the attack selection.
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_WEIGHT = BUILDER
+            .comment("Relative weight of regular projectile phases. Chance = weight / sum of all three attack weights.",
+                    "Equal weights give equal chances. 0 disables this type; all weights 0 disable new attacks.")
+            .defineInRange("elemental.water.attack.projectileWeight", 1.0, 0.0, 100.0);
+
+    // Relative weight of fountain attacks in the attack selection.
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WEIGHT = BUILDER
+            .comment("Relative weight of fountain phases; 0 disables this type.")
+            .defineInRange("elemental.water.attack.fountainWeight", 1.0, 0.0, 100.0);
+
+    // Relative weight of salvo attacks in the attack selection.
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_WEIGHT = BUILDER
+            .comment("Relative weight of salvo phases; 0 disables this type.")
+            .defineInRange("elemental.water.attack.salvoWeight", 1.0, 0.0, 100.0);
 
     // Minimum duration of one fountain attack phase.
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_DURATION_MIN = BUILDER

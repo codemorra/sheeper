@@ -20,6 +20,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -36,6 +39,10 @@ import net.minecraft.world.phys.Vec3;
  * placement.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
+    private static final EntityDataAccessor<Float> DATA_SALVO_EYES = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private float previousSalvoEyeIntensity;
+
     @Nullable
     private BlockPos arenaCenter;
     @Nullable
@@ -49,10 +56,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private enum AttackPhase {
         PROJECTILES,
         FOUNTAINS,
+        SALVO,
         REST
     }
 
     private final WaterFountainAttack fountains = new WaterFountainAttack(this);
+    private final WaterProjectileSalvo salvo = new WaterProjectileSalvo(this);
     private AttackPhase attackPhase = AttackPhase.REST;
     private int attackPhaseTicks;
     @Nullable
@@ -63,6 +72,34 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
         getNavigation().setCanFloat(true);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        entityData.define(DATA_SALVO_EYES, 0.0F);
+    }
+
+    /** Interpolated, server-controlled warning for the client eye layer. */
+    public float getSalvoEyeIntensity(float partialTicks) {
+        return Mth.lerp(partialTicks, previousSalvoEyeIntensity, entityData.get(DATA_SALVO_EYES));
+    }
+
+    void setSalvoEyeIntensity(float intensity) {
+        entityData.set(DATA_SALVO_EYES, Mth.clamp(intensity, 0.0F, 1.0F));
+    }
+
+    /** Navigation is suspended for the entire preparation and firing sequence. */
+    public boolean isPerformingSalvo() {
+        return attackPhase == AttackPhase.SALVO;
+    }
+
+    private void stopSalvoMovement() {
+        getNavigation().stop();
+        Vec3 velocity = getDeltaMovement();
+        setDeltaMovement(0.0D, velocity.y, 0.0D);
+        setXxa(0.0F);
+        setZza(0.0F);
     }
 
     /**
@@ -100,6 +137,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
+        if (type == MoverType.SELF && !level.isClientSide && isPerformingSalvo()) {
+            movement = new Vec3(0.0D, movement.y, 0.0D);
+        }
         if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()
                 && isWithinMovementArea(getX(), getZ())) {
             double dx = getX() - getArenaCenter().getX() - 0.5D;
@@ -176,10 +216,13 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     private void tickAttackPhase() {
         if (isNoAi()) {
+            if (isPerformingSalvo()) {
+                beginAttackRest();
+            }
             return;
         }
         List<ServerPlayer> participants = getCombatParticipants();
-        if (attackPhase == AttackPhase.PROJECTILES && attackPhaseTicks > 0) {
+        if (isPerformingSalvo() || attackPhase == AttackPhase.PROJECTILES && attackPhaseTicks > 0) {
             // Resolve the saved focus without selecting a replacement mid-attack.
             ServerPlayer target = participants.stream()
                     .filter(player -> player.getUUID().equals(attackTargetId)).findFirst().orElse(null);
@@ -188,12 +231,40 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 return;
             }
             setTarget(target);
+            if (isPerformingSalvo()) {
+                stopSalvoMovement();
+                if (!salvo.tick(target)) {
+                    beginAttackRest();
+                }
+                return;
+            }
         }
         if (participants.isEmpty()) {
             return;
         }
         if (attackPhaseTicks == 0) {
-            if (random.nextDouble() < SheeperConfig.WATER_FOUNTAIN_CHANCE.get()) {
+            double salvoWeight = SheeperConfig.WATER_SALVO_WEIGHT.get();
+            double fountainWeight = SheeperConfig.WATER_FOUNTAIN_WEIGHT.get();
+            double totalWeight = salvoWeight + fountainWeight + SheeperConfig.WATER_PROJECTILE_WEIGHT.get();
+            if (totalWeight == 0.0D) {
+                return;
+            }
+            double choice = random.nextDouble() * totalWeight;
+            if (choice < salvoWeight) {
+                ServerPlayer target = selectNextAttackTarget();
+                if (target == null) {
+                    return;
+                }
+                attackTargetId = target.getUUID();
+                attackPhase = AttackPhase.SALVO;
+                salvo.start();
+                stopSalvoMovement();
+                // Count this first stationary tick toward the preparation.
+                if (!salvo.tick(target)) {
+                    beginAttackRest();
+                }
+                return;
+            } else if (choice < salvoWeight + fountainWeight) {
                 setTarget(null);
                 attackTargetId = null;
                 attackPhase = AttackPhase.FOUNTAINS;
@@ -235,6 +306,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (attackPhase == AttackPhase.FOUNTAINS) {
             fountains.finish();
         }
+        if (isPerformingSalvo()) {
+            stopSalvoMovement();
+        }
         setTarget(null);
         attackTargetId = null;
         attackPhase = AttackPhase.REST;
@@ -262,7 +336,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     /**
      * Fires at the target's current eye position with no prediction or homing.
-     * Shared by regular shots and future volleys; callers own timing and selection.
+     * Shared by regular shots and salvos; callers own timing and selection.
      *
      * @param target living target whose current eye position determines the shot
      * @return whether a projectile was spawned on the server with a clear sight
@@ -331,6 +405,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void tick() {
+        previousSalvoEyeIntensity = entityData.get(DATA_SALVO_EYES);
         if (!level.isClientSide) {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();
@@ -355,6 +430,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 // turn the head back toward the movement direction between shots.
                 lookAtAttackTarget(getTarget());
             }
+        }
+        if (!level.isClientSide && !isPerformingSalvo()) {
+            setSalvoEyeIntensity(Mth.approach(entityData.get(DATA_SALVO_EYES), 0.0F,
+                    1.0F / SheeperConfig.WATER_SALVO_EYE_FADE.get()));
         }
     }
 
@@ -402,6 +481,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public void die(DamageSource source) {
         super.die(source);
         if (dead && level instanceof ServerLevel server) {
+            if (isPerformingSalvo()) {
+                beginAttackRest();
+            }
             WaterArenaData.get(server).release(getUUID());
         }
     }
@@ -413,6 +495,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             tag.putUUID("WaterAttackTarget", attackTargetId);
         }
         tag.put("WaterFountains", fountains.save());
+        tag.put("WaterSalvo", salvo.save());
+        tag.putFloat("WaterSalvoEyes", entityData.get(DATA_SALVO_EYES));
         tag.putString("WaterAttackPhase", attackPhase.name());
         tag.putInt("WaterAttackPhaseTicks", attackPhaseTicks);
         tag.putInt("WaterProjectileCooldown", projectileCooldown);
@@ -434,9 +518,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         attackPhase = switch (tag.getString("WaterAttackPhase")) {
             case "PROJECTILES" -> AttackPhase.PROJECTILES;
             case "FOUNTAINS" -> AttackPhase.FOUNTAINS;
+            case "SALVO" -> AttackPhase.SALVO;
             default -> AttackPhase.REST;
         };
         fountains.load(tag.getCompound("WaterFountains"));
+        salvo.load(tag.getCompound("WaterSalvo"));
+        float eyes = tag.getFloat("WaterSalvoEyes");
+        setSalvoEyeIntensity(Float.isFinite(eyes) ? eyes : 0.0F);
+        previousSalvoEyeIntensity = entityData.get(DATA_SALVO_EYES);
         projectileCooldown = tag.contains("WaterProjectileCooldown", Tag.TAG_INT)
                 ? Mth.clamp(tag.getInt("WaterProjectileCooldown"), 1, SheeperConfig.WATER_PROJECTILE_INTERVAL.get())
                 : SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
