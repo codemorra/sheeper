@@ -27,6 +27,8 @@ final class WaterFountainGameTests {
     }
 
     static void add(List<SheeperGameTests.Scenario> tests) {
+        tests.add(
+                new SheeperGameTests.Scenario("water_fountain_one_tick_warning", WaterFountainGameTests::shortWarning));
         tests.add(new SheeperGameTests.Scenario("water_fountain_warning_and_dodge", WaterFountainGameTests::dodge));
         tests.add(new SheeperGameTests.Scenario("water_fountain_players_and_arena",
                 WaterFountainGameTests::distribution));
@@ -91,6 +93,21 @@ final class WaterFountainGameTests {
                 + observer.particlePackets.stream().filter(p -> p.getParticle() == ParticleTypes.FISHING)
                         .map(p -> p.getX() + "/" + p.getZ()).distinct().toList()
                 + ", phase=" + boss.saveWithoutId(new CompoundTag()).getString("WaterAttackPhase"));
+    }
+
+    private static void shortWarning(GameTestContext context) {
+        WaterSheeperEntity boss = boss(context);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 1);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 1);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 1);
+        TestPlayer observer = player(context, 6, 1, 12);
+        boss.tick();
+        context.expect(warningAt(observer, context.pos(6, 1, 12)),
+                "Even a one-tick warning must show fishing particles immediately");
+        context.expect(observer.motionPackets.isEmpty(), "The warning must precede the launch");
+        boss.tick();
+        context.expect(!observer.motionPackets.isEmpty(), "The fountain must launch after its one-tick warning");
+        context.pass();
     }
 
     private static void dodge(GameTestContext context) {

@@ -140,12 +140,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (type == MoverType.SELF && !level.isClientSide && isPerformingSalvo()) {
             movement = new Vec3(0.0D, movement.y, 0.0D);
         }
-        if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()
-                && isWithinMovementArea(getX(), getZ())) {
+        if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()) {
             double dx = getX() - getArenaCenter().getX() - 0.5D;
             double dz = getZ() - getArenaCenter().getZ() - 0.5D;
             // Leave a numerical margin when converting back to world coordinates.
-            double radius = Math.max(0.0D, getMovementRadius() - 1.0E-7D);
+            // Outside the configured area, allow recovery without moving farther out.
+            double radius = Math.max(Math.max(0.0D, getMovementRadius() - 1.0E-7D), Math.sqrt(dx * dx + dz * dz));
             double radiusSquared = radius * radius;
             double limitX = Math.sqrt(Math.max(0.0D, radiusSquared - dz * dz));
             double nextX = Mth.clamp(dx + movement.x, -limitX, limitX);

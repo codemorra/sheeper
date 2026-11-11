@@ -185,7 +185,7 @@ public class SheeperConfig {
 
     // Maximum launch height above the water cell.
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_HEIGHT = BUILDER
-            .comment("Maximum launch height above the water cell, capped at 10 blocks.")
+            .comment("Maximum launch height above the water cell, capped at 20 blocks.")
             .defineInRange("elemental.water.fountain.height", 10.0, 0.0, 20.0);
 
     // Height of the hit area above the water surface.
