@@ -40,7 +40,7 @@ final class WaterAttackGameTests {
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, rest);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, rest);
         context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, interval);
-        return context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8);
+        return context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8));
     }
 
     private static int shots(GameTestContext context) {

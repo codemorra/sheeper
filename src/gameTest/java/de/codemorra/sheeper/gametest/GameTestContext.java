@@ -8,6 +8,8 @@ import com.electronwill.nightconfig.core.CommentedConfig;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.SheeperEntity;
+import de.codemorra.sheeper.entity.WaterSheeperEntity;
+import de.codemorra.sheeper.world.WaterArenaData;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -152,6 +154,15 @@ public final class GameTestContext implements AutoCloseable {
 
     Vec3 point(int x, int y, int z) {
         return Vec3.atBottomCenterOf(pos(x, y, z));
+    }
+
+    /**
+     * Combat-only scenes bypass flooding; preparation scenarios use the real
+     * lifecycle.
+     */
+    WaterSheeperEntity readyForCombat(WaterSheeperEntity boss) {
+        WaterArenaData.get(level).finishGeneration(boss.getUUID());
+        return boss;
     }
 
     TestPlayer player(int x, int y, int z) {

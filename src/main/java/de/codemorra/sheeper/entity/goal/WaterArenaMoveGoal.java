@@ -33,7 +33,7 @@ public final class WaterArenaMoveGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (boss.isPerformingSalvo()) {
+        if (!boss.isCombatReady() || boss.isPerformingSalvo()) {
             return false;
         }
         if (nextMovementTick < 0) {
@@ -96,7 +96,7 @@ public final class WaterArenaMoveGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return !boss.isPerformingSalvo() && !boss.getNavigation().isDone()
+        return boss.isCombatReady() && !boss.isPerformingSalvo() && !boss.getNavigation().isDone()
                 && boss.level.getGameTime() < nextMovementTick
                 && SheeperConfig.WATER_MOVEMENT_SPEED.get() > 0.0D
                 && isPathWithinArena(boss.getNavigation().getPath());

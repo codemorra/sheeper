@@ -190,6 +190,13 @@ public class ElementalSheeperEntity extends Sheep {
     }
 
     /**
+     * Element-specific preparation may postpone combat until its arena is ready.
+     */
+    public boolean isCombatReady() {
+        return true;
+    }
+
+    /**
      * Synchronizes server-controlled boss state and emits local elemental
      * particles.
      */

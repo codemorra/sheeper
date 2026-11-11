@@ -39,7 +39,7 @@ final class WaterProximityGameTests {
         boss.setNoGravity(true);
         boss.tick(); // Complete the spawn push before any players enter.
         boss.setPos(context.point(14, 1, 8));
-        return boss;
+        return context.readyForCombat(boss);
     }
 
     private static void tick(WaterSheeperEntity boss, int count) {

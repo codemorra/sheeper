@@ -51,7 +51,7 @@ final class WaterSalvoGameTests {
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8);
         boss.setNoGravity(true);
-        return boss;
+        return context.readyForCombat(boss);
     }
 
     private static void tick(WaterSheeperEntity boss, int ticks) {

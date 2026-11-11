@@ -53,21 +53,37 @@ public class SheeperConfig {
             .comment("Navigation speed multiplier for random arena movement. 0 disables movement.")
             .defineInRange("elemental.water.movement.speedMultiplier", 1.0, 0.0, 3.0);
 
-    // Horizontal radius for pushing players when the water boss spawns.
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_RADIUS = BUILDER
-            .comment("Players within this horizontal radius are pushed once when the boss spawns.",
-                    "Uses combatHeightRange; only living survival/adventure players are affected.")
-            .defineInRange("elemental.water.spawnPush.radius", 8.0, 0.0, 128.0);
+    // Maximum distance from the boss for contact and launch of the spawn water
+    // wave.
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_RADIUS = BUILDER
+            .comment("Maximum distance from the boss for contact and launch of the spawn water wave; 0 disables it.")
+            .defineInRange("elemental.water.spawnPush.radius", 15.0, 0.0, 128.0);
 
-    // Horizontal knockback strength for pushing players when the water boss spawns.
+    // Delay in ticks after first contact with the boss's water before the one-time
+    // push.
+    public static final ForgeConfigSpec.IntValue WATER_SPAWN_PUSH_DELAY = BUILDER
+            .comment("Ticks after first contact with this boss's water during flooding before the one-time push.")
+            .defineInRange("elemental.water.spawnPush.delayTicks", 3, 0, 1200);
+
+    // Maximum rise of the spawn water wave in blocks.
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_HEIGHT = BUILDER
+            .comment("Maximum rise of the spawn water wave in blocks; water drag and ceilings may reduce it.")
+            .defineInRange("elemental.water.spawnPush.height", 10.0, 0.0, 10.0);
+
+    // Horizontal launch velocity away from the arena center for the spawn water
+    // wave.
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH = BUILDER
+            .comment("Horizontal launch velocity away from the arena center for the spawn water wave.")
+            .defineInRange("elemental.water.spawnPush.horizontalStrength", 1.5, 0.0, 3.9);
+
+    // Existing configuration keys retain the proximity push strengths.
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_STRENGTH = BUILDER
             .comment(
-                    "Horizontal knockback strength. Higher values push players farther; 0 disables horizontal knockback.")
+                    "Horizontal proximity knockback strength. The spawn water wave uses horizontalStrength instead.")
             .defineInRange("elemental.water.spawnPush.strength", 3.9, 0.0, 3.9);
 
-    // Upward knockback strength for pushing players when the water boss spawns.
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_UPWARD_STRENGTH = BUILDER
-            .comment("Upward knockback strength. 0 keeps the push horizontal.")
+            .comment("Upward proximity knockback strength. The spawn water wave uses height instead.")
             .defineInRange("elemental.water.spawnPush.upwardStrength", 1.0, 0.0, 1.0);
 
     // Horizontal radius for proximity pushes.

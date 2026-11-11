@@ -217,7 +217,7 @@ final class WaterFountainAttack {
     }
 
     /** Solve vanilla's discrete air trajectory; water drag only lowers its apex. */
-    private static double launchSpeed(double height, double gravity) {
+    static double launchSpeed(double height, double gravity) {
         double low = 0;
         double high = height;
         for (int step = 0; step < 40; step++) {

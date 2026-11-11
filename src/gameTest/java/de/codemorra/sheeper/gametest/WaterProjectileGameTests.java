@@ -43,7 +43,7 @@ final class WaterProjectileGameTests {
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
-        return context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8);
+        return context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8));
     }
 
     private static WaterProjectile fire(GameTestContext context, WaterSheeperEntity boss, TestPlayer target) {
