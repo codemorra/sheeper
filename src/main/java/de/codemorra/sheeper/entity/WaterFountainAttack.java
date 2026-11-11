@@ -89,7 +89,7 @@ final class WaterFountainAttack {
             } else if (--warning.ticks <= 0) {
                 erupt(warning, players);
                 iterator.remove();
-            } else {
+            } else if (warning.ticks % 2 == 0) {
                 showWarning(warning);
             }
         }
@@ -170,9 +170,6 @@ final class WaterFountainAttack {
     }
 
     private void showWarning(Warning warning) {
-        if (warning.ticks % 2 != 0) {
-            return;
-        }
         AABB area = area(warning);
         for (int x = 0; x < warning.size; x++) {
             for (int z = 0; z < warning.size; z++) {

@@ -23,6 +23,8 @@ final class WaterCombatGameTests {
         tests.add(new SheeperGameTests.Scenario("water_spawn_push_and_reload", WaterCombatGameTests::spawnPush));
         tests.add(new SheeperGameTests.Scenario("water_spawn_push_early_save", WaterCombatGameTests::earlySave));
         tests.add(new SheeperGameTests.Scenario("water_free_movement_and_no_melee", WaterCombatGameTests::movement));
+        tests.add(new SheeperGameTests.Scenario("water_return_after_radius_reduction",
+                WaterCombatGameTests::returnToArea));
     }
 
     private static void targets(GameTestContext context) {
@@ -141,6 +143,48 @@ final class WaterCombatGameTests {
                 SheeperConfig.WATER_SPAWN_PUSH_STRENGTH.get(),
                 "The default spawn impulse must reach the client without motion-packet clipping");
         context.pass();
+    }
+
+    private static void returnToArea(GameTestContext context) {
+        context.set(SheeperConfig.WATER_SIZE, 1.0D);
+        context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 6.0D);
+        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 8.0D);
+        context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN, 5);
+        context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX, 5);
+        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_TICKS, 200);
+        WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double[] previousDistance = { 25.0D };
+        context.at(5, () -> {
+            // Isolate path recovery from the outward current of a partial flood.
+            for (var pos : boss.getArenaSurfacePositions()) {
+                context.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            }
+            boss.getNavigation().stop();
+            boss.setDeltaMovement(Vec3.ZERO);
+            boss.setPos(center.add(5, 0, 0));
+            context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 2.0D);
+            boss.move(MoverType.SELF, new Vec3(0.25D, 0, 0));
+            context.near(boss.getX(), center.x + 5,
+                    "A boss outside a reduced radius must not move farther outward");
+            boss.move(MoverType.SELF, new Vec3(-0.25D, 0, 0));
+            context.near(boss.getX(), center.x + 4.75D,
+                    "Recovery must allow inward movement without teleporting the boss");
+            previousDistance[0] = boss.position().subtract(center).horizontalDistanceSqr();
+        });
+        for (int tick = 6; tick <= 180; tick++) {
+            context.at(tick, () -> {
+                double distance = boss.position().subtract(center).horizontalDistanceSqr();
+                context.expect(distance <= Math.max(4.0D, previousDistance[0]) + 1.0E-6D,
+                        "Recovery paths and residual motion must not increase the distance outside the area");
+                previousDistance[0] = distance;
+            });
+        }
+        context.at(181, () -> {
+            context.expect(boss.isWithinMovementArea(boss.getX(), boss.getZ()),
+                    "The boss must navigate back inside after reducing its movement radius: " + boss.position());
+            context.pass();
+        });
     }
 
     private static void movement(GameTestContext context) {

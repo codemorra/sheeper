@@ -49,14 +49,25 @@ public final class WaterArenaMoveGoal extends Goal {
         // Reservoir sampling avoids allocating a second copy of the arena each time.
         BlockPos destination = null;
         int count = 0;
+        boolean returning = !boss.isWithinMovementArea(boss.getX(), boss.getZ());
+        double nearestDistance = Double.POSITIVE_INFINITY;
+        // Navigation finishes near a waypoint, so recovery needs an interior target.
+        double recoveryRadius = Math.max(0.0D, boss.getMovementRadius() - Math.max(1.0D, boss.getBbWidth()));
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         for (BlockPos pos : boss.getArenaSurfacePositions()) {
             Vec3 point = Vec3.atBottomCenterOf(pos);
             if (boss.isWithinMovementArea(point.x, point.z)
+                    && (!returning || point.subtract(center).horizontalDistanceSqr() <= recoveryRadius * recoveryRadius)
                     && WaterArenaData.isLoaded((ServerLevel) boss.level, pos)
                     && WaterArenaSearch.isSurface(boss.level, pos)
-                    && boss.level.noCollision(boss, boss.getBoundingBox().move(point.subtract(boss.position())))
-                    && boss.getRandom().nextInt(++count) == 0) {
-                destination = pos;
+                    && boss.level.noCollision(boss, boss.getBoundingBox().move(point.subtract(boss.position())))) {
+                double distance = point.distanceToSqr(boss.position());
+                // Recover via the closest surface instead of wandering toward a
+                // random point whose approach may run along the outer boundary.
+                if (returning ? distance < nearestDistance : boss.getRandom().nextInt(++count) == 0) {
+                    destination = pos;
+                    nearestDistance = distance;
+                }
             }
         }
         if (destination == null) {
@@ -67,12 +78,18 @@ public final class WaterArenaMoveGoal extends Goal {
     }
 
     private boolean isPathWithinArena(Path candidate) {
-        // Endpoints alone are insufficient: obstacle detours can leave the circle.
-        for (int index = 0; index < candidate.getNodeCount(); index++) {
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double radiusSquared = boss.getMovementRadius() * boss.getMovementRadius();
+        double limitSquared = Math.max(radiusSquared, boss.position().subtract(center).horizontalDistanceSqr());
+        // The first node is the occupied start cell. Remaining nodes must stay
+        // inside, or lead progressively inward if the boss was displaced outside.
+        for (int index = Math.max(1, candidate.getNextNodeIndex()); index < candidate.getNodeCount(); index++) {
             Vec3 point = candidate.getEntityPosAtNode(boss, index);
-            if (!boss.isWithinMovementArea(point.x, point.z)) {
+            double distanceSquared = point.subtract(center).horizontalDistanceSqr();
+            if (distanceSquared > limitSquared + 1.0E-7D) {
                 return false;
             }
+            limitSquared = Math.max(radiusSquared, distanceSquared);
         }
         return true;
     }
