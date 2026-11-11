@@ -19,6 +19,12 @@ public final class ModParticles {
     public static final RegistryObject<SimpleParticleType> MUTTON_CLOUD = PARTICLES.register("mutton_cloud",
             () -> new SimpleParticleType(false));
 
+    public static final RegistryObject<SimpleParticleType> ARENA_RAIN = PARTICLES.register("arena_rain",
+            () -> new SimpleParticleType(false));
+
+    public static final RegistryObject<SimpleParticleType> WATER_FOUNTAIN = PARTICLES.register("water_fountain",
+            () -> new SimpleParticleType(false));
+
     private ModParticles() {
     }
 

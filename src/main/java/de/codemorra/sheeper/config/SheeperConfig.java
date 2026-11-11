@@ -101,10 +101,80 @@ public class SheeperConfig {
             .comment("Maximum ticks per regular projectile phase; capped below by durationMinTicks.")
             .defineInRange("elemental.water.projectile.durationMaxTicks", 160, 1, 1200);
 
+    // Probability of choosing fountains instead of projectiles after rest.
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_CHANCE = BUILDER
+            .comment("Probability of choosing fountains instead of projectiles after rest.")
+            .defineInRange("elemental.water.fountain.chance", 0.5, 0.0, 1.0);
+
+    // Minimum duration of one fountain attack phase.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
+            .comment("Minimum fountain phase duration (20 ticks = one second). Sampled once at phase start.")
+            .defineInRange("elemental.water.fountain.durationMinTicks", 400, 1, 12000);
+
+    // Maximum duration of one fountain attack phase.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_DURATION_MAX = BUILDER
+            .comment("Maximum fountain phase duration; capped below by durationMinTicks.")
+            .defineInRange("elemental.water.fountain.durationMaxTicks", 600, 1, 12000);
+
+    // Minimum independent delay between fountains for each player and the arena.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_INTERVAL_MIN = BUILDER
+            .comment("Minimum independent delay between fountains for each player and the arena.")
+            .defineInRange("elemental.water.fountain.intervalMinTicks", 10, 1, 12000);
+
+    // Maximum independent delay between fountains for each player and the arena.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_INTERVAL_MAX = BUILDER
+            .comment("Maximum fountain delay; capped below by intervalMinTicks.")
+            .defineInRange("elemental.water.fountain.intervalMaxTicks", 20, 1, 12000);
+
+    // Number of random arena fountains announced per interval.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_ARENA_COUNT = BUILDER
+            .comment("Random arena fountains announced per interval, in addition to each player's fountains.")
+            .defineInRange("elemental.water.fountain.arenaCount", 3, 1, 16);
+
+    // Warning duration before a fixed fountain erupts.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_WARNING = BUILDER
+            .comment("Fishing-particle warning before a fixed fountain erupts.")
+            .defineInRange("elemental.water.fountain.warningTicks", 30, 1, 1200);
+
+    // Width and depth of a fountain in blocks.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_SIZE = BUILDER
+            .comment("Width and depth of a fountain in blocks.")
+            .defineInRange("elemental.water.fountain.size", 3, 1, 9);
+
+    // Maximum launch height above the water cell.
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_HEIGHT = BUILDER
+            .comment("Maximum launch height above the water cell, capped at 10 blocks.")
+            .defineInRange("elemental.water.fountain.height", 10.0, 0.0, 20.0);
+
+    // Height of the hit area above the water surface.
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_HIT_HEIGHT = BUILDER
+            .comment("Height of the hit area above the water surface.")
+            .defineInRange("elemental.water.fountain.hitHeight", 2.0, 0.1, 10.0);
+
+    // Enable or disable cosmetic arena rain.
+    public static final ForgeConfigSpec.BooleanValue WATER_FOUNTAIN_RAIN_ENABLED = BUILDER
+            .comment("Enable cosmetic arena rain without changing world weather.")
+            .define("elemental.water.fountain.rain.enabled", true);
+
+    // Delay after the first eruption before arena rain starts.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_DELAY = BUILDER
+            .comment("Delay after the first eruption before arena rain starts.")
+            .defineInRange("elemental.water.fountain.rain.delayTicks", 10, 0, 1200);
+
+    // Additional rain ticks after the fountain phase ends.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_AFTER = BUILDER
+            .comment("Additional rain ticks after the fountain phase ends.")
+            .defineInRange("elemental.water.fountain.rain.afterTicks", 100, 0, 1200);
+
+    // Maximum local raindrops per tick and arena.
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_PARTICLES = BUILDER
+            .comment("Maximum local raindrops per tick and arena.")
+            .defineInRange("elemental.water.fountain.rain.particlesPerTick", 24, 0, 256);
+
     // Shared rest period after an attack; existing projectiles keep flying.
     public static final ForgeConfigSpec.IntValue WATER_ATTACK_PAUSE_MIN = BUILDER
             .comment("Minimum rest ticks after an attack. No new attacks start during rest.",
-                    "Rest pauses without eligible players. An attack ends if its chosen target becomes ineligible.",
+                    "Rest pauses without eligible players. Projectile attacks end if their chosen target becomes ineligible.",
                     "NoAI pauses both attack and rest timers.")
             .defineInRange("elemental.water.attack.pauseMinTicks", 40, 0, 1200);
 
