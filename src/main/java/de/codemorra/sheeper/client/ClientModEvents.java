@@ -12,6 +12,7 @@ import de.codemorra.sheeper.client.renderer.WaterProjectileRenderer;
 import de.codemorra.sheeper.client.renderer.PrimedSheeperWoolRenderer;
 import de.codemorra.sheeper.client.renderer.layer.PlayerMuttonTintLayer;
 import de.codemorra.sheeper.client.particle.MuttonCloudParticle;
+import de.codemorra.sheeper.client.particle.ArenaWaterParticle;
 import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraftforge.api.distmarker.Dist;
@@ -39,6 +40,8 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
         event.register(ModParticles.MUTTON_CLOUD.get(), MuttonCloudParticle.Provider::new);
+        event.register(ModParticles.ARENA_RAIN.get(), ArenaWaterParticle.Provider::new);
+        event.register(ModParticles.WATER_FOUNTAIN.get(), ArenaWaterParticle.Provider::new);
     }
 
     /**

@@ -27,6 +27,7 @@ final class WaterAttackGameTests {
     }
 
     private static WaterSheeperEntity boss(GameTestContext context, int duration, int rest, int interval) {
+        context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 0.0D);
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);

@@ -11,6 +11,7 @@ import net.minecraft.network.PacketSendListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -31,6 +32,7 @@ final class TestPlayer extends ServerPlayer {
     final List<String> damageEvents = new ArrayList<>();
     final List<ClientboundSetEntityMotionPacket> motionPackets = new ArrayList<>();
     final List<ClientboundBossEventPacket> bossPackets = new ArrayList<>();
+    final List<ClientboundLevelParticlesPacket> particlePackets = new ArrayList<>();
     float foodDamage;
 
     TestPlayer(ServerLevel level, Vec3 position) {
@@ -43,6 +45,8 @@ final class TestPlayer extends ServerPlayer {
                 // Other packets are discarded because this player has no real client.
                 if (packet instanceof ClientboundSetEntityMotionPacket motion) {
                     motionPackets.add(motion);
+                } else if (packet instanceof ClientboundLevelParticlesPacket particles) {
+                    particlePackets.add(particles);
                 } else if (packet instanceof ClientboundBossEventPacket boss) {
                     bossPackets.add(boss);
                 }

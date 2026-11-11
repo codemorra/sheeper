@@ -26,6 +26,7 @@ final class WaterCombatGameTests {
     }
 
     private static void targets(GameTestContext context) {
+        context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 0.0D);
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 5.0D);
         context.set(SheeperConfig.WATER_COMBAT_HEIGHT_RANGE, 15.0D);
         context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
@@ -141,6 +142,7 @@ final class WaterCombatGameTests {
     }
 
     private static void movement(GameTestContext context) {
+        context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 0.0D);
         context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, 1200);
         context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 1200);
         context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 12000);
