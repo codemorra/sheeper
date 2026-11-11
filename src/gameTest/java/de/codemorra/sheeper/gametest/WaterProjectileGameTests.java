@@ -35,7 +35,9 @@ final class WaterProjectileGameTests {
     }
 
     private static WaterSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 0.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
+        context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);

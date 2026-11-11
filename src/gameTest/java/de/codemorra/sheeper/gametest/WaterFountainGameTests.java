@@ -39,7 +39,9 @@ final class WaterFountainGameTests {
     }
 
     private static WaterSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 1.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 0.0D);
+        context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 20);
         context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 80);
         context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 240);
@@ -271,7 +273,8 @@ final class WaterFountainGameTests {
             context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 1);
             boss.tick();
             // Only the following phase may change type; the active duration stays fixed.
-            context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 0.0D);
+            context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
+            context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
             int elapsed = 1;
             while (context.entities(WaterProjectile.class).isEmpty() && elapsed < 65) {
                 boss.tick();
@@ -290,7 +293,8 @@ final class WaterFountainGameTests {
 
     private static void selection(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_FOUNTAIN_CHANCE, 0.5D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 1.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, 1);
         context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, 1);
         context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, 1);
