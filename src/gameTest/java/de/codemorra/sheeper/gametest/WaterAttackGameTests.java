@@ -34,12 +34,12 @@ final class WaterAttackGameTests {
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, duration);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, duration);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, rest);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, rest);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, interval);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (duration) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (duration) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (rest) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (rest) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (interval) / 20.0D);
         return context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8));
     }
 
@@ -57,8 +57,8 @@ final class WaterAttackGameTests {
         WaterSheeperEntity boss = boss(context, 6, 3, 2);
         context.player(16, 2, 8);
         // Reversed bounds must use the minimum, matching movement intervals.
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 1);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 1);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (1) / 20.0D);
         for (int tick = 1; tick <= 6; tick++) {
             boss.tick();
             context.expect(shots(context) == tick / 2, "Only full shot intervals may launch a projectile");
@@ -69,8 +69,8 @@ final class WaterAttackGameTests {
         context.expect(shots(context) == 3, "Each new phase must wait a full interval before firing");
         boss.tick();
         context.expect(shots(context) == 4, "The same attack must be able to repeat after rest");
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 0);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 0);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (0) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (0) / 20.0D);
         tick(boss, 4);
         context.expect(shots(context) == 6, "The second phase must also honor its complete duration");
         tick(boss, 2);
@@ -80,8 +80,8 @@ final class WaterAttackGameTests {
 
     private static void randomDurations(GameTestContext context) {
         WaterSheeperEntity boss = boss(context, 3, 2, 1);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 7);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 5);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (7) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (5) / 20.0D);
         context.player(16, 2, 8);
         boss.getRandom().setSeed(12345L);
         Set<Integer> attacks = new HashSet<>();

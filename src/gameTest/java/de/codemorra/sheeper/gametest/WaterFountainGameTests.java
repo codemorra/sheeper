@@ -27,6 +27,7 @@ final class WaterFountainGameTests {
     }
 
     static void add(List<SheeperGameTests.Scenario> tests) {
+        tests.add(new SheeperGameTests.Scenario("water_rain_rate_per_second", WaterFountainGameTests::rainRate));
         tests.add(
                 new SheeperGameTests.Scenario("water_fountain_one_tick_warning", WaterFountainGameTests::shortWarning));
         tests.add(new SheeperGameTests.Scenario("water_fountain_warning_and_dodge", WaterFountainGameTests::dodge));
@@ -44,9 +45,9 @@ final class WaterFountainGameTests {
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 1.0D);
-        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 20);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 80);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 240);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, (20) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, (80) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, (240) / 20.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_ARENA_COUNT, 1);
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
@@ -55,8 +56,8 @@ final class WaterFountainGameTests {
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 10000);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 10000);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (10000) * 20);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (10000) * 20);
         context.set(SheeperConfig.WATER_FOUNTAIN_RAIN_ENABLED, false);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 12, 1, 12);
         boss.getRandom().setSeed(831L);
@@ -99,9 +100,9 @@ final class WaterFountainGameTests {
 
     private static void shortWarning(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 1);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, (1) / 20.0D);
         TestPlayer observer = player(context, 6, 1, 12);
         boss.tick();
         context.expect(warningAt(observer, context.pos(6, 1, 12)),
@@ -114,7 +115,7 @@ final class WaterFountainGameTests {
 
     private static void dodge(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 30);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, (30) / 20.0D);
         TestPlayer dodging = player(context, 6, 1, 12);
         awaitWarning(context, boss, dodging, context.pos(6, 1, 12));
         dodging.standAt(context.point(20, 1, 20));
@@ -135,10 +136,10 @@ final class WaterFountainGameTests {
 
     private static void distribution(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 10);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 20);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, (10) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, (20) / 20.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_ARENA_COUNT, 3);
-        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 30);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, (30) / 20.0D);
         TestPlayer first = player(context, 6, 1, 12);
         TestPlayer second = player(context, 18, 1, 12);
         Set<Integer> warningTicks = new HashSet<>();
@@ -179,8 +180,8 @@ final class WaterFountainGameTests {
             }
         }
         player.particlePackets.clear();
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 1);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, (1) / 20.0D);
         // A short new participant timer avoids waiting for the previous random delay.
         TestPlayer arriving = player(context, 6, 1, 12);
         awaitWarning(context, boss, arriving, context.pos(6, 1, 12));
@@ -228,15 +229,41 @@ final class WaterFountainGameTests {
         return player.particlePackets.stream().filter(p -> p.getParticle() == ModParticles.ARENA_RAIN.get()).count();
     }
 
+    private static void rainRate(GameTestContext context) {
+        WaterSheeperEntity boss = boss(context);
+        context.set(SheeperConfig.WATER_FOUNTAIN_RAIN_ENABLED, true);
+        context.set(SheeperConfig.WATER_FOUNTAIN_RAIN_PARTICLES_PER_SECOND, 1);
+        context.set(SheeperConfig.WATER_FOUNTAIN_RAIN_DELAY, 0.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 0.05D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 0.05D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_WARNING, 0.05D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, 10.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, 10.0D);
+        TestPlayer observer = player(context, 6, 1, 12);
+        float originalRain = context.level.getRainLevel(1);
+        context.level.setRainLevel(0);
+        try {
+            tick(boss, 20);
+            context.expect(rainCount(observer) == 0, "One drop per second must wait twenty active rain updates");
+            boss.tick();
+            context.expect(rainCount(observer) == 1, "Low per-second rates must emit rather than round down to zero");
+            tick(boss, 20);
+            context.expect(rainCount(observer) == 2, "Rain emission must follow the configured per-second rate");
+            context.pass();
+        } finally {
+            context.level.setRainLevel(originalRain);
+        }
+    }
+
     private static void rain(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
         context.set(SheeperConfig.WATER_FOUNTAIN_RAIN_ENABLED, true);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, 50);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, 50);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 2);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 2);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, (50) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, (50) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (2) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (2) / 20.0D);
         TestPlayer player = player(context, 6, 1, 12);
         boolean raining = context.level.isRaining();
         float rain = context.level.getRainLevel(1);
@@ -283,13 +310,13 @@ final class WaterFountainGameTests {
         for (int sample = 0; sample < 5; sample++) {
             WaterSheeperEntity boss = boss(context);
             boss.getRandom().setSeed(831L + sample * 1009L);
-            context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, 40);
-            context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, 60);
-            context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 12000);
-            context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 12000);
-            context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 0);
-            context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 0);
-            context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 1);
+            context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, (40) / 20.0D);
+            context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, (60) / 20.0D);
+            context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, (12000) / 20.0D);
+            context.set(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, (12000) / 20.0D);
+            context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (0) / 20.0D);
+            context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (0) / 20.0D);
+            context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
             boss.tick();
             // Only the following phase may change type; the active duration stays fixed.
             context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
@@ -314,13 +341,13 @@ final class WaterFountainGameTests {
         WaterSheeperEntity boss = boss(context);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, 1);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, 1);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 1);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 1);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 1);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 1);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (1) / 20.0D);
         TestPlayer player = player(context, 6, 1, 12);
         Set<Integer> shotTicks = new HashSet<>();
         int previous = 0;

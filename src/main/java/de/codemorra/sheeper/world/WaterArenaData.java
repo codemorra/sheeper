@@ -220,7 +220,7 @@ public final class WaterArenaData extends SavedData {
      * budget.
      */
     public void advanceCleanup(ServerLevel level, int budget) {
-        int interval = SheeperConfig.WATER_ARENA_DRAIN_WAVE_TICKS.get();
+        int interval = SheeperConfig.secondsToTicks(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS.get());
         long now = level.getGameTime();
         int examined = 0;
         int waiting = 0;

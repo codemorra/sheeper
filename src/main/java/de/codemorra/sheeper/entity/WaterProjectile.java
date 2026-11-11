@@ -50,7 +50,7 @@ public class WaterProjectile extends Projectile {
         }
         super.tick();
         if (!level.isClientSide) {
-            if (flightTicks >= SheeperConfig.WATER_PROJECTILE_LIFETIME.get()
+            if (flightTicks >= SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_LIFETIME.get())
                     || !level.getChunkSource().hasChunk(chunkPosition().x, chunkPosition().z)) {
                 discard();
                 return;

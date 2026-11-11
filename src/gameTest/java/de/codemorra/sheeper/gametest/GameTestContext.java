@@ -77,8 +77,8 @@ public final class GameTestContext implements AutoCloseable {
         set(SheeperConfig.NATURAL_SPAWN_CHANCE, 0.0);
         // Other scenarios isolate gameplay from timing; wave scenarios opt in
         // explicitly.
-        set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_TICKS, 0);
-        set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_TICKS, 0);
+        set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (0) / 20.0D);
+        set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (0) / 20.0D);
         rule(GameRules.RULE_MOBGRIEFING, false);
         rule(GameRules.RULE_DOMOBLOOT, true);
         rule(GameRules.RULE_DOBLOCKDROPS, true);

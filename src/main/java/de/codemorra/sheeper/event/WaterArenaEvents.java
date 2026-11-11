@@ -20,7 +20,7 @@ public final class WaterArenaEvents {
     @SubscribeEvent
     public static void onLevelTick(TickEvent.LevelTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.level instanceof ServerLevel level) {
-            WaterArenaData.tick(level, SheeperConfig.WATER_ARENA_BLOCK_BUDGET.get());
+            WaterArenaData.tick(level, SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
         }
     }
 

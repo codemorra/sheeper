@@ -60,6 +60,7 @@ public final class SheeperGameTests {
         BossWaterGameTests.add(scenarios);
         WaterWaveGameTests.add(scenarios);
         DataGameTests.add(scenarios);
+        ConfigUnitGameTests.add(scenarios);
 
         List<TestFunction> tests = scenarios.stream().map(scenario -> {
             String name = "sheeper." + scenario.name();
