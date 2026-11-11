@@ -4,7 +4,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -18,6 +20,7 @@ import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -68,6 +71,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private UUID attackTargetId;
     private int projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
     private final Queue<UUID> attackOrder = new ArrayDeque<>();
+    private final Map<UUID, Integer> proximityPushTicks = new HashMap<>();
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
@@ -166,10 +170,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private boolean isEligiblePlayer(ServerPlayer player, double radius, double heightRange) {
-        return player.level == level && player.isAlive() && !player.isRemoved()
-                && !player.isCreative() && !player.isSpectator()
+        return isActivePlayer(player)
                 && horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
                 && Math.abs(player.getY() - getArenaCenter().getY()) <= heightRange;
+    }
+
+    private boolean isActivePlayer(ServerPlayer player) {
+        return player.level == level && player.isAlive() && !player.isRemoved()
+                && !player.isCreative() && !player.isSpectator();
     }
 
     /**
@@ -379,16 +387,52 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                     SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get())) {
                 continue;
             }
-            Vec3 direction = new Vec3(player.getX() - getArenaCenter().getX() - 0.5D, 0.0D,
-                    player.getZ() - getArenaCenter().getZ() - 0.5D);
-            if (direction.lengthSqr() < 1.0E-8D) {
-                direction = new Vec3(1.0D, 0.0D, 0.0D);
-            }
-            direction = direction.normalize().scale(horizontal);
-            player.push(direction.x, upward, direction.z);
-            player.connection.send(new ClientboundSetEntityMotionPacket(player));
-            player.hurtMarked = false;
+            pushPlayer(player, Vec3.atBottomCenterOf(getArenaCenter()), horizontal, upward);
         }
+    }
+
+    private void pushPlayer(ServerPlayer player, Vec3 center, double horizontal, double upward) {
+        Vec3 direction = new Vec3(player.getX() - center.x, 0.0D, player.getZ() - center.z);
+        if (direction.lengthSqr() < 1.0E-8D) {
+            direction = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        direction = direction.normalize().scale(horizontal);
+        player.push(direction.x, upward, direction.z);
+        player.connection.send(new ClientboundSetEntityMotionPacket(player));
+        player.hurtMarked = false;
+    }
+
+    private int nextProximityPushDelay() {
+        return randomPhaseTicks(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN.get(),
+                SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX.get());
+    }
+
+    private void tickProximityPush() {
+        double radius = SheeperConfig.WATER_PROXIMITY_PUSH_RADIUS.get();
+        double horizontal = SheeperConfig.WATER_SPAWN_PUSH_STRENGTH.get();
+        double upward = SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH.get();
+        if (radius == 0.0D || horizontal == 0.0D && upward == 0.0D) {
+            proximityPushTicks.clear();
+            return;
+        }
+        Set<UUID> nearby = new HashSet<>();
+        for (ServerPlayer player : ((ServerLevel) level).players()) {
+            if (!isActivePlayer(player) || distanceToSqr(player) > radius * radius) {
+                continue;
+            }
+            UUID id = player.getUUID();
+            nearby.add(id);
+            if (isNoAi()) {
+                continue;
+            }
+            int remaining = proximityPushTicks.computeIfAbsent(id, ignored -> nextProximityPushDelay()) - 1;
+            if (remaining <= 0) {
+                pushPlayer(player, position(), horizontal, upward);
+                remaining = nextProximityPushDelay();
+            }
+            proximityPushTicks.put(id, remaining);
+        }
+        proximityPushTicks.keySet().retainAll(nearby);
     }
 
     public boolean isArenaSearchComplete() {
@@ -423,6 +467,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         super.tick();
         if (!level.isClientSide && isAlive()) {
+            tickProximityPush();
             tickAttackPhase();
             fountains.tickRain(attackPhase == AttackPhase.FOUNTAINS);
             if (!isNoAi() && getTarget() != null) {
@@ -501,6 +546,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.putInt("WaterAttackPhaseTicks", attackPhaseTicks);
         tag.putInt("WaterProjectileCooldown", projectileCooldown);
         tag.putBoolean("WaterSpawnPushApplied", spawnPushApplied);
+        ListTag proximity = new ListTag();
+        proximityPushTicks.forEach((id, ticks) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Player", id);
+            entry.putInt("Ticks", ticks);
+            proximity.add(entry);
+        });
+        tag.put("WaterProximityPush", proximity);
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
         tag.putString("WaterArenaDimension", level.dimension().location().toString());
     }
@@ -508,6 +561,13 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        proximityPushTicks.clear();
+        for (Tag value : tag.getList("WaterProximityPush", Tag.TAG_COMPOUND)) {
+            CompoundTag entry = (CompoundTag) value;
+            if (entry.hasUUID("Player")) {
+                proximityPushTicks.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Ticks"), 1, 12000));
+            }
+        }
         // Legacy saved bosses must not push again; fresh summon data has no saved
         // origin.
         spawnPushApplied = tag.contains("WaterSpawnPushApplied", Tag.TAG_BYTE)
