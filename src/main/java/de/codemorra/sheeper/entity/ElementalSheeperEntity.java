@@ -95,9 +95,9 @@ public class ElementalSheeperEntity extends Sheep {
         }
     }
 
-    /** Health is a technical placeholder pending the later combat design. */
+    /** Each element applies its configured maximum health during construction. */
     public static AttributeSupplier.Builder createBossAttributes() {
-        return Sheep.createAttributes().add(Attributes.MAX_HEALTH, 100.0D);
+        return Sheep.createAttributes().add(Attributes.MAX_HEALTH, 200.0D);
     }
 
     public Element getElement() {
