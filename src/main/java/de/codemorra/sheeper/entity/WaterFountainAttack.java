@@ -34,6 +34,7 @@ final class WaterFountainAttack {
     private int rainDelay = -1;
     private int rainTicks;
     private boolean erupted;
+    private double rainParticleRemainder;
 
     private static final class Warning {
         private final BlockPos pos;
@@ -64,17 +65,17 @@ final class WaterFountainAttack {
         // The tail is independent of combat participants and NoAI.
         if (erupted) {
             rainDelay = 0;
-            rainTicks = SheeperConfig.WATER_FOUNTAIN_RAIN_AFTER.get();
+            rainTicks = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_RAIN_AFTER.get());
         }
     }
 
     private int initialDelay() {
-        return 1 + boss.getRandom().nextInt(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get());
+        return 1 + boss.getRandom().nextInt(SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get()));
     }
 
     private int nextDelay() {
-        int min = SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get();
-        int max = Math.max(min, SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX.get());
+        int min = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get());
+        int max = Math.max(min, SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX.get()));
         return min + boss.getRandom().nextInt(max - min + 1);
     }
 
@@ -94,7 +95,7 @@ final class WaterFountainAttack {
             }
         }
         // Do not announce hazards that would be cancelled by the phase ending.
-        if (remainingTicks <= SheeperConfig.WATER_FOUNTAIN_WARNING.get()) {
+        if (remainingTicks <= SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get())) {
             return;
         }
         playerDelays.keySet().removeIf(id -> players.stream().noneMatch(p -> p.getUUID().equals(id)));
@@ -139,7 +140,7 @@ final class WaterFountainAttack {
     private void announce(BlockPos pos) {
         int size = SheeperConfig.WATER_FOUNTAIN_SIZE.get();
         if (suitable(pos, size) && warnings.stream().noneMatch(w -> w.pos.equals(pos))) {
-            Warning warning = new Warning(pos, size, SheeperConfig.WATER_FOUNTAIN_WARNING.get());
+            Warning warning = new Warning(pos, size, SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get()));
             warnings.add(warning);
             showWarning(warning);
         }
@@ -183,7 +184,7 @@ final class WaterFountainAttack {
     private void erupt(Warning warning, List<ServerPlayer> players) {
         if (!erupted) {
             erupted = true;
-            rainDelay = SheeperConfig.WATER_FOUNTAIN_RAIN_DELAY.get();
+            rainDelay = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_RAIN_DELAY.get());
         }
         AABB area = area(warning);
         ((ServerLevel) boss.level).sendParticles(ParticleTypes.SPLASH, area.getCenter().x,
@@ -258,7 +259,10 @@ final class WaterFountainAttack {
             return;
         }
         ServerLevel level = (ServerLevel) boss.level;
-        for (int i = 0; i < SheeperConfig.WATER_FOUNTAIN_RAIN_PARTICLES.get(); i++) {
+        rainParticleRemainder += SheeperConfig.WATER_FOUNTAIN_RAIN_PARTICLES_PER_SECOND.get() / 20.0D;
+        int particleCount = (int) rainParticleRemainder;
+        rainParticleRemainder -= particleCount;
+        for (int i = 0; i < particleCount; i++) {
             BlockPos pos = surfaces.get(boss.getRandom().nextInt(surfaces.size()));
             if (!WaterArenaData.isLoaded(level, pos)) {
                 continue;

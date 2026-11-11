@@ -29,9 +29,9 @@ final class WaterProximityGameTests {
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
-        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN, 4);
-        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX, 4);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN, (4) / 20.0D);
+        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX, (4) / 20.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.8D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.2D);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
@@ -124,8 +124,8 @@ final class WaterProximityGameTests {
         restored.tick();
         context.expect(player.motionPackets.size() == 2, "Re-enabled proximity must push after the full delay");
 
-        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN, 3);
-        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX, 5);
+        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN, (3) / 20.0D);
+        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX, (5) / 20.0D);
         restored.getRandom().setSeed(831L);
         Set<Integer> delays = new HashSet<>();
         // The first countdown was sampled before changing the config.

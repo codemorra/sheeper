@@ -21,10 +21,10 @@ final class WaterProjectileSalvo {
     }
 
     void start() {
-        preparationDuration = SheeperConfig.WATER_SALVO_PREPARATION.get();
+        preparationDuration = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SALVO_PREPARATION.get());
         preparationTicks = preparationDuration;
-        int minimum = SheeperConfig.WATER_SALVO_DURATION_MIN.get();
-        int maximum = Math.max(minimum, SheeperConfig.WATER_SALVO_DURATION_MAX.get());
+        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SALVO_DURATION_MIN.get());
+        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_SALVO_DURATION_MAX.get()));
         remainingAttackTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
         shotDelay = 0;
         sightLossTicks = 0;
@@ -38,7 +38,7 @@ final class WaterProjectileSalvo {
         }
         boolean visible = boss.hasLineOfSight(target);
         sightLossTicks = visible ? 0 : sightLossTicks + 1;
-        if (sightLossTicks >= SheeperConfig.WATER_SALVO_SIGHT_TIMEOUT.get()) {
+        if (sightLossTicks >= SheeperConfig.secondsToTicks(SheeperConfig.WATER_SALVO_SIGHT_TIMEOUT.get())) {
             return false;
         }
         if (preparationTicks > 0) {
@@ -53,7 +53,7 @@ final class WaterProjectileSalvo {
                 shotDelay--;
             }
             if (shotDelay == 0 && boss.fireWaterProjectile(target)) {
-                shotDelay = SheeperConfig.WATER_SALVO_INTERVAL.get();
+                shotDelay = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SALVO_INTERVAL.get());
             }
         }
         return --remainingAttackTicks > 0;

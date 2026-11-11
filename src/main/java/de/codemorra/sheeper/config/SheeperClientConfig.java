@@ -30,21 +30,18 @@ public final class SheeperClientConfig {
             .comment("Cooked tint multiplier, shared by skin and viewport. 0.25 is one quarter of normal strength.")
             .defineInRange("tint.cookedStrength", 0.25, 0.0, 2.0);
 
-    // Pulse settings for the Sheeper visual effects.
-    public static final ForgeConfigSpec.DoubleValue PULSE_ATTACK = BUILDER
-            .comment("Fraction of rising target intensity reached per client tick. Higher means a faster rise.")
-            .defineInRange("tint.pulseAttack", 0.85, 0.01, 1.0);
+    /** Pulse timing in seconds, measured at 90% response or amplitude decay. */
+    public static final ForgeConfigSpec.DoubleValue PULSE_ATTACK_SECONDS = BUILDER
+            .comment("Seconds to close 90% of the gap to a rising tint target. 0 responds immediately.")
+            .defineInRange("tint.pulseAttackSeconds", pulseSeconds(1.0D - 0.85D), 0.0, 120.0);
 
-    // Release settings for the Sheeper visual effects.
-    public static final ForgeConfigSpec.DoubleValue PULSE_RELEASE = BUILDER
-            .comment("Fraction of falling target intensity reached per client tick. Lower means a slower release.")
-            .defineInRange("tint.pulseRelease", 0.12, 0.01, 1.0);
+    public static final ForgeConfigSpec.DoubleValue PULSE_RELEASE_SECONDS = BUILDER
+            .comment("Seconds to close 90% of the gap to a falling tint target. 0 responds immediately.")
+            .defineInRange("tint.pulseReleaseSeconds", pulseSeconds(1.0D - 0.12D), 0.0, 120.0);
 
-    // Decay settings for the Sheeper visual effects.
-    public static final ForgeConfigSpec.DoubleValue PULSE_DECAY = BUILDER
-            .comment(
-                    "Fraction of pulse amplitude retained per client tick. Closer to 1 keeps each pulse visible longer.")
-            .defineInRange("tint.pulseDecay", 0.94, 0.0, 0.999);
+    public static final ForgeConfigSpec.DoubleValue PULSE_DECAY_SECONDS = BUILDER
+            .comment("Seconds for a pulse to lose 90% of its amplitude. 0 removes the pulse immediately.")
+            .defineInRange("tint.pulseDecaySeconds", pulseSeconds(0.94D), 0.0, 120.0);
 
     // Final fade settings for the Sheeper visual effects.
     public static final ForgeConfigSpec.DoubleValue FADE_SECONDS = BUILDER
@@ -79,7 +76,7 @@ public final class SheeperClientConfig {
 
     // Puff interval settings for the Sheeper visual effects.
     public static final ForgeConfigSpec.DoubleValue PUFF_INTERVAL_SECONDS = BUILDER
-            .comment("Seconds between individual puffs in a sequence; rounded up to whole client ticks.")
+            .comment("Seconds between individual puffs in a sequence.")
             .defineInRange("particles.sequenceIntervalSeconds", 0.1, 0.05, 1.0);
 
     // Cooked stream interval settings for the Sheeper visual effects.
@@ -104,6 +101,16 @@ public final class SheeperClientConfig {
             .defineInRange("sound.cookedInternalExplosionVolume", 1.0, 0.0, 4.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
+
+    /** Converts an exponential per-update retention factor to its 90% duration. */
+    public static double pulseSeconds(double retainedFraction) {
+        return retainedFraction <= 0.0D ? 0.0D : Math.log(0.1D) / (20.0D * Math.log(retainedFraction));
+    }
+
+    /** Per-update retention for a pulse configured by its 90% decay duration. */
+    public static double pulseRetention(double seconds) {
+        return seconds <= 0.0D ? 0.0D : Math.exp(Math.log(0.1D) / (20.0D * seconds));
+    }
 
     private SheeperClientConfig() {
     }

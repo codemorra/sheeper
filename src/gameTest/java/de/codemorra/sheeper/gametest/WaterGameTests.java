@@ -115,7 +115,7 @@ final class WaterGameTests {
     private static void discoveryLifecycle(GameTestContext context) {
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
         context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 64);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (64) * 20);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
         context.at(5, () -> {
             context.expect(boss.isArenaSearchComplete() && boss.getArenaSurfacePositions().size() == 13,

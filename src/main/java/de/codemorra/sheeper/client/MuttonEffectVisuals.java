@@ -186,10 +186,11 @@ public final class MuttonEffectVisuals {
             previousIntensity = intensity;
             if (ticks > 0) {
                 float target = BASE_INTENSITY + pulse;
-                float response = (target > intensity ? SheeperClientConfig.PULSE_ATTACK.get()
-                        : SheeperClientConfig.PULSE_RELEASE.get()).floatValue();
+                double responseSeconds = target > intensity ? SheeperClientConfig.PULSE_ATTACK_SECONDS.get()
+                        : SheeperClientConfig.PULSE_RELEASE_SECONDS.get();
+                float response = (float) (1.0D - SheeperClientConfig.pulseRetention(responseSeconds));
                 intensity += (target - intensity) * response;
-                pulse *= SheeperClientConfig.PULSE_DECAY.get().floatValue();
+                pulse *= (float) SheeperClientConfig.pulseRetention(SheeperClientConfig.PULSE_DECAY_SECONDS.get());
                 if (--ticks == 0) {
                     startFade(false);
                 }

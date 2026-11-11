@@ -51,8 +51,8 @@ final class BossWaterGameTests {
     private static void outward(GameTestContext context) {
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 3.0D);
         context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 512);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 1);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (512) * 20);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (1) * 20);
         for (int x = 4; x <= 12; x++) {
             for (int z = 4; z <= 12; z++) {
                 if ((x - 8) * (x - 8) + (z - 8) * (z - 8) > 9) {
@@ -90,7 +90,7 @@ final class BossWaterGameTests {
 
     private static void plantSources(GameTestContext context) {
         prepare(context);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 2);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (2) * 20);
         context.setBlock(9, 0, 8, Blocks.GRASS_BLOCK);
         context.setBlock(8, 0, 7, Blocks.GRASS_BLOCK);
         context.setBlock(9, 1, 8, Blocks.DANDELION);
@@ -152,8 +152,8 @@ final class BossWaterGameTests {
     private static void prepare(GameTestContext context) {
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
         context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 256);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 256);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (256) * 20);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (256) * 20);
         // Contain vanilla flow so death/unload assertions do not depend on refilling.
         for (int x = 5; x <= 11; x++) {
             for (int z = 5; z <= 11; z++) {
@@ -166,7 +166,7 @@ final class BossWaterGameTests {
 
     private static void generation(GameTestContext context) {
         prepare(context);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 2);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (2) * 20);
         context.setBlock(9, 1, 8, Blocks.WATER);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
         context.at(1, () -> context.expect(!WaterArenaData.get(context.level).isGenerated(boss.getUUID()),

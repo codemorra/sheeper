@@ -40,13 +40,13 @@ public class SheeperConfig {
             .defineInRange("elemental.water.combatHeightRange", 15.0, 0.0, 128.0);
 
     /** Water boss movement (elemental.water.movement). */
-    public static final ForgeConfigSpec.IntValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
-            .comment("Minimum ticks between random arena movement targets (20 ticks = one second).")
-            .defineInRange("elemental.water.movement.intervalMinTicks", 100, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds between random arena movement targets.")
+            .defineInRange("elemental.water.movement.intervalMinSeconds", 5.0, 0.05, 600.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_MOVEMENT_INTERVAL_MAX = BUILDER
-            .comment("Maximum ticks between random arena movement targets; capped below by the minimum.")
-            .defineInRange("elemental.water.movement.intervalMaxTicks", 200, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds between random arena movement targets; capped below by the minimum.")
+            .defineInRange("elemental.water.movement.intervalMaxSeconds", 10.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPEED = BUILDER
             .comment("Navigation speed multiplier for random arena movement. 0 disables movement.")
@@ -60,9 +60,9 @@ public class SheeperConfig {
             .comment("Maximum distance from the boss for contact and launch of the spawn water wave; 0 disables it.")
             .defineInRange("elemental.water.spawnPush.radius", 15.0, 0.0, 128.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_SPAWN_PUSH_DELAY = BUILDER
-            .comment("Ticks after first contact with this boss's water during flooding before the one-time push.")
-            .defineInRange("elemental.water.spawnPush.delayTicks", 3, 0, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_DELAY = BUILDER
+            .comment("Seconds after first contact with this boss's water during flooding before the one-time push.")
+            .defineInRange("elemental.water.spawnPush.delaySeconds", 0.15, 0.0, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_HEIGHT = BUILDER
             .comment("Maximum rise of the spawn water wave in blocks; water drag and ceilings may reduce it.")
@@ -87,70 +87,70 @@ public class SheeperConfig {
                     "Leaving resets the timer. Uses spawnPush strengths; 0 disables proximity pushes.")
             .defineInRange("elemental.water.proximityPush.radius", 3.0, 0.0, 128.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_PROXIMITY_PUSH_DELAY_MIN = BUILDER
-            .comment("Minimum continuous proximity ticks before a push (20 ticks = one second).",
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DELAY_MIN = BUILDER
+            .comment("Minimum continuous proximity seconds before a push.",
                     "Sampled independently per player on entry and after each push. NoAI pauses timers.")
-            .defineInRange("elemental.water.proximityPush.delayMinTicks", 160, 1, 12000);
+            .defineInRange("elemental.water.proximityPush.delayMinSeconds", 8.0, 0.05, 600.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_PROXIMITY_PUSH_DELAY_MAX = BUILDER
-            .comment("Maximum continuous proximity ticks before a push; capped below by delayMinTicks.")
-            .defineInRange("elemental.water.proximityPush.delayMaxTicks", 240, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DELAY_MAX = BUILDER
+            .comment("Maximum continuous proximity seconds before a push; capped below by delayMinSeconds.")
+            .defineInRange("elemental.water.proximityPush.delayMaxSeconds", 12.0, 0.05, 600.0);
 
     /** Water projectiles (elemental.water.projectile). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
             .comment("Damage per water projectile in health points (2 = one heart).")
             .defineInRange("elemental.water.projectile.damage", 2.0, 0.0, 1024.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_SPEED = BUILDER
-            .comment("Constant water projectile speed in blocks per tick, including underwater.")
-            .defineInRange("elemental.water.projectile.speed", 0.8, 0.05, 3.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_SPEED_PER_SECOND = BUILDER
+            .comment("Constant water projectile speed in blocks per second, including underwater.")
+            .defineInRange("elemental.water.projectile.speedBlocksPerSecond", 16.0, 1.0, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_KNOCKBACK = BUILDER
             .comment("Additional velocity in the projectile's flight direction on an accepted hit.")
             .defineInRange("elemental.water.projectile.knockback", 0.5, 0.0, 3.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_INTERVAL = BUILDER
-            .comment("Ticks between shots within a regular projectile phase (20 ticks = one second).")
-            .defineInRange("elemental.water.projectile.intervalTicks", 40, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_INTERVAL = BUILDER
+            .comment("Seconds between shots within a regular projectile phase.")
+            .defineInRange("elemental.water.projectile.intervalSeconds", 2.0, 0.05, 600.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_DURATION_MIN = BUILDER
-            .comment("Minimum ticks per regular projectile phase (20 ticks = one second).",
-                    "The duration is sampled once at phase start; the first shot waits intervalTicks.")
-            .defineInRange("elemental.water.projectile.durationMinTicks", 80, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MIN = BUILDER
+            .comment("Minimum seconds per regular projectile phase.",
+                    "The duration is sampled once at phase start; the first shot waits intervalSeconds.")
+            .defineInRange("elemental.water.projectile.durationMinSeconds", 4.0, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_DURATION_MAX = BUILDER
-            .comment("Maximum ticks per regular projectile phase; capped below by durationMinTicks.")
-            .defineInRange("elemental.water.projectile.durationMaxTicks", 160, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MAX = BUILDER
+            .comment("Maximum seconds per regular projectile phase; capped below by durationMinSeconds.")
+            .defineInRange("elemental.water.projectile.durationMaxSeconds", 8.0, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_PROJECTILE_LIFETIME = BUILDER
-            .comment("Maximum flight ticks; maximum range is speed multiplied by lifetimeTicks.")
-            .defineInRange("elemental.water.projectile.lifetimeTicks", 100, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_LIFETIME = BUILDER
+            .comment("Maximum flight duration in seconds; range is speedBlocksPerSecond multiplied by lifetimeSeconds.")
+            .defineInRange("elemental.water.projectile.lifetimeSeconds", 5.0, 0.05, 600.0);
 
     /** Water projectile salvos (elemental.water.salvo). */
-    public static final ForgeConfigSpec.IntValue WATER_SALVO_PREPARATION = BUILDER
-            .comment("Preparation ticks before the first salvo shot; eyes gradually turn red.")
-            .defineInRange("elemental.water.salvo.preparationTicks", 40, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_PREPARATION = BUILDER
+            .comment("Preparation seconds before the first salvo shot; eyes gradually turn red.")
+            .defineInRange("elemental.water.salvo.preparationSeconds", 2.0, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_SALVO_DURATION_MIN = BUILDER
-            .comment("Minimum salvo firing duration in ticks, excluding preparation (20 ticks = one second).",
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_DURATION_MIN = BUILDER
+            .comment("Minimum salvo firing duration in seconds, excluding preparation.",
                     "Sampled once at phase start; duration continues during sight loss.")
-            .defineInRange("elemental.water.salvo.durationMinTicks", 100, 1, 1200);
+            .defineInRange("elemental.water.salvo.durationMinSeconds", 5.0, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_SALVO_DURATION_MAX = BUILDER
-            .comment("Maximum salvo firing duration; capped below by durationMinTicks.")
-            .defineInRange("elemental.water.salvo.durationMaxTicks", 200, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_DURATION_MAX = BUILDER
+            .comment("Maximum salvo firing duration; capped below by durationMinSeconds.")
+            .defineInRange("elemental.water.salvo.durationMaxSeconds", 10.0, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_SALVO_INTERVAL = BUILDER
-            .comment("Ticks between salvo shots (20 ticks = one second).")
-            .defineInRange("elemental.water.salvo.intervalTicks", 6, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_INTERVAL = BUILDER
+            .comment("Seconds between salvo shots.")
+            .defineInRange("elemental.water.salvo.intervalSeconds", 0.3, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_SALVO_SIGHT_TIMEOUT = BUILDER
-            .comment("Consecutive ticks without sight before aborting a salvo. Shots pause during sight loss.")
-            .defineInRange("elemental.water.salvo.sightTimeoutTicks", 20, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_SIGHT_TIMEOUT = BUILDER
+            .comment("Consecutive seconds without sight before aborting a salvo. Shots pause during sight loss.")
+            .defineInRange("elemental.water.salvo.sightTimeoutSeconds", 1.0, 0.05, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_SALVO_EYE_FADE = BUILDER
-            .comment("Ticks for red eyes to fade out after completing or aborting a salvo.")
-            .defineInRange("elemental.water.salvo.eyeFadeTicks", 10, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_EYE_FADE = BUILDER
+            .comment("Seconds for red eyes to fade out after completing or aborting a salvo.")
+            .defineInRange("elemental.water.salvo.eyeFadeSeconds", 0.5, 0.05, 60.0);
 
     /** Water attack selection and rest periods (elemental.water.attack). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_WEIGHT = BUILDER
@@ -166,40 +166,40 @@ public class SheeperConfig {
             .comment("Relative weight of salvo phases; 0 disables this type.")
             .defineInRange("elemental.water.attack.salvoWeight", 1.0, 0.0, 100.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_ATTACK_PAUSE_MIN = BUILDER
-            .comment("Minimum rest ticks after an attack. No new attacks start during rest.",
+    public static final ForgeConfigSpec.DoubleValue WATER_ATTACK_PAUSE_MIN = BUILDER
+            .comment("Minimum rest seconds after an attack. No new attacks start during rest.",
                     "Rest pauses without eligible players. Projectile attacks end if their chosen target becomes ineligible.",
                     "NoAI pauses both attack and rest timers.")
-            .defineInRange("elemental.water.attack.pauseMinTicks", 40, 0, 1200);
+            .defineInRange("elemental.water.attack.pauseMinSeconds", 2.0, 0.0, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_ATTACK_PAUSE_MAX = BUILDER
-            .comment("Maximum rest ticks; capped below by pauseMinTicks. Both may be 0 to disable rest.")
-            .defineInRange("elemental.water.attack.pauseMaxTicks", 80, 0, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_ATTACK_PAUSE_MAX = BUILDER
+            .comment("Maximum rest seconds; capped below by pauseMinSeconds. Both may be 0 to disable rest.")
+            .defineInRange("elemental.water.attack.pauseMaxSeconds", 4.0, 0.0, 60.0);
 
     /** Water fountains (elemental.water.fountain). */
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
-            .comment("Minimum fountain phase duration (20 ticks = one second). Sampled once at phase start.")
-            .defineInRange("elemental.water.fountain.durationMinTicks", 400, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
+            .comment("Minimum fountain phase duration. Sampled once at phase start.")
+            .defineInRange("elemental.water.fountain.durationMinSeconds", 20.0, 0.05, 600.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_DURATION_MAX = BUILDER
-            .comment("Maximum fountain phase duration; capped below by durationMinTicks.")
-            .defineInRange("elemental.water.fountain.durationMaxTicks", 600, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MAX = BUILDER
+            .comment("Maximum fountain phase duration; capped below by durationMinSeconds.")
+            .defineInRange("elemental.water.fountain.durationMaxSeconds", 30.0, 0.05, 600.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_INTERVAL_MIN = BUILDER
-            .comment("Minimum independent delay between fountains for each player and the arena.")
-            .defineInRange("elemental.water.fountain.intervalMinTicks", 10, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MIN = BUILDER
+            .comment("Minimum independent delay in seconds between fountains for each player and the arena.")
+            .defineInRange("elemental.water.fountain.intervalMinSeconds", 0.5, 0.05, 600.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_INTERVAL_MAX = BUILDER
-            .comment("Maximum fountain delay; capped below by intervalMinTicks.")
-            .defineInRange("elemental.water.fountain.intervalMaxTicks", 20, 1, 12000);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MAX = BUILDER
+            .comment("Maximum fountain delay in seconds; capped below by intervalMinSeconds.")
+            .defineInRange("elemental.water.fountain.intervalMaxSeconds", 1.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_ARENA_COUNT = BUILDER
             .comment("Random arena fountains announced per interval, in addition to each player's fountains.")
             .defineInRange("elemental.water.fountain.arenaCount", 3, 1, 16);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_WARNING = BUILDER
-            .comment("Fishing-particle warning before a fixed fountain erupts.")
-            .defineInRange("elemental.water.fountain.warningTicks", 30, 1, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WARNING = BUILDER
+            .comment("Fishing-particle warning duration in seconds before a fixed fountain erupts.")
+            .defineInRange("elemental.water.fountain.warningSeconds", 1.5, 0.05, 60.0);
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_SIZE = BUILDER
             .comment("Width and depth of a fountain in blocks.")
@@ -218,17 +218,17 @@ public class SheeperConfig {
             .comment("Enable cosmetic arena rain without changing world weather.")
             .define("elemental.water.fountain.rain.enabled", true);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_DELAY = BUILDER
-            .comment("Delay after the first eruption before arena rain starts.")
-            .defineInRange("elemental.water.fountain.rain.delayTicks", 10, 0, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_RAIN_DELAY = BUILDER
+            .comment("Delay in seconds after the first eruption before arena rain starts.")
+            .defineInRange("elemental.water.fountain.rain.delaySeconds", 0.5, 0.0, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_AFTER = BUILDER
-            .comment("Additional rain ticks after the fountain phase ends.")
-            .defineInRange("elemental.water.fountain.rain.afterTicks", 100, 0, 1200);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_RAIN_AFTER = BUILDER
+            .comment("Additional rain seconds after the fountain phase ends.")
+            .defineInRange("elemental.water.fountain.rain.afterSeconds", 5.0, 0.0, 60.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_PARTICLES = BUILDER
-            .comment("Maximum local raindrops per tick and arena.")
-            .defineInRange("elemental.water.fountain.rain.particlesPerTick", 24, 0, 256);
+    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_PARTICLES_PER_SECOND = BUILDER
+            .comment("Maximum local raindrops per second and arena.")
+            .defineInRange("elemental.water.fountain.rain.particlesPerSecond", 480, 0, 5120);
 
     /** Water arena discovery, flooding and cleanup (elemental.water.arena). */
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
@@ -241,25 +241,25 @@ public class SheeperConfig {
                     "Captured when surface discovery starts. 0 restricts discovery to one level.")
             .defineInRange("elemental.water.arena.stepHeight", 1, 0, 4);
 
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET = BUILDER
-            .comment("Maximum surface candidates examined per water Sheeper per server tick.",
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
+            .comment("Maximum surface candidates examined per water Sheeper per second.",
                     "Unloaded chunks are deferred without being force-loaded.")
-            .defineInRange("elemental.water.arena.searchBudget", 512, 1, 16384);
+            .defineInRange("elemental.water.arena.searchCandidatesPerSecond", 10240, 20, 327680);
 
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_BLOCK_BUDGET = BUILDER
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_BLOCK_BUDGET_PER_SECOND = BUILDER
             .comment(
-                    "Limits block positions processed per tick when placing or removing arena water to reduce server load spikes.")
-            .defineInRange("elemental.water.arena.blockBudget", 512, 1, 16384);
+                    "Limits block positions processed per second when placing or removing arena water to reduce server load spikes.")
+            .defineInRange("elemental.water.arena.blockUpdatesPerSecond", 10240, 20, 327680);
 
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_FLOOD_WAVE_TICKS = BUILDER
-            .comment("Ticks between outward source layers along the connected terrain (20 ticks = one second).",
-                    "0 disables layer timing and uses only blockBudget. Large layers still respect blockBudget.")
-            .defineInRange("elemental.water.arena.floodWaveIntervalTicks", 1, 0, 200);
+    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_FLOOD_WAVE_SECONDS = BUILDER
+            .comment("Seconds between outward source layers along the connected terrain.",
+                    "0 disables layer timing and uses only blockUpdatesPerSecond. Large layers still respect blockUpdatesPerSecond.")
+            .defineInRange("elemental.water.arena.floodWaveIntervalSeconds", 0.05, 0.0, 10.0);
 
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_DRAIN_WAVE_TICKS = BUILDER
-            .comment("Ticks between cleanup layers, from the outermost descendants back toward the spawn.",
+    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_WAVE_SECONDS = BUILDER
+            .comment("Seconds between cleanup layers, from the outermost descendants back toward the spawn.",
                     "0 disables layer timing. Unloaded cells are retried without blocking loaded cleanup.")
-            .defineInRange("elemental.water.arena.drainWaveIntervalTicks", 2, 0, 200);
+            .defineInRange("elemental.water.arena.drainWaveIntervalSeconds", 0.1, 0.0, 10.0);
 
     /** Adult Sheeper detection, observation and self-explosions (sheeper). */
     public static final ForgeConfigSpec.DoubleValue DETECTION_RADIUS = BUILDER

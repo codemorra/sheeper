@@ -32,10 +32,10 @@ final class WaterWaveGameTests {
     private static void timing(GameTestContext context) {
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
         context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 512);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 512);
-        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_TICKS, 4);
-        context.set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_TICKS, 8);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (512) * 20);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (512) * 20);
+        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (4) / 20.0D);
+        context.set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (8) / 20.0D);
         for (int x = 5; x <= 11; x++) {
             for (int z = 5; z <= 11; z++) {
                 if ((x - 8) * (x - 8) + (z - 8) * (z - 8) > 4) {
@@ -77,7 +77,7 @@ final class WaterWaveGameTests {
     }
 
     private static void persistence(GameTestContext context) {
-        context.set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_TICKS, 4);
+        context.set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (4) / 20.0D);
         WaterArenaData data = new WaterArenaData();
         UUID boss = UUID.randomUUID();
         BlockPos center = context.pos(8, 1, 8);
@@ -108,7 +108,7 @@ final class WaterWaveGameTests {
     }
 
     private static void unloaded(GameTestContext context) {
-        context.set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_TICKS, 4);
+        context.set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (4) / 20.0D);
         WaterArenaData data = new WaterArenaData();
         UUID boss = UUID.randomUUID();
         BlockPos center = context.pos(8, 1, 8);

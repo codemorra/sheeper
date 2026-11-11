@@ -26,8 +26,8 @@ public final class WaterArenaMoveGoal extends Goal {
     }
 
     private void scheduleNextMovement() {
-        int minimum = SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN.get();
-        int maximum = Math.max(minimum, SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX.get());
+        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN.get());
+        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX.get()));
         nextMovementTick = boss.level.getGameTime() + minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 

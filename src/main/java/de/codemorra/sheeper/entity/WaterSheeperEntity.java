@@ -75,7 +75,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private int attackPhaseTicks;
     @Nullable
     private UUID attackTargetId;
-    private int projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
+    private int projectileCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
     private final Queue<UUID> attackOrder = new ArrayDeque<>();
     private final Map<UUID, Integer> proximityPushTicks = new HashMap<>();
 
@@ -287,8 +287,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 setTarget(null);
                 attackTargetId = null;
                 attackPhase = AttackPhase.FOUNTAINS;
-                attackPhaseTicks = randomPhaseTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN.get(),
-                        SheeperConfig.WATER_FOUNTAIN_DURATION_MAX.get());
+                attackPhaseTicks = randomPhaseTicks(SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN.get()),
+                        SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX.get()));
                 fountains.start();
             } else {
                 ServerPlayer target = selectNextAttackTarget();
@@ -297,9 +297,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 }
                 attackTargetId = target.getUUID();
                 attackPhase = AttackPhase.PROJECTILES;
-                attackPhaseTicks = randomPhaseTicks(SheeperConfig.WATER_PROJECTILE_DURATION_MIN.get(),
-                        SheeperConfig.WATER_PROJECTILE_DURATION_MAX.get());
-                projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
+                attackPhaseTicks = randomPhaseTicks(SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_DURATION_MIN.get()),
+                        SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_DURATION_MAX.get()));
+                projectileCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
             }
         }
         if (attackPhase == AttackPhase.REST) {
@@ -331,8 +331,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         setTarget(null);
         attackTargetId = null;
         attackPhase = AttackPhase.REST;
-        attackPhaseTicks = randomPhaseTicks(SheeperConfig.WATER_ATTACK_PAUSE_MIN.get(),
-                SheeperConfig.WATER_ATTACK_PAUSE_MAX.get());
+        attackPhaseTicks = randomPhaseTicks(SheeperConfig.secondsToTicks(SheeperConfig.WATER_ATTACK_PAUSE_MIN.get()),
+                SheeperConfig.secondsToTicks(SheeperConfig.WATER_ATTACK_PAUSE_MAX.get()));
     }
 
     private int randomPhaseTicks(int minimum, int maximum) {
@@ -345,12 +345,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (isNoAi() || getTarget() == null) {
             return;
         }
-        projectileCooldown = Math.min(projectileCooldown, SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
+        projectileCooldown = Math.min(projectileCooldown, SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get()));
         if (--projectileCooldown > 0) {
             return;
         }
         fireWaterProjectile(getTarget());
-        projectileCooldown = SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
+        projectileCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
     }
 
     /**
@@ -374,7 +374,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (direction.lengthSqr() < 1.0E-8D) {
             direction = getLookAngle();
         }
-        projectile.setDeltaMovement(direction.normalize().scale(SheeperConfig.WATER_PROJECTILE_SPEED.get()));
+        projectile.setDeltaMovement(direction.normalize().scale(SheeperConfig.WATER_PROJECTILE_SPEED_PER_SECOND.get() / 20.0D));
         return level.addFreshEntity(projectile);
     }
 
@@ -441,7 +441,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 continue;
             }
             waterWaveContacts.add(player.getUUID());
-            int delay = SheeperConfig.WATER_SPAWN_PUSH_DELAY.get();
+            int delay = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPAWN_PUSH_DELAY.get());
             if (delay == 0) {
                 launchWaterWave(player);
             } else {
@@ -478,8 +478,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private int nextProximityPushDelay() {
-        return randomPhaseTicks(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN.get(),
-                SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX.get());
+        return randomPhaseTicks(SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN.get()),
+                SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX.get()));
     }
 
     private void tickProximityPush() {
@@ -534,7 +534,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                     arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
                             SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), SheeperConfig.WATER_ARENA_STEP_HEIGHT.get());
                 }
-                arenaSearch.advance(SheeperConfig.WATER_ARENA_SEARCH_BUDGET.get());
+                arenaSearch.advance(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20);
                 if (arenaSearch.isComplete()) {
                     placeArenaWater((ServerLevel) level);
                 }
@@ -558,7 +558,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         if (!level.isClientSide && !isPerformingSalvo()) {
             setSalvoEyeIntensity(Mth.approach(entityData.get(DATA_SALVO_EYES), 0.0F,
-                    1.0F / SheeperConfig.WATER_SALVO_EYE_FADE.get()));
+                    1.0F / SheeperConfig.secondsToTicks(SheeperConfig.WATER_SALVO_EYE_FADE.get())));
         }
     }
 
@@ -573,7 +573,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             positions.sort(Comparator.comparingInt(arenaSearch::getSurfaceDistance));
             waterPlacement = new ArrayDeque<>(positions);
         }
-        int interval = SheeperConfig.WATER_ARENA_FLOOD_WAVE_TICKS.get();
+        int interval = SheeperConfig.secondsToTicks(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS.get());
         long now = level.getGameTime();
         if (interval > 0 && !waterPlacement.isEmpty()
                 && arenaSearch.getSurfaceDistance(waterPlacement.peek()) != placementWave) {
@@ -582,7 +582,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             }
             placementWave = arenaSearch.getSurfaceDistance(waterPlacement.peek());
         }
-        int candidates = Math.min(waterPlacement.size(), SheeperConfig.WATER_ARENA_BLOCK_BUDGET.get());
+        int candidates = Math.min(waterPlacement.size(), SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
         for (int examined = 0; examined < candidates; examined++) {
             BlockPos pos = waterPlacement.peek();
             int distance = arenaSearch.getSurfaceDistance(pos);
@@ -693,8 +693,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         setSalvoEyeIntensity(Float.isFinite(eyes) ? eyes : 0.0F);
         previousSalvoEyeIntensity = entityData.get(DATA_SALVO_EYES);
         projectileCooldown = tag.contains("WaterProjectileCooldown", Tag.TAG_INT)
-                ? Mth.clamp(tag.getInt("WaterProjectileCooldown"), 1, SheeperConfig.WATER_PROJECTILE_INTERVAL.get())
-                : SheeperConfig.WATER_PROJECTILE_INTERVAL.get();
+                ? Mth.clamp(tag.getInt("WaterProjectileCooldown"), 1, SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get()))
+                : SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
         attackOrder.clear();
         setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.

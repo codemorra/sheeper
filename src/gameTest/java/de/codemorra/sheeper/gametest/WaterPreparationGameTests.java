@@ -31,8 +31,8 @@ final class WaterPreparationGameTests {
     private static WaterSheeperEntity boss(GameTestContext context) {
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
-        context.set(SheeperConfig.WATER_SPAWN_PUSH_DELAY, 10);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(SheeperConfig.WATER_SPAWN_PUSH_DELAY, (10) / 20.0D);
         context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 10.0D);
         context.set(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.2D);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
@@ -164,14 +164,14 @@ final class WaterPreparationGameTests {
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 1.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
         context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 2);
-        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_TICKS, 2);
+        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (2) * 20);
+        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (2) / 20.0D);
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 1);
+        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 0.0D);

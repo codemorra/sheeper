@@ -37,16 +37,16 @@ final class WaterSalvoGameTests {
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 1.0D);
-        context.set(SheeperConfig.WATER_SALVO_PREPARATION, preparation);
-        context.set(SheeperConfig.WATER_SALVO_DURATION_MIN, duration);
-        context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, duration);
-        context.set(SheeperConfig.WATER_SALVO_INTERVAL, interval);
-        context.set(SheeperConfig.WATER_SALVO_EYE_FADE, 2);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 3);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 3);
+        context.set(SheeperConfig.WATER_SALVO_PREPARATION, (preparation) / 20.0D);
+        context.set(SheeperConfig.WATER_SALVO_DURATION_MIN, (duration) / 20.0D);
+        context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, (duration) / 20.0D);
+        context.set(SheeperConfig.WATER_SALVO_INTERVAL, (interval) / 20.0D);
+        context.set(SheeperConfig.WATER_SALVO_EYE_FADE, (2) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (3) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (3) / 20.0D);
         context.set(SheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 5.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8);
@@ -129,12 +129,12 @@ final class WaterSalvoGameTests {
         Set<Integer> observed = new HashSet<>();
         for (int sample = 0; sample < 12; sample++) {
             WaterSheeperEntity boss = boss(context, 1, 3, 1);
-            context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, 7);
+            context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, (7) / 20.0D);
             boss.getRandom().setSeed(12345L + sample * 1009L);
             boss.tick();
             // Changing bounds during preparation must not alter the sampled duration.
-            context.set(SheeperConfig.WATER_SALVO_DURATION_MIN, 1);
-            context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, 1);
+            context.set(SheeperConfig.WATER_SALVO_DURATION_MIN, (1) / 20.0D);
+            context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, (1) / 20.0D);
             int elapsed = 0;
             while (boss.isPerformingSalvo() && elapsed < 8) {
                 boss.tick();
@@ -148,7 +148,7 @@ final class WaterSalvoGameTests {
         }
         context.expect(observed.size() > 1, "Different salvos must sample different durations");
         WaterSheeperEntity boss = boss(context, 1, 5, 1);
-        context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, 1);
+        context.set(SheeperConfig.WATER_SALVO_DURATION_MAX, (1) / 20.0D);
         tick(boss, 6);
         context.expect(!boss.isPerformingSalvo() && shots(context) == 5,
                 "Reversed bounds must use the configured minimum duration");
@@ -194,7 +194,7 @@ final class WaterSalvoGameTests {
 
     private static void sight(GameTestContext context) {
         WaterSheeperEntity boss = boss(context, 2, 20, 1);
-        context.set(SheeperConfig.WATER_SALVO_SIGHT_TIMEOUT, 3);
+        context.set(SheeperConfig.WATER_SALVO_SIGHT_TIMEOUT, (3) / 20.0D);
         context.player(16, 2, 8);
         tick(boss, 3);
         wall(context, true);
@@ -218,7 +218,7 @@ final class WaterSalvoGameTests {
         context.entities(WaterProjectile.class).forEach(Entity::discard);
         wall(context, false);
         boss = boss(context, 1, 4, 1);
-        context.set(SheeperConfig.WATER_SALVO_SIGHT_TIMEOUT, 20);
+        context.set(SheeperConfig.WATER_SALVO_SIGHT_TIMEOUT, (20) / 20.0D);
         tick(boss, 2);
         wall(context, true);
         tick(boss, 3);
@@ -261,17 +261,17 @@ final class WaterSalvoGameTests {
         WaterSheeperEntity boss = boss(context, 1, 2, 1);
         // Fountain phases wait for terrain discovery before their duration advances.
         context.set(SheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 10000);
+        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (10000) * 20);
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 1.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, 3);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, 3);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, 1);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, 3);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, 3);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, 2);
-        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, 2);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (3) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (3) / 20.0D);
+        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, (3) / 20.0D);
+        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, (3) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (2) / 20.0D);
+        context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (2) / 20.0D);
         context.player(16, 2, 8);
         boss.getRandom().setSeed(831L);
         // Equal defaults, percentage-style weights, and a disabled attack type.
