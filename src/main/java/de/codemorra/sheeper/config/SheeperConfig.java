@@ -70,6 +70,23 @@ public class SheeperConfig {
             .comment("Upward knockback strength. 0 keeps the push horizontal.")
             .defineInRange("elemental.water.spawnPush.upwardStrength", 1.0, 0.0, 1.0);
 
+    // Horizontal radius for proximity pushes.
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_RADIUS = BUILDER
+            .comment("Distance from the boss within which players accumulate time toward a proximity push.",
+                    "Leaving resets the timer. Uses spawnPush strengths; 0 disables proximity pushes.")
+            .defineInRange("elemental.water.proximityPush.radius", 3.0, 0.0, 128.0);
+
+    // Minimum continuous proximity ticks before a push.
+    public static final ForgeConfigSpec.IntValue WATER_PROXIMITY_PUSH_DELAY_MIN = BUILDER
+            .comment("Minimum continuous proximity ticks before a push (20 ticks = one second).",
+                    "Sampled independently per player on entry and after each push. NoAI pauses timers.")
+            .defineInRange("elemental.water.proximityPush.delayMinTicks", 160, 1, 12000);
+
+    // Maximum continuous proximity ticks before a push.
+    public static final ForgeConfigSpec.IntValue WATER_PROXIMITY_PUSH_DELAY_MAX = BUILDER
+            .comment("Maximum continuous proximity ticks before a push; capped below by delayMinTicks.")
+            .defineInRange("elemental.water.proximityPush.delayMaxTicks", 240, 1, 12000);
+
     // Base projectile settings; strength scaling is reserved for combat balancing.
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
             .comment("Damage per water projectile in health points (2 = one heart).")
