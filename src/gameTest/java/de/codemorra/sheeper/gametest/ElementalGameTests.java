@@ -62,7 +62,7 @@ final class ElementalGameTests {
         return List.of(
                 context.spawn(ModEntities.LAVA_SHEEPER.get(), 8, 1, 8),
                 context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 15, 1, 8),
-                context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 15));
+                context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 15)));
     }
 
     private static void configuration(GameTestContext context) {

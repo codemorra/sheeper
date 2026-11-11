@@ -68,6 +68,11 @@ public final class WaterArenaData extends SavedData {
         return arena != null && arena.generated;
     }
 
+    /** Whether a cell belongs to this encounter, including flowing descendants. */
+    public boolean isOwnedBy(UUID boss, BlockPos pos) {
+        return owners.getOrDefault(pos, Set.of()).contains(boss);
+    }
+
     /**
      * Places initial sources in air or washable objects, or promotes already
      * spread boss flow during generation. Regular water is never claimed.

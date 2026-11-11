@@ -53,6 +53,8 @@ final class WaterFountainGameTests {
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
+        context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 0.0D);
+        context.set(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 10000);
         context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET, 10000);
         context.set(SheeperConfig.WATER_FOUNTAIN_RAIN_ENABLED, false);

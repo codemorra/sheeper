@@ -5,8 +5,6 @@ import java.util.List;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -20,8 +18,6 @@ final class WaterCombatGameTests {
     static void add(List<SheeperGameTests.Scenario> tests) {
         tests.add(
                 new SheeperGameTests.Scenario("water_combat_participants_and_rotation", WaterCombatGameTests::targets));
-        tests.add(new SheeperGameTests.Scenario("water_spawn_push_and_reload", WaterCombatGameTests::spawnPush));
-        tests.add(new SheeperGameTests.Scenario("water_spawn_push_early_save", WaterCombatGameTests::earlySave));
         tests.add(new SheeperGameTests.Scenario("water_free_movement_and_no_melee", WaterCombatGameTests::movement));
         tests.add(new SheeperGameTests.Scenario("water_return_after_radius_reduction",
                 WaterCombatGameTests::returnToArea));
@@ -36,7 +32,7 @@ final class WaterCombatGameTests {
         context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET, 1);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
-        WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
+        WaterSheeperEntity boss = context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8));
         boss.getArenaCenter();
         TestPlayer first = context.player(11, 1, 8);
         TestPlayer second = context.player(8, 1, 13);
@@ -70,78 +66,10 @@ final class WaterCombatGameTests {
         second.setGameMode(GameType.ADVENTURE);
         boss.tick();
         context.expect(boss.getTarget() == second && !boss.isArenaSearchComplete(),
-                "Combat must resume before arena discovery or flooding completes");
+                "An already prepared encounter may resume while derived terrain is rediscovered");
         second.setHealth(0.0F);
         boss.tick();
         context.expect(boss.getTarget() == null, "Death must invalidate a target on the next tick");
-        context.pass();
-    }
-
-    private static void spawnPush(GameTestContext context) {
-        context.set(SheeperConfig.WATER_SPAWN_PUSH_RADIUS, 4.0D);
-        context.set(SheeperConfig.WATER_COMBAT_HEIGHT_RANGE, 2.0D);
-        context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.8D);
-        context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.2D);
-        WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
-        boss.setNoAi(true);
-        TestPlayer center = context.player(8, 1, 8);
-        TestPlayer edge = context.player(4, 1, 8);
-        edge.setGameMode(GameType.ADVENTURE);
-        TestPlayer outside = context.player(13, 1, 8);
-        TestPlayer high = context.player(8, 4, 8);
-        TestPlayer creative = context.player(11, 1, 8);
-        creative.setGameMode(GameType.CREATIVE);
-        TestPlayer spectator = context.player(8, 1, 5);
-        spectator.setGameMode(GameType.SPECTATOR);
-        List<TestPlayer> players = List.of(center, edge, outside, high, creative, spectator);
-        players.forEach(player -> {
-            player.setDeltaMovement(Vec3.ZERO);
-            player.motionPackets.clear();
-        });
-        boss.tick();
-        context.near(center.getDeltaMovement().x, 0.8D, "An exact-center player needs a finite horizontal direction");
-        context.near(center.getDeltaMovement().y, 0.2D, "Configured upward impulse must apply");
-        context.near(edge.getDeltaMovement().x, -0.8D, "Boundary players must be pushed away from the origin");
-        for (TestPlayer player : List.of(outside, high, creative, spectator)) {
-            context.expect(player.motionPackets.isEmpty(), "Out-of-range and excluded modes must receive no push");
-            context.near(player.getDeltaMovement().lengthSqr(), 0.0D, "Excluded players must keep their velocity");
-        }
-        context.expect(players.stream().allMatch(player -> player.damageEvents.isEmpty()),
-                "Spawn protection must deal no direct damage");
-        context.expect(center.motionPackets.size() == 1 && edge.motionPackets.size() == 1,
-                "Eligible players must receive the launch on their client");
-        boss.tick();
-        CompoundTag saved = boss.saveWithoutId(new CompoundTag());
-        boss.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
-        WaterSheeperEntity restored = ModEntities.WATER_SHEEPER.get().create(context.level);
-        restored.load(saved);
-        restored.tick();
-        // Legacy bosses with a saved origin must also avoid a new spawn push.
-        saved.remove("WaterSpawnPushApplied");
-        restored.load(saved);
-        restored.tick();
-        context.expect(center.motionPackets.size() == 1 && edge.motionPackets.size() == 1,
-                "Later ticks, chunk unloading, reload, and legacy saves must not repeat the push");
-        context.pass();
-    }
-
-    private static void earlySave(GameTestContext context) {
-        TestPlayer player = context.player(8, 1, 8);
-        player.setDeltaMovement(Vec3.ZERO);
-        player.motionPackets.clear();
-        WaterSheeperEntity fresh = ModEntities.WATER_SHEEPER.get().create(context.level);
-        fresh.setPos(context.point(8, 1, 8));
-        fresh.setNoAi(true);
-        CompoundTag saved = fresh.saveWithoutId(new CompoundTag());
-        WaterSheeperEntity restored = ModEntities.WATER_SHEEPER.get().create(context.level);
-        restored.load(saved);
-        restored.tick();
-        restored.tick();
-        context.expect(player.motionPackets.size() == 1,
-                "Saving before the first tick must preserve the pending push and apply it only once");
-        context.near(player.motionPackets.get(0).getXa() / 8000.0D,
-                SheeperConfig.WATER_SPAWN_PUSH_STRENGTH.get(),
-                "The default spawn impulse must reach the client without motion-packet clipping");
         context.pass();
     }
 
@@ -152,7 +80,7 @@ final class WaterCombatGameTests {
         context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN, 5);
         context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX, 5);
         context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_TICKS, 200);
-        WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
+        WaterSheeperEntity boss = context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8));
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         double[] previousDistance = { 25.0D };
         context.at(5, () -> {
@@ -208,7 +136,7 @@ final class WaterCombatGameTests {
                 context.setBlock(10, y, z, Blocks.STONE);
             }
         }
-        WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
+        WaterSheeperEntity boss = context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8));
         Vec3 origin = boss.position();
         TestPlayer player = context.player(14, 1, 8);
         context.at(25, () -> {

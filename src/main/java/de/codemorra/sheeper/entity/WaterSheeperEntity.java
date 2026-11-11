@@ -36,6 +36,9 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
+import net.minecraftforge.common.ForgeMod;
+import de.codemorra.sheeper.fluid.BossWaterFluid;
 
 /**
  * Water boss foundation with incremental discovery and tracked initial water
@@ -44,6 +47,8 @@ import net.minecraft.world.phys.Vec3;
 public class WaterSheeperEntity extends ElementalSheeperEntity {
     private static final EntityDataAccessor<Float> DATA_SALVO_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.BOOLEAN);
     private float previousSalvoEyeIntensity;
 
     @Nullable
@@ -54,7 +59,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private Queue<BlockPos> waterPlacement;
     private int placementWave = -1;
     private long nextFloodWaveTick;
-    private boolean spawnPushApplied;
+    private final Set<UUID> waterWaveContacts = new HashSet<>();
+    private final Map<UUID, Integer> waterWaveDelays = new HashMap<>();
 
     private enum AttackPhase {
         PROJECTILES,
@@ -82,6 +88,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_SALVO_EYES, 0.0F);
+        entityData.define(DATA_COMBAT_READY, false);
     }
 
     /** Interpolated, server-controlled warning for the client eye layer. */
@@ -98,7 +105,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return attackPhase == AttackPhase.SALVO;
     }
 
-    private void stopSalvoMovement() {
+    private void stopHorizontalMovement() {
         getNavigation().stop();
         Vec3 velocity = getDeltaMovement();
         setDeltaMovement(0.0D, velocity.y, 0.0D);
@@ -141,7 +148,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        if (type == MoverType.SELF && !level.isClientSide && isPerformingSalvo()) {
+        if (type == MoverType.SELF && !level.isClientSide && (!isCombatReady() || isPerformingSalvo())) {
             movement = new Vec3(0.0D, movement.y, 0.0D);
         }
         if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()) {
@@ -201,6 +208,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      */
     @Nullable
     public ServerPlayer selectNextAttackTarget() {
+        if (!isCombatReady()) {
+            setTarget(null);
+            return null;
+        }
         List<ServerPlayer> participants = getCombatParticipants();
         Set<UUID> eligible = new HashSet<>();
         participants.forEach(player -> eligible.add(player.getUUID()));
@@ -240,7 +251,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             }
             setTarget(target);
             if (isPerformingSalvo()) {
-                stopSalvoMovement();
+                stopHorizontalMovement();
                 if (!salvo.tick(target)) {
                     beginAttackRest();
                 }
@@ -266,7 +277,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 attackTargetId = target.getUUID();
                 attackPhase = AttackPhase.SALVO;
                 salvo.start();
-                stopSalvoMovement();
+                stopHorizontalMovement();
                 // Count this first stationary tick toward the preparation.
                 if (!salvo.tick(target)) {
                     beginAttackRest();
@@ -315,7 +326,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             fountains.finish();
         }
         if (isPerformingSalvo()) {
-            stopSalvoMovement();
+            stopHorizontalMovement();
         }
         setTarget(null);
         attackTargetId = null;
@@ -351,7 +362,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      *         line
      */
     public boolean fireWaterProjectile(LivingEntity target) {
-        if (level.isClientSide || !isAlive() || !target.isAlive() || target.level != level
+        if (level.isClientSide || !isCombatReady() || !isAlive() || !target.isAlive() || target.level != level
                 || !hasLineOfSight(target)) {
             return false;
         }
@@ -372,23 +383,87 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         setYHeadRot(getYRot());
     }
 
-    private void applySpawnPush() {
-        if (spawnPushApplied) {
+    @Override
+    public boolean isCombatReady() {
+        return entityData.get(DATA_COMBAT_READY)
+                || level instanceof ServerLevel server && WaterArenaData.get(server).isGenerated(getUUID());
+    }
+
+    @Override
+    public boolean isInvulnerableTo(DamageSource source) {
+        // Keep /kill and void removal available during preparation.
+        return !isCombatReady() && source != DamageSource.OUT_OF_WORLD || super.isInvulnerableTo(source);
+    }
+
+    private boolean touchesArenaWater(ServerPlayer player, WaterArenaData data) {
+        AABB bounds = player.getBoundingBox().deflate(1.0E-7D);
+        for (BlockPos pos : BlockPos.betweenClosed(new BlockPos(bounds.minX, bounds.minY, bounds.minZ),
+                new BlockPos(bounds.maxX, bounds.maxY, bounds.maxZ))) {
+            if (WaterArenaData.isLoaded((ServerLevel) level, pos) && data.isOwnedBy(getUUID(), pos)
+                    && level.getFluidState(pos).getType() instanceof BossWaterFluid
+                    && pos.getY() + level.getFluidState(pos).getHeight(level, pos) > bounds.minY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void tickWaterWave(boolean preparing) {
+        double radius = SheeperConfig.WATER_SPAWN_WAVE_RADIUS.get();
+        if (radius == 0.0D || SheeperConfig.WATER_SPAWN_WAVE_HEIGHT.get() == 0.0D
+                && SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH.get() == 0.0D) {
+            waterWaveDelays.clear();
             return;
         }
-        spawnPushApplied = true;
-        double horizontal = SheeperConfig.WATER_SPAWN_PUSH_STRENGTH.get();
-        double upward = SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH.get();
-        if (horizontal == 0.0D && upward == 0.0D) {
+        ServerLevel server = (ServerLevel) level;
+        var pending = waterWaveDelays.entrySet().iterator();
+        while (pending.hasNext()) {
+            var entry = pending.next();
+            ServerPlayer player = server.players().stream()
+                    .filter(candidate -> candidate.getUUID().equals(entry.getKey())).findFirst().orElse(null);
+            if (player == null || !isActivePlayer(player) || distanceToSqr(player) > radius * radius) {
+                pending.remove();
+            } else if (entry.getValue() <= 1) {
+                launchWaterWave(player);
+                pending.remove();
+            } else {
+                entry.setValue(entry.getValue() - 1);
+            }
+        }
+        if (!preparing) {
             return;
         }
-        for (ServerPlayer player : ((ServerLevel) level).players()) {
-            if (!isEligiblePlayer(player, SheeperConfig.WATER_SPAWN_PUSH_RADIUS.get(),
-                    SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get())) {
+        WaterArenaData data = WaterArenaData.get(server);
+        for (ServerPlayer player : server.players()) {
+            if (!isActivePlayer(player) || distanceToSqr(player) > radius * radius
+                    || waterWaveContacts.contains(player.getUUID())
+                    || !touchesArenaWater(player, data)) {
                 continue;
             }
-            pushPlayer(player, Vec3.atBottomCenterOf(getArenaCenter()), horizontal, upward);
+            waterWaveContacts.add(player.getUUID());
+            int delay = SheeperConfig.WATER_SPAWN_PUSH_DELAY.get();
+            if (delay == 0) {
+                launchWaterWave(player);
+            } else {
+                waterWaveDelays.put(player.getUUID(), delay);
+            }
         }
+    }
+
+    private void launchWaterWave(ServerPlayer player) {
+        Vec3 center = Vec3.atBottomCenterOf(getArenaCenter());
+        Vec3 direction = new Vec3(player.getX() - center.x, 0.0D, player.getZ() - center.z);
+        if (direction.lengthSqr() < 1.0E-8D) {
+            direction = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        direction = direction.normalize().scale(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH.get());
+        double upward = WaterFountainAttack.launchSpeed(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT.get(),
+                player.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get()));
+        // A defined launch velocity keeps existing momentum from extending the flight.
+        player.setDeltaMovement(direction.x, upward, direction.z);
+        player.fallDistance = 0;
+        player.connection.send(new ClientboundSetEntityMotionPacket(player));
+        player.hurtMarked = false;
     }
 
     private void pushPlayer(ServerPlayer player, Vec3 center, double horizontal, double upward) {
@@ -454,7 +529,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();
             if (isAlive()) {
-                applySpawnPush();
+                boolean preparing = !isCombatReady();
                 if (arenaSearch == null) {
                     arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
                             SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), SheeperConfig.WATER_ARENA_STEP_HEIGHT.get());
@@ -463,10 +538,15 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 if (arenaSearch.isComplete()) {
                     placeArenaWater((ServerLevel) level);
                 }
+                tickWaterWave(preparing);
+                entityData.set(DATA_COMBAT_READY, isCombatReady());
+                if (!isCombatReady()) {
+                    stopHorizontalMovement();
+                }
             }
         }
         super.tick();
-        if (!level.isClientSide && isAlive()) {
+        if (!level.isClientSide && isAlive() && isCombatReady()) {
             tickProximityPush();
             tickAttackPhase();
             fountains.tickRain(attackPhase == AttackPhase.FOUNTAINS);
@@ -545,7 +625,21 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.putString("WaterAttackPhase", attackPhase.name());
         tag.putInt("WaterAttackPhaseTicks", attackPhaseTicks);
         tag.putInt("WaterProjectileCooldown", projectileCooldown);
-        tag.putBoolean("WaterSpawnPushApplied", spawnPushApplied);
+        ListTag contacts = new ListTag();
+        waterWaveContacts.forEach(id -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Player", id);
+            contacts.add(entry);
+        });
+        tag.put("WaterWaveContacts", contacts);
+        ListTag wave = new ListTag();
+        waterWaveDelays.forEach((id, ticks) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Player", id);
+            entry.putInt("Ticks", ticks);
+            wave.add(entry);
+        });
+        tag.put("WaterWaveDelays", wave);
         ListTag proximity = new ListTag();
         proximityPushTicks.forEach((id, ticks) -> {
             CompoundTag entry = new CompoundTag();
@@ -568,11 +662,23 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 proximityPushTicks.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Ticks"), 1, 12000));
             }
         }
-        // Legacy saved bosses must not push again; fresh summon data has no saved
-        // origin.
-        spawnPushApplied = tag.contains("WaterSpawnPushApplied", Tag.TAG_BYTE)
-                ? tag.getBoolean("WaterSpawnPushApplied")
-                : tag.contains("WaterArenaCenter", Tag.TAG_LONG);
+        entityData.set(DATA_COMBAT_READY, false);
+        waterWaveContacts.clear();
+        for (Tag value : tag.getList("WaterWaveContacts", Tag.TAG_COMPOUND)) {
+            CompoundTag entry = (CompoundTag) value;
+            if (entry.hasUUID("Player")) {
+                waterWaveContacts.add(entry.getUUID("Player"));
+            }
+        }
+        waterWaveDelays.clear();
+        for (Tag value : tag.getList("WaterWaveDelays", Tag.TAG_COMPOUND)) {
+            CompoundTag entry = (CompoundTag) value;
+            if (entry.hasUUID("Player")) {
+                UUID player = entry.getUUID("Player");
+                waterWaveContacts.add(player);
+                waterWaveDelays.put(player, Mth.clamp(entry.getInt("Ticks"), 1, 1200));
+            }
+        }
         attackTargetId = tag.hasUUID("WaterAttackTarget") ? tag.getUUID("WaterAttackTarget") : null;
         attackPhaseTicks = Math.max(0, tag.getInt("WaterAttackPhaseTicks"));
         attackPhase = switch (tag.getString("WaterAttackPhase")) {
