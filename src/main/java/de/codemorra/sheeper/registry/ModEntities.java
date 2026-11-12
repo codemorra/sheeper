@@ -6,6 +6,7 @@ import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity.Element;
 import de.codemorra.sheeper.entity.PrimedSheeperWool;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
+import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -43,8 +44,12 @@ public class ModEntities {
      */
     public static final RegistryObject<EntityType<ElementalSheeperEntity>> LAVA_SHEEPER = registerElemental(
             "lava_sheeper", Element.LAVA);
-    public static final RegistryObject<EntityType<ElementalSheeperEntity>> LIGHTNING_SHEEPER = registerElemental(
-            "lightning_sheeper", Element.LIGHTNING);
+    public static final RegistryObject<EntityType<LightningSheeperEntity>> LIGHTNING_SHEEPER = ENTITY_TYPES.register(
+            "lightning_sheeper", () -> EntityType.Builder.<LightningSheeperEntity>of(
+                    LightningSheeperEntity::new, MobCategory.MISC)
+                    .sized(EntityType.SHEEP.getWidth(), EntityType.SHEEP.getHeight())
+                    .clientTrackingRange(10)
+                    .build(SheeperMod.MODID + ":lightning_sheeper"));
     public static final RegistryObject<EntityType<WaterSheeperEntity>> WATER_SHEEPER = ENTITY_TYPES.register(
             "water_sheeper", () -> EntityType.Builder.<WaterSheeperEntity>of(
                     WaterSheeperEntity::new, MobCategory.MISC)
