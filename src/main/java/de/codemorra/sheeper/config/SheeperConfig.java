@@ -24,7 +24,8 @@ public class SheeperConfig {
             .defineInRange("elemental.lightning.combatRadius", 32.0, 1.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_RADIUS = BUILDER
-            .comment("Horizontal teleport movement radius around the saved spawn position; capped at combatRadius.")
+            .comment(
+                    "Horizontal teleport movement radius around the saved spawn position; capped at combatRadius. 0 disables movement.")
             .defineInRange("elemental.lightning.movementRadius", 12.0, 0.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_HEIGHT_RANGE = BUILDER
@@ -37,6 +38,25 @@ public class SheeperConfig {
             .comment("Seconds of protected arena preparation before combat. 0 skips preparation.",
                     "Captured when preparation starts; remaining time is preserved when loading.")
             .defineInRange("elemental.lightning.arena.preparationSeconds", 4.0, 0.0, 600.0);
+
+    /** Lightning teleport movement (elemental.lightning.teleport). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds from a completed teleport to the next announcement.",
+                    "Movement continues without arena participants. NoAI pauses timers. Failed searches wait another interval.")
+            .defineInRange("elemental.lightning.teleport.intervalMinSeconds", 3.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds before the next announcement; capped below by intervalMinSeconds.")
+            .defineInRange("elemental.lightning.teleport.intervalMaxSeconds", 6.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_WARNING = BUILDER
+            .comment("Seconds of sparks at the destination before teleporting. 0 teleports immediately.",
+                    "The destination is checked again before arrival; invalid destinations cancel the teleport.")
+            .defineInRange("elemental.lightning.teleport.warningSeconds", 0.5, 0.0, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_PLAYER_DISTANCE = BUILDER
+            .comment("Minimum distance in blocks between the destination and living non-spectator players.")
+            .defineInRange("elemental.lightning.teleport.playerDistance", 4.0, 0.0, 128.0);
 
     /** Lightning attack selection (elemental.lightning.attack). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER
