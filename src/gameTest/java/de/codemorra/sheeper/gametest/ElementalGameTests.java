@@ -59,9 +59,12 @@ final class ElementalGameTests {
     }
 
     private static List<ElementalSheeperEntity> bosses(GameTestContext context) {
+        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        ElementalSheeperEntity lightning = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 15, 1, 8);
+        lightning.tick();
         return List.of(
                 context.spawn(ModEntities.LAVA_SHEEPER.get(), 8, 1, 8),
-                context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 15, 1, 8),
+                lightning,
                 context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 15)));
     }
 

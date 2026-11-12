@@ -49,6 +49,7 @@ public final class SheeperGameTests {
         MuttonGameTests.add(scenarios);
         LifecycleGameTests.add(scenarios);
         ElementalGameTests.add(scenarios);
+        LightningGameTests.add(scenarios);
         WaterGameTests.add(scenarios);
         WaterCombatGameTests.add(scenarios);
         WaterPreparationGameTests.add(scenarios);

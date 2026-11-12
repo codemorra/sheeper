@@ -14,10 +14,47 @@ public class SheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LAVA_SIZE = elementalSize("lava");
 
-    /** Lightning elemental boss (elemental.lightning). */
+    /** Lightning elemental boss and combat bounds (elemental.lightning). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = elementalHealth("lightning", 200.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SIZE = elementalSize("lightning");
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_RADIUS = BUILDER
+            .comment("Horizontal lightning Sheeper arena and combat radius around its saved spawn position.")
+            .defineInRange("elemental.lightning.combatRadius", 32.0, 1.0, 128.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_RADIUS = BUILDER
+            .comment("Horizontal teleport movement radius around the saved spawn position; capped at combatRadius.")
+            .defineInRange("elemental.lightning.movementRadius", 12.0, 0.0, 128.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_HEIGHT_RANGE = BUILDER
+            .comment("Maximum player feet height difference above or below the saved arena origin.",
+                    "Only living survival/adventure players participate in combat.")
+            .defineInRange("elemental.lightning.combatHeightRange", 15.0, 0.0, 128.0);
+
+    /** Lightning arena preparation (elemental.lightning.arena). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
+            .comment("Seconds of protected arena preparation before combat. 0 skips preparation.",
+                    "Captured when preparation starts; remaining time is preserved when loading.")
+            .defineInRange("elemental.lightning.arena.preparationSeconds", 4.0, 0.0, 600.0);
+
+    /** Lightning attack selection (elemental.lightning.attack). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER
+            .comment("Relative weight of targeted lightning strikes; 0 disables this type.",
+                    "Attack types remain inactive until their implementation is available.")
+            .defineInRange("elemental.lightning.attack.strikeWeight", 1.0, 0.0, 100.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_WEIGHT = BUILDER
+            .comment("Relative weight of moving storm fronts; 0 disables this type.")
+            .defineInRange("elemental.lightning.attack.frontWeight", 1.0, 0.0, 100.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_WEIGHT = BUILDER
+            .comment("Relative weight of expanding electric rings; 0 disables this type.")
+            .defineInRange("elemental.lightning.attack.ringWeight", 1.0, 0.0, 100.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_OVERLOAD_WEIGHT = BUILDER
+            .comment("Relative weight of teleport overloads; 0 disables this type.")
+            .defineInRange("elemental.lightning.attack.overloadWeight", 1.0, 0.0, 100.0);
 
     /** Water elemental boss and combat bounds (elemental.water). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water", 200.0);
