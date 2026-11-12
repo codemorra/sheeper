@@ -20,6 +20,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -33,6 +34,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private BlockPos arenaCenter;
     private int preparationDuration = -1;
     private int preparationRemaining;
+    private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -42,6 +44,25 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+    }
+
+    /**
+     * Idle looking keeps the stationary boss animated without choosing a player
+     * target.
+     */
+    @Override
+    protected void registerGoals() {
+        goalSelector.addGoal(2, new RandomLookAroundGoal(this) {
+            @Override
+            public boolean canUse() {
+                return isCombatReady() && super.canUse();
+            }
+
+            @Override
+            public boolean canContinueToUse() {
+                return isCombatReady() && super.canContinueToUse();
+            }
+        });
     }
 
     /**
@@ -113,7 +134,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        if (!level.isClientSide && type == MoverType.SELF && !isCombatReady()) {
+        if (!level.isClientSide && type == MoverType.SELF && (!isCombatReady() || teleports.isPreparing())) {
             movement = new Vec3(0.0D, movement.y, 0.0D);
         }
         super.move(type, movement);
@@ -132,7 +153,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     public void tick() {
         if (!level.isClientSide && isAlive()) {
             initializePreparation();
-            if (!isCombatReady()) {
+            if (!isCombatReady() || teleports.isPreparing()) {
                 getNavigation().stop();
                 Vec3 velocity = getDeltaMovement();
                 setDeltaMovement(0.0D, velocity.y, 0.0D);
@@ -153,8 +174,11 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 if (preparationRemaining == 0) {
                     entityData.set(DATA_COMBAT_READY, true);
                 }
-            } else if (tickCount % 10 == 0) {
-                showArenaRing(server, getCombatRadius());
+            } else {
+                if (tickCount % 10 == 0) {
+                    showArenaRing(server, getCombatRadius());
+                }
+                teleports.tick(!isNoAi());
             }
         }
     }
@@ -187,7 +211,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
      * surface.
      */
     @Nullable
-    private Double findArenaSurface(ServerLevel server, int x, int z) {
+    Double findArenaSurface(ServerLevel server, int x, int z) {
         int originY = getArenaCenter().getY();
         int range = Mth.floor(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get());
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -219,6 +243,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.putString("LightningArenaDimension", level.dimension().location().toString());
         tag.putInt("LightningPreparationDuration", preparationDuration);
         tag.putInt("LightningPreparationRemaining", preparationRemaining);
+        tag.put("LightningTeleport", teleports.save());
     }
 
     @Override
@@ -235,5 +260,6 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         preparationRemaining = preparationDuration < 0 ? 0
                 : Mth.clamp(tag.getInt("LightningPreparationRemaining"), 0, preparationDuration);
         entityData.set(DATA_COMBAT_READY, preparationDuration >= 0 && preparationRemaining == 0);
+        teleports.load(sameDimension ? tag.getCompound("LightningTeleport") : new CompoundTag());
     }
 }
