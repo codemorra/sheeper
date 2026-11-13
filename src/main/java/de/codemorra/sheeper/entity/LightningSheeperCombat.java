@@ -17,20 +17,24 @@ import net.minecraft.util.Mth;
  */
 final class LightningSheeperCombat {
     private enum Phase {
-        IDLE, STRIKES, REST
+        IDLE, STRIKES, FRONT, REST
     }
 
     /** Only implemented attacks take part in weighted selection. */
     private enum Attack {
-        STRIKES;
+        STRIKES, FRONT;
 
         double weight() {
-            return SheeperConfig.LIGHTNING_STRIKE_WEIGHT.get();
+            return switch (this) {
+                case STRIKES -> SheeperConfig.LIGHTNING_STRIKE_WEIGHT.get();
+                case FRONT -> SheeperConfig.LIGHTNING_FRONT_WEIGHT.get();
+            };
         }
     }
 
     private final LightningSheeperEntity boss;
     private final LightningStrikeAttack strikes;
+    private final LightningFrontAttack fronts;
     private final LightningAftershockZones aftershocks;
     private Phase phase = Phase.IDLE;
     private int phaseRemaining = -1;
@@ -39,16 +43,21 @@ final class LightningSheeperCombat {
         this.boss = boss;
         aftershocks = new LightningAftershockZones(boss);
         strikes = new LightningStrikeAttack(boss, aftershocks);
+        fronts = new LightningFrontAttack(boss);
     }
 
     boolean canMove() {
         return phase == Phase.IDLE;
     }
 
+    private boolean isAttacking() {
+        return phase == Phase.STRIKES || phase == Phase.FRONT;
+    }
+
     void tick(boolean teleportPreparing) {
         if (boss.isNoAi()) {
             aftershocks.clear();
-            if (phase == Phase.STRIKES) {
+            if (isAttacking()) {
                 beginRest();
             }
             boss.setTarget(null);
@@ -66,7 +75,7 @@ final class LightningSheeperCombat {
             return;
         }
         if (players.isEmpty()) {
-            if (phase == Phase.STRIKES) {
+            if (isAttacking()) {
                 beginRest();
             }
             boss.setTarget(null);
@@ -93,17 +102,32 @@ final class LightningSheeperCombat {
                     phase = Phase.STRIKES;
                     strikes.start();
                 }
+                case FRONT -> {
+                    phase = Phase.FRONT;
+                    fronts.start();
+                }
             }
         }
-        ServerPlayer focus = strikes.tick(players);
-        if (strikes.isFinished()) {
-            beginRest();
-            focus = null;
-        }
-        boss.setTarget(focus);
-        if (focus != null) {
-            boss.lookAt(EntityAnchorArgument.Anchor.EYES, focus.getEyePosition());
-            boss.setYHeadRot(boss.getYRot());
+        if (phase == Phase.STRIKES) {
+            ServerPlayer focus = strikes.tick(players);
+            if (strikes.isFinished()) {
+                beginRest();
+                focus = null;
+            }
+            boss.setTarget(focus);
+            if (focus != null) {
+                boss.lookAt(EntityAnchorArgument.Anchor.EYES, focus.getEyePosition());
+                boss.setYHeadRot(boss.getYRot());
+            }
+        } else if (phase == Phase.FRONT) {
+            boss.setTarget(null);
+            fronts.tick(players);
+            if (fronts.isFinished()) {
+                beginRest();
+            } else {
+                boss.lookAt(EntityAnchorArgument.Anchor.EYES, fronts.getLookPoint());
+                boss.setYHeadRot(boss.getYRot());
+            }
         }
     }
 
@@ -137,6 +161,7 @@ final class LightningSheeperCombat {
             aftershocks.finishPhase();
         }
         strikes.clear();
+        fronts.clear();
         boss.setTarget(null);
         phaseRemaining = interval(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
                 SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
@@ -151,6 +176,7 @@ final class LightningSheeperCombat {
         tag.putString("Phase", phase.name());
         tag.putInt("PhaseRemaining", phaseRemaining);
         tag.put("StrikeAttack", strikes.save());
+        tag.put("FrontAttack", fronts.save());
         tag.put("Aftershocks", aftershocks.save());
         return tag;
     }
@@ -158,6 +184,7 @@ final class LightningSheeperCombat {
     void load(CompoundTag tag) {
         phase = switch (tag.getString("Phase")) {
             case "STRIKES" -> Phase.STRIKES;
+            case "FRONT" -> Phase.FRONT;
             case "REST" -> Phase.REST;
             default -> Phase.IDLE;
         };
@@ -167,6 +194,11 @@ final class LightningSheeperCombat {
         strikes.load(tag.getCompound("StrikeAttack"));
         if (phase != Phase.STRIKES) {
             strikes.clear();
+        }
+        if (phase == Phase.FRONT) {
+            fronts.load(tag.getCompound("FrontAttack"));
+        } else {
+            fronts.clear();
         }
         aftershocks.load(tag.getCompound("Aftershocks"));
         if (phase != Phase.STRIKES) {
