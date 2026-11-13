@@ -21,12 +21,12 @@ public class SheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_RADIUS = BUILDER
             .comment("Horizontal lightning Sheeper arena and combat radius around its saved spawn position.")
-            .defineInRange("elemental.lightning.combatRadius", 32.0, 1.0, 128.0);
+            .defineInRange("elemental.lightning.combatRadius", 50.0, 1.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_RADIUS = BUILDER
             .comment(
                     "Horizontal teleport movement radius around the saved spawn position; capped at combatRadius. 0 disables movement.")
-            .defineInRange("elemental.lightning.movementRadius", 12.0, 0.0, 128.0);
+            .defineInRange("elemental.lightning.movementRadius", 10.0, 0.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_HEIGHT_RANGE = BUILDER
             .comment("Maximum player feet height difference above or below the saved arena origin.",
@@ -43,11 +43,11 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds from a completed teleport to the next announcement.",
                     "Movement continues without arena participants. NoAI pauses timers. Failed searches wait another interval.")
-            .defineInRange("elemental.lightning.teleport.intervalMinSeconds", 3.0, 0.05, 600.0);
+            .defineInRange("elemental.lightning.teleport.intervalMinSeconds", 5.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MAX = BUILDER
             .comment("Maximum seconds before the next announcement; capped below by intervalMinSeconds.")
-            .defineInRange("elemental.lightning.teleport.intervalMaxSeconds", 6.0, 0.05, 600.0);
+            .defineInRange("elemental.lightning.teleport.intervalMaxSeconds", 10.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_WARNING = BUILDER
             .comment("Seconds of sparks at the destination before teleporting. 0 teleports immediately.",
@@ -92,7 +92,7 @@ public class SheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MAX = BUILDER
             .comment("Maximum stationary rest in seconds; capped below by pauseMinSeconds.")
-            .defineInRange("elemental.lightning.attack.pauseMaxSeconds", 3.0, 0.0, 60.0);
+            .defineInRange("elemental.lightning.attack.pauseMaxSeconds", 4.0, 0.0, 60.0);
 
     /** Lightning storm phase (elemental.lightning.strike). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_DURATION_MIN = BUILDER
@@ -120,7 +120,7 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.IntValue LIGHTNING_STRIKE_ARENA_COUNT = BUILDER
             .comment(
                     "Random arena centers announced per interval in addition to player centers. 0 disables random centers.")
-            .defineInRange("elemental.lightning.strike.arenaCount", 1, 0, 16);
+            .defineInRange("elemental.lightning.strike.arenaCount", 3, 0, 16);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WARNING = BUILDER
             .comment("Seconds between marking a fixed strike position and impact.",
