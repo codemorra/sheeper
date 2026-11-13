@@ -7,6 +7,7 @@ import de.codemorra.sheeper.entity.ElementalSheeperEntity.Element;
 import de.codemorra.sheeper.entity.PrimedSheeperWool;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
+import de.codemorra.sheeper.entity.LightningStrikeEffect;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -56,6 +57,20 @@ public class ModEntities {
                     .sized(EntityType.SHEEP.getWidth(), EntityType.SHEEP.getHeight())
                     .clientTrackingRange(10)
                     .build(SheeperMod.MODID + ":water_sheeper"));
+
+    /**
+     * Harmless, transient rendering entity; strike damage is controlled by the
+     * boss.
+     */
+    public static final RegistryObject<EntityType<LightningStrikeEffect>> LIGHTNING_STRIKE = ENTITY_TYPES.register(
+            "lightning_strike",
+            () -> EntityType.Builder.<LightningStrikeEffect>of(LightningStrikeEffect::new, MobCategory.MISC)
+                    .sized(0.0F, 0.0F)
+                    .clientTrackingRange(10)
+                    .updateInterval(Integer.MAX_VALUE)
+                    .noSave()
+                    .noSummon()
+                    .build(SheeperMod.MODID + ":lightning_strike"));
 
     public static final RegistryObject<EntityType<WaterProjectile>> WATER_PROJECTILE = ENTITY_TYPES.register(
             "water_projectile", () -> EntityType.Builder.<WaterProjectile>of(WaterProjectile::new, MobCategory.MISC)
