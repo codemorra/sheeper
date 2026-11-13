@@ -35,9 +35,37 @@ public class SheeperConfig {
 
     /** Lightning arena preparation (elemental.lightning.arena). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
-            .comment("Seconds of protected arena preparation before combat. 0 skips preparation.",
-                    "Captured when preparation starts; remaining time is preserved when loading.")
+            .comment(
+                    "Seconds for each preparation wave to reach the arena edge. 0 skips preparation and its spawn waves.",
+                    "Combat starts after the final wave. Wave timing is captured at spawn and preserved when loading.")
             .defineInRange("elemental.lightning.arena.preparationSeconds", 4.0, 0.0, 600.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_PREPARATION_WAVE_COUNT = BUILDER
+            .comment("Number of outward preparation waves before combat begins.")
+            .defineInRange("elemental.lightning.arena.waveCount", 3, 1, 16);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_WAVE_INTERVAL = BUILDER
+            .comment("Seconds between the starts of successive preparation waves; waves may overlap.")
+            .defineInRange("elemental.lightning.arena.waveIntervalSeconds", 1.0, 0.0, 60.0);
+
+    /** One flat knockback per preparation wave (elemental.lightning.spawnPush). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_RADIUS = BUILDER
+            .comment("Maximum player distance from the boss for the spawn wave push. 0 disables it.")
+            .defineInRange("elemental.lightning.spawnPush.radius", 15.0, 0.0, 128.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_DELAY = BUILDER
+            .comment("Seconds after each expanding preparation wave reaches a player before that wave's one-time push.",
+                    "Leaving the radius cancels the push. Pending pushes survive the end of preparation and loading.")
+            .defineInRange("elemental.lightning.spawnPush.delaySeconds", 0.15, 0.0, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_STRENGTH = BUILDER
+            .comment("Horizontal spawn wave velocity away from the arena center; deals no direct damage.")
+            .defineInRange("elemental.lightning.spawnPush.horizontalStrength", 1.5, 0.0, 3.9);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_UPWARD_STRENGTH = BUILDER
+            .comment("Upward spawn wave velocity. Replaces existing player momentum.",
+                    "The default rises about two blocks at normal gravity, avoiding fall damage on same-height landings.")
+            .defineInRange("elemental.lightning.spawnPush.upwardStrength", 0.55, 0.0, 1.0);
 
     /** Lightning teleport movement (elemental.lightning.teleport). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MIN = BUILDER
