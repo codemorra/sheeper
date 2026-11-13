@@ -42,6 +42,14 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 - **Fountains:** Fishing particles warn of eruptions that launch players into the air. Fountains appear beneath players and across the arena, accompanied by local rain.
 - **Keep your distance:** Players lingering near the boss are pushed away. The fight supports multiple players and rotates its direct attack targets.
 
+#### Lightning Sheeper encounter
+
+- **Storm arena:** Local rain, dark skies and thunder accompany the fight, with warned lightning strikes along the arena edge.
+- **Teleporting movement:** The boss teleports within its arena, including between attacks.
+- **Lightning waves:** Warned strikes target players and random arena locations, spread outward in waves, and leave damaging electrical zones.
+- **Fronts and rings:** Lightning lanes travel toward the arena boundary. Expanding electric rings follow the ground and can be avoided by jumping.
+- **Keep your distance:** Staying near the boss builds a visible charge that releases a damaging blast and knocks nearby players away.
+
 ### Explosive wool
 
 - **Collect all 16 colors.** Unshorn adults drop one matching wool block on ordinary death. Shearing by hand or dispenser yields 1–3 blocks. White Sheeper wool can be dyed, but Sheeper wool cannot replace normal wool in recipes for beds or vanilla carpets.
@@ -76,6 +84,7 @@ The server's copy controls gameplay in multiplayer. All settings are grouped und
 
 - **Elemental bosses:** Each element has independent `elemental.<element>.size` and `elemental.<element>.maxHealth` settings, where `<element>` is `lava`, `lightning`, or `water`. Size defaults to `2.0` (range `0.5–4.0`); `1.0` matches normal sheep/Sheeper size. Maximum health defaults to `200` for each element (range `1–1024` health points). Changes apply to existing bosses; health changes preserve the remaining health percentage. The server synchronizes size for matching models and hitboxes.
 - **Water boss:** `elemental.water` groups arena bounds, flooding and cleanup speed, movement, spawn/proximity launches, projectiles, fountains, salvos, and cosmetic rain. Attack weights under `elemental.water.attack` control how often each attack type is selected; all three default to equal weights.
+- **Lightning boss:** `elemental.lightning` groups arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather. Attack selection under `elemental.lightning.attack` uses equal weights by default.
 - **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
 - **Babies:** Extra speed, bump knockback, explosion strength, and minimum/maximum attack pauses. A maximum pause below the minimum is treated as equal to the minimum.
@@ -125,7 +134,7 @@ Run the automated verification with Java 17:
 ```
 
 - Builds the mod, checks wool/carpet resources and JAR contents, and runs the GameTests.
-- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water boss arenas/combat/persistence, and packet contracts.
+- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water and Lightning boss encounters/persistence, and packet contracts.
 - Each run uses a fresh test world in `build/gametest/run/`; development worlds and configuration in `run/` are preserved. Test classes and scenes are excluded from the mod JAR.
 - Stops on the first failed test and fails on missing/incomplete results. Results are in `build/reports/gametest/results.xml`; server logs are in `build/gametest/run/logs/`.
 - Pull requests targeting `main` automatically run the same verification with Java 17. Reports and server logs are uploaded as the `verification-reports` artifact, including on failure.
