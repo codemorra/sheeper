@@ -153,11 +153,29 @@ final class LightningTeleportMovement {
                 destination.x, destination.y + 0.2D, destination.z, 8, 0.35D, 0.15D, 0.35D, 0.02D);
     }
 
+    /**
+     * Performs one safe immediate teleport for an attack's rapid preparation
+     * sequence.
+     */
+    boolean teleportForAttack() {
+        Vec3 target = findDestination();
+        if (target == null || boss.getMovementRadius() <= 0) {
+            return false;
+        }
+        teleportTo(target);
+        return true;
+    }
+
     private void teleport() {
+        teleportTo(destination);
+        finish();
+    }
+
+    private void teleportTo(Vec3 target) {
         ServerLevel level = (ServerLevel) boss.level;
         Vec3 departure = boss.position();
         boss.getNavigation().stop();
-        boss.teleportTo(destination.x, destination.y, destination.z);
+        boss.teleportTo(target.x, target.y, target.z);
         boss.setDeltaMovement(Vec3.ZERO);
         boss.fallDistance = 0.0F;
         boss.hasImpulse = true;
@@ -166,7 +184,6 @@ final class LightningTeleportMovement {
                     point.z, 24, boss.getBbWidth() * 0.5D, boss.getBbHeight() * 0.4D,
                     boss.getBbWidth() * 0.5D, 0.05D);
         }
-        finish();
     }
 
     private void finish() {
