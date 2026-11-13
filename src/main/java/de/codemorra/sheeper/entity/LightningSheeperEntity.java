@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -9,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -34,9 +36,12 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private BlockPos arenaCenter;
     private int preparationDuration = -1;
     private int preparationRemaining;
+    private int preparationWaveDuration;
+    private int preparationWaveInterval;
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningSheeperCombat combat = new LightningSheeperCombat(this, teleports);
     private final LightningProximityPush proximityPush = new LightningProximityPush(this);
+    private final List<LightningSpawnPush> spawnWaves = new ArrayList<>();
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -146,9 +151,37 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private void initializePreparation() {
         getArenaCenter();
         if (preparationDuration < 0) {
-            preparationDuration = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_PREPARATION_DURATION.get());
+            preparationWaveDuration = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_PREPARATION_DURATION.get());
+            preparationWaveInterval = SheeperConfig
+                    .secondsToTicks(SheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL.get());
+            int count = preparationWaveDuration == 0 ? 0 : SheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT.get();
+            for (int index = 0; index < count; index++) {
+                spawnWaves.add(new LightningSpawnPush(this));
+            }
+            preparationDuration = preparationWaveDuration == 0 ? 0
+                    : preparationWaveDuration + (count - 1) * preparationWaveInterval;
             preparationRemaining = preparationDuration;
             entityData.set(DATA_COMBAT_READY, preparationRemaining == 0);
+        }
+    }
+
+    private void tickPreparation(ServerLevel server) {
+        preparationRemaining--;
+        int elapsed = preparationDuration - preparationRemaining;
+        for (int index = 0; index < spawnWaves.size(); index++) {
+            int age = elapsed - index * preparationWaveInterval;
+            if (age <= 0) {
+                continue;
+            }
+            boolean expanding = age <= preparationWaveDuration;
+            double radius = getCombatRadius() * Math.min(1.0D, (double) age / preparationWaveDuration);
+            if (expanding && (tickCount % 2 == 0 || age == preparationWaveDuration)) {
+                showArenaRing(server, radius);
+            }
+            spawnWaves.get(index).tick(radius, expanding);
+        }
+        if (preparationRemaining == 0) {
+            entityData.set(DATA_COMBAT_READY, true);
         }
     }
 
@@ -167,17 +200,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         super.tick();
         if (level instanceof ServerLevel server && isAlive() && !isRemoved()) {
             if (!isCombatReady()) {
-                preparationRemaining--;
-                // A bounded number of particles represents a growing wave without editing
-                // terrain.
-                if (tickCount % 2 == 0 || preparationRemaining == 0) {
-                    showArenaRing(server, getCombatRadius()
-                            * (1.0D - (double) preparationRemaining / preparationDuration));
-                }
-                if (preparationRemaining == 0) {
-                    entityData.set(DATA_COMBAT_READY, true);
-                }
+                tickPreparation(server);
             } else {
+                spawnWaves.forEach(wave -> wave.tick(0, false));
                 if (tickCount % 10 == 0) {
                     showArenaRing(server, getCombatRadius());
                 }
@@ -254,9 +279,14 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.putString("LightningArenaDimension", level.dimension().location().toString());
         tag.putInt("LightningPreparationDuration", preparationDuration);
         tag.putInt("LightningPreparationRemaining", preparationRemaining);
+        tag.putInt("LightningPreparationWaveDuration", preparationWaveDuration);
+        tag.putInt("LightningPreparationWaveInterval", preparationWaveInterval);
         tag.put("LightningTeleport", teleports.save());
         tag.put("LightningCombat", combat.save());
         tag.put("LightningProximityPush", proximityPush.save());
+        ListTag waves = new ListTag();
+        spawnWaves.forEach(wave -> waves.add(wave.save()));
+        tag.put("LightningSpawnWaves", waves);
     }
 
     @Override
@@ -268,13 +298,26 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 ? BlockPos.of(tag.getLong("LightningArenaCenter"))
                 : null;
         preparationDuration = sameDimension && tag.contains("LightningPreparationDuration", Tag.TAG_INT)
-                ? Mth.clamp(tag.getInt("LightningPreparationDuration"), 0, 12000)
+                ? Mth.clamp(tag.getInt("LightningPreparationDuration"), 0, 30000)
                 : -1;
         preparationRemaining = preparationDuration < 0 ? 0
                 : Mth.clamp(tag.getInt("LightningPreparationRemaining"), 0, preparationDuration);
+        preparationWaveDuration = Mth.clamp(tag.getInt("LightningPreparationWaveDuration"), 1, 12000);
+        preparationWaveInterval = Mth.clamp(tag.getInt("LightningPreparationWaveInterval"), 0, 1200);
         entityData.set(DATA_COMBAT_READY, preparationDuration >= 0 && preparationRemaining == 0);
         teleports.load(sameDimension ? tag.getCompound("LightningTeleport") : new CompoundTag());
         combat.load(sameDimension ? tag.getCompound("LightningCombat") : new CompoundTag());
         proximityPush.load(sameDimension ? tag.getCompound("LightningProximityPush") : new CompoundTag());
+        spawnWaves.clear();
+        if (sameDimension) {
+            for (Tag value : tag.getList("LightningSpawnWaves", Tag.TAG_COMPOUND)) {
+                if (spawnWaves.size() >= 16) {
+                    break;
+                }
+                LightningSpawnPush wave = new LightningSpawnPush(this);
+                wave.load((CompoundTag) value);
+                spawnWaves.add(wave);
+            }
+        }
     }
 }
