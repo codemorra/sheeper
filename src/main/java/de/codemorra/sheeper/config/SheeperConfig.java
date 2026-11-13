@@ -60,8 +60,7 @@ public class SheeperConfig {
 
     /** Lightning attack selection (elemental.lightning.attack). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER
-            .comment("Relative weight of lightning storm phases; 0 disables this type.",
-                    "Attack types remain inactive until their implementation is available.")
+            .comment("Relative weight of lightning storm phases; 0 disables this type.")
             .defineInRange("elemental.lightning.attack.strikeWeight", 1.0, 0.0, 100.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_WEIGHT = BUILDER
@@ -71,10 +70,6 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_WEIGHT = BUILDER
             .comment("Relative weight of expanding electric rings; 0 disables this type.")
             .defineInRange("elemental.lightning.attack.ringWeight", 1.0, 0.0, 100.0);
-
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_OVERLOAD_WEIGHT = BUILDER
-            .comment("Relative weight of teleport overloads; 0 disables this type.")
-            .defineInRange("elemental.lightning.attack.overloadWeight", 1.0, 0.0, 100.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds of movement between attacks while players are in the arena.",
@@ -324,6 +319,48 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_PARTICLE_SPACING = BUILDER
             .comment("Distance between glowing ring segments in blocks. Lower values produce denser effects.")
             .defineInRange("elemental.lightning.ring.particleSpacing", 0.5, 0.1, 1.0);
+
+    /**
+     * Shared proximity charge and defensive discharge
+     * (elemental.lightning.proximityPush).
+     */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_RADIUS = BUILDER
+            .comment("Distance from the boss for charging, damage and knockback. 0 disables the defense.",
+                    "One shared timer runs while any combat participant stays nearby; an empty radius resets it.",
+                    "Runs independently of normal attacks and recovery. NoAI pauses charging.")
+            .defineInRange("elemental.lightning.proximityPush.radius", 3.0, 0.0, 128.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_DELAY_MIN = BUILDER
+            .comment("Minimum continuous proximity seconds before discharging. Sampled on entry and after a discharge.")
+            .defineInRange("elemental.lightning.proximityPush.delayMinSeconds", 4.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_DELAY_MAX = BUILDER
+            .comment("Maximum proximity seconds before discharging; capped below by delayMinSeconds.")
+            .defineInRange("elemental.lightning.proximityPush.delayMaxSeconds", 8.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_DAMAGE = BUILDER
+            .comment("Discharge damage to every nearby combat participant in health points (2 = one heart).")
+            .defineInRange("elemental.lightning.proximityPush.damage", 6.0, 0.0, 1024.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_STRENGTH = BUILDER
+            .comment("Horizontal discharge impulse away from the boss, matching the water boss by default.")
+            .defineInRange("elemental.lightning.proximityPush.strength", 3.9, 0.0, 3.9);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_UPWARD_STRENGTH = BUILDER
+            .comment("Upward discharge impulse, matching the water boss by default.")
+            .defineInRange("elemental.lightning.proximityPush.upwardStrength", 1.0, 0.0, 1.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_PROXIMITY_PUSH_PARTICLE_COUNT = BUILDER
+            .comment("Peak spark count per charge update and number of outward particle rays when discharging.")
+            .defineInRange("elemental.lightning.proximityPush.particleCount", 96, 16, 512);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_THUNDER_VOLUME = BUILDER
+            .comment("Thunder volume per discharge. 0 disables this sound.")
+            .defineInRange("elemental.lightning.proximityPush.thunderVolume", 0.6, 0.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_PROXIMITY_PUSH_IMPACT_VOLUME = BUILDER
+            .comment("Electrical impact volume per discharge. 0 disables this sound.")
+            .defineInRange("elemental.lightning.proximityPush.impactVolume", 0.8, 0.0, 4.0);
 
     /** Water elemental boss and combat bounds (elemental.water). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water", 200.0);

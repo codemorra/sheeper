@@ -15,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -134,6 +135,13 @@ public final class GameTestContext implements AutoCloseable {
         boolean old = level.getGameRules().getBoolean(key);
         ruleRestorers.add(() -> level.getGameRules().getRule(key).set(old, level.getServer()));
         level.getGameRules().getRule(key).set(value, level.getServer());
+    }
+
+    /** Restores difficulty even when the scenario fails or times out. */
+    void difficulty(Difficulty difficulty) {
+        Difficulty old = level.getDifficulty();
+        ruleRestorers.add(() -> level.getServer().setDifficulty(old, true));
+        level.getServer().setDifficulty(difficulty, true);
     }
 
     BlockPos pos(int x, int y, int z) {

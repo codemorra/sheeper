@@ -36,6 +36,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private int preparationRemaining;
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningSheeperCombat combat = new LightningSheeperCombat(this, teleports);
+    private final LightningProximityPush proximityPush = new LightningProximityPush(this);
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -182,6 +183,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 }
                 combat.tick(teleports.isPreparing());
                 teleports.tick(!isNoAi() && combat.canMove());
+                proximityPush.tick();
             }
         }
     }
@@ -254,6 +256,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.putInt("LightningPreparationRemaining", preparationRemaining);
         tag.put("LightningTeleport", teleports.save());
         tag.put("LightningCombat", combat.save());
+        tag.put("LightningProximityPush", proximityPush.save());
     }
 
     @Override
@@ -272,5 +275,6 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         entityData.set(DATA_COMBAT_READY, preparationDuration >= 0 && preparationRemaining == 0);
         teleports.load(sameDimension ? tag.getCompound("LightningTeleport") : new CompoundTag());
         combat.load(sameDimension ? tag.getCompound("LightningCombat") : new CompoundTag());
+        proximityPush.load(sameDimension ? tag.getCompound("LightningProximityPush") : new CompoundTag());
     }
 }
