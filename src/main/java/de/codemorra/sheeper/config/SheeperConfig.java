@@ -71,23 +71,14 @@ public class SheeperConfig {
             .comment("Relative weight of expanding electric rings; 0 disables this type.")
             .defineInRange("elemental.lightning.attack.ringWeight", 1.0, 0.0, 100.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_INTERVAL_MIN = BUILDER
-            .comment("Minimum seconds of movement between attacks while players are in the arena.",
-                    "An announced movement teleport finishes before a new attack starts.")
-            .defineInRange("elemental.lightning.attack.intervalMinSeconds", 4.0, 0.05, 600.0);
-
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_INTERVAL_MAX = BUILDER
-            .comment("Maximum seconds between attacks; capped below by intervalMinSeconds.")
-            .defineInRange("elemental.lightning.attack.intervalMaxSeconds", 7.0, 0.05, 600.0);
-
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MIN = BUILDER
-            .comment("Minimum stationary rest in seconds after an attack. Rest also ends without participants.",
-                    "NoAI cancels pending strikes and pauses timers. Waiting for the next attack pauses without participants.")
-            .defineInRange("elemental.lightning.attack.pauseMinSeconds", 2.0, 0.0, 60.0);
+            .comment("Minimum rest seconds between attacks. Normal teleports are allowed during rest.",
+                    "An announced teleport finishes before the next attack. NoAI and an empty arena pause the timer.")
+            .defineInRange("elemental.lightning.attack.pauseMinSeconds", 4.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MAX = BUILDER
-            .comment("Maximum stationary rest in seconds; capped below by pauseMinSeconds.")
-            .defineInRange("elemental.lightning.attack.pauseMaxSeconds", 4.0, 0.0, 60.0);
+            .comment("Maximum rest seconds between attacks; capped below by pauseMinSeconds.")
+            .defineInRange("elemental.lightning.attack.pauseMaxSeconds", 7.0, 0.05, 600.0);
 
     /** Lightning storm phase (elemental.lightning.strike). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_DURATION_MIN = BUILDER

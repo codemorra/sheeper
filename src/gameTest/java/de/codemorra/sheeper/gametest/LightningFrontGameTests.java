@@ -41,8 +41,8 @@ final class LightningFrontGameTests {
         context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
         context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 0.05D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 2.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 2.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MIN, 60.0D);
@@ -112,8 +112,8 @@ final class LightningFrontGameTests {
                 Vec3 end = point(cue.get(cue.size() - 1)).subtract(origin);
                 direction = new Vec3(end.x, 0, end.z).normalize();
                 player.standAt(groundPoint(context, boss, 18, 12));
-                context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 60.0D);
-                context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 60.0D);
+                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
             }
             if (elapsed == 2) {
                 boss = restore(context, boss);

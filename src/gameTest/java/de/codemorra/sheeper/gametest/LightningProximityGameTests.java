@@ -113,16 +113,17 @@ final class LightningProximityGameTests {
 
     private static void reload(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 0.05D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 0.3D);
         context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 0.3D);
         context.set(SheeperConfig.LIGHTNING_FRONT_DAMAGE, 0.0D);
+        TestPlayer player = player(context, boss.position().add(2, 0, 0));
+        tick(boss, 1, player);
         context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 5.0D);
         context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 5.0D);
-        TestPlayer player = player(context, boss.position().add(2, 0, 0));
-        tick(boss, 8, player); // The short lane attack has ended, but the proximity charge continues.
+        tick(boss, 7, player); // The short lane attack has ended, but the proximity charge continues.
         context.expect(player.damageEvents.isEmpty(), "A phase change must not trigger an early discharge");
         CompoundTag saved = boss.saveWithoutId(new CompoundTag());
         boss.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);

@@ -37,8 +37,6 @@ final class LightningStormGameTests {
         context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
         context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
         context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 1.0D);
@@ -204,8 +202,8 @@ final class LightningStormGameTests {
             player.tick();
             boss.tick();
             if (elapsed == 1) {
-                context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 60.0D);
-                context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 60.0D);
+                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
             }
             if (elapsed == 15 || elapsed == 50) {
                 boss = restore(context, boss);
