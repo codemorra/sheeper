@@ -33,6 +33,7 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void setupFluids(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            de.codemorra.sheeper.world.ArenaWeather.setClientLookup(LightningWeatherVisuals::intensity);
             ItemBlockRenderTypes.setRenderLayer(ModFluids.BOSS_WATER.get(), RenderType.translucent());
             ItemBlockRenderTypes.setRenderLayer(ModFluids.FLOWING_BOSS_WATER.get(), RenderType.translucent());
         });

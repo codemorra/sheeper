@@ -25,7 +25,7 @@ public final class LightningStrikeEffect extends LightningBolt {
     }
 
     /** Shared warning marker for both stationary storm centers and moving lanes. */
-    static void showWarning(ServerLevel level, Vec3 pos, double radius) {
+    public static void showWarning(ServerLevel level, Vec3 pos, double radius) {
         for (int index = 0; index < 24; index++) {
             double angle = Math.PI * 2.0D * index / 24;
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
@@ -54,6 +54,21 @@ public final class LightningStrikeEffect extends LightningBolt {
         if (impact > 0) {
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                     SoundSource.HOSTILE, impact, 0.9F + boss.getRandom().nextFloat() * 0.2F);
+        }
+    }
+
+    /**
+     * Ambient strikes reuse the harmless renderer without requiring a loaded boss
+     * entity.
+     */
+    public static void spawnAmbient(ServerLevel level, Vec3 pos) {
+        LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
+        effect.setPos(pos);
+        level.addFreshEntity(effect);
+        float volume = SheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        if (volume > 0) {
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
+                    SoundSource.WEATHER, volume, 0.9F + level.random.nextFloat() * 0.2F);
         }
     }
 

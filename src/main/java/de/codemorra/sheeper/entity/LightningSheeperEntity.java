@@ -6,6 +6,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -38,6 +39,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private int preparationRemaining;
     private int preparationWaveDuration;
     private int preparationWaveInterval;
+    private int awakeningDuration;
+    private int awakeningRemaining;
+    private boolean stormStarted;
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningSheeperCombat combat = new LightningSheeperCombat(this, teleports);
     private final LightningProximityPush proximityPush = new LightningProximityPush(this);
@@ -161,7 +165,13 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             preparationDuration = preparationWaveDuration == 0 ? 0
                     : preparationWaveDuration + (count - 1) * preparationWaveInterval;
             preparationRemaining = preparationDuration;
+            awakeningDuration = preparationDuration == 0 ? 0
+                    : SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STORM_AWAKENING.get());
+            awakeningRemaining = awakeningDuration;
             entityData.set(DATA_COMBAT_READY, preparationRemaining == 0);
+            if (preparationRemaining == 0) {
+                combat.beginEncounter();
+            }
         }
     }
 
@@ -181,7 +191,35 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             spawnWaves.get(index).tick(radius, expanding);
         }
         if (preparationRemaining == 0) {
-            entityData.set(DATA_COMBAT_READY, true);
+            startStorm(server);
+            if (awakeningRemaining == 0) {
+                finishPreparation();
+            }
+        }
+    }
+
+    private void startStorm(ServerLevel server) {
+        if (!stormStarted) {
+            LightningStormData.get(server).start(server, getUUID(), getArenaCenter(), getCombatRadius(),
+                    awakeningDuration);
+            stormStarted = true;
+        }
+    }
+
+    private void finishPreparation() {
+        entityData.set(DATA_COMBAT_READY, true);
+        combat.beginEncounter();
+        combat.tick(false);
+    }
+
+    private void tickAwakening(ServerLevel server) {
+        startStorm(server);
+        spawnWaves.forEach(wave -> wave.tick(0, false));
+        awakeningRemaining = Math.min(awakeningRemaining - 1,
+                LightningStormData.get(server).remainingAwakening(server, getUUID()));
+        if (awakeningRemaining <= 0) {
+            awakeningRemaining = 0;
+            finishPreparation();
         }
     }
 
@@ -200,8 +238,13 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         super.tick();
         if (level instanceof ServerLevel server && isAlive() && !isRemoved()) {
             if (!isCombatReady()) {
-                tickPreparation(server);
+                if (preparationRemaining > 0) {
+                    tickPreparation(server);
+                } else {
+                    tickAwakening(server);
+                }
             } else {
+                startStorm(server);
                 spawnWaves.forEach(wave -> wave.tick(0, false));
                 if (tickCount % 10 == 0) {
                     showArenaRing(server, getCombatRadius());
@@ -281,6 +324,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.putInt("LightningPreparationRemaining", preparationRemaining);
         tag.putInt("LightningPreparationWaveDuration", preparationWaveDuration);
         tag.putInt("LightningPreparationWaveInterval", preparationWaveInterval);
+        tag.putInt("LightningAwakeningDuration", awakeningDuration);
+        tag.putInt("LightningAwakeningRemaining", awakeningRemaining);
+        tag.putBoolean("LightningStormStarted", stormStarted);
         tag.put("LightningTeleport", teleports.save());
         tag.put("LightningCombat", combat.save());
         tag.put("LightningProximityPush", proximityPush.save());
@@ -304,7 +350,12 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 : Mth.clamp(tag.getInt("LightningPreparationRemaining"), 0, preparationDuration);
         preparationWaveDuration = Mth.clamp(tag.getInt("LightningPreparationWaveDuration"), 1, 12000);
         preparationWaveInterval = Mth.clamp(tag.getInt("LightningPreparationWaveInterval"), 0, 1200);
-        entityData.set(DATA_COMBAT_READY, preparationDuration >= 0 && preparationRemaining == 0);
+        awakeningDuration = sameDimension ? Mth.clamp(tag.getInt("LightningAwakeningDuration"), 0, 1200) : 0;
+        awakeningRemaining = sameDimension ? Mth.clamp(tag.getInt("LightningAwakeningRemaining"), 0, awakeningDuration)
+                : 0;
+        stormStarted = sameDimension && tag.getBoolean("LightningStormStarted");
+        entityData.set(DATA_COMBAT_READY,
+                preparationDuration >= 0 && preparationRemaining == 0 && awakeningRemaining == 0);
         teleports.load(sameDimension ? tag.getCompound("LightningTeleport") : new CompoundTag());
         combat.load(sameDimension ? tag.getCompound("LightningCombat") : new CompoundTag());
         proximityPush.load(sameDimension ? tag.getCompound("LightningProximityPush") : new CompoundTag());
@@ -318,6 +369,23 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 wave.load((CompoundTag) value);
                 spawnWaves.add(wave);
             }
+        }
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        if (dead && level instanceof ServerLevel server) {
+            LightningStormData.get(server).remove(server, getUUID());
+        }
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
+        if (level instanceof ServerLevel server
+                && (reason.shouldDestroy() || reason == RemovalReason.CHANGED_DIMENSION)) {
+            LightningStormData.get(server).remove(server, getUUID());
         }
     }
 }

@@ -53,6 +53,14 @@ final class LightningSheeperCombat {
         return phase == Phase.REST;
     }
 
+    /**
+     * Opening combat skips recovery; later attacks keep the configured rest
+     * interval.
+     */
+    void beginEncounter() {
+        phaseRemaining = 0;
+    }
+
     private boolean isAttacking() {
         return phase == Phase.STRIKES || phase == Phase.FRONT || phase == Phase.RING;
     }

@@ -30,6 +30,9 @@ final class LightningGameTests {
         context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
         context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
         context.set(SheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 0.0D);
+        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
+        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
         context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 3.0D);
         context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
