@@ -216,6 +216,64 @@ public class SheeperConfig {
             .comment("Local crackling volume while zones are active. 0 disables this sound.")
             .defineInRange("elemental.lightning.strike.sound.crackleVolume", 0.2, 0.0, 4.0);
 
+    /** Outward lightning lanes (elemental.lightning.front). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_DURATION_MIN = BUILDER
+            .comment("Minimum lightning lane phase duration in seconds, sampled at phase start.")
+            .defineInRange("elemental.lightning.front.durationMinSeconds", 12.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_DURATION_MAX = BUILDER
+            .comment("Maximum phase duration; capped below by durationMinSeconds.",
+                    "New lanes start only when their complete path and final warning fit before phase end.")
+            .defineInRange("elemental.lightning.front.durationMaxSeconds", 18.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_SPAWN_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds between starting new lanes. The first lane starts immediately.")
+            .defineInRange("elemental.lightning.front.spawnIntervalMinSeconds", 1.0, 0.05, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_SPAWN_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds between new lanes; capped below by spawnIntervalMinSeconds.")
+            .defineInRange("elemental.lightning.front.spawnIntervalMaxSeconds", 1.5, 0.05, 60.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FRONT_MAX_ACTIVE = BUILDER
+            .comment("Maximum simultaneously active lanes, including their pending impacts.")
+            .defineInRange("elemental.lightning.front.maxActiveLanes", 4, 1, 16);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_STEP_DISTANCE = BUILDER
+            .comment("Forward distance in blocks between successive warnings along a lane's fixed centerline.")
+            .defineInRange("elemental.lightning.front.stepDistance", 3.0, 0.5, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_STEP_INTERVAL = BUILDER
+            .comment(
+                    "Seconds between successive warnings on each lane; speed is stepDistance divided by this interval.")
+            .defineInRange("elemental.lightning.front.stepIntervalSeconds", 0.25, 0.05, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_WARNING = BUILDER
+            .comment("Seconds from marking a lane position to impact. Positions never follow players.")
+            .defineInRange("elemental.lightning.front.warningSeconds", 0.75, 0.05, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_SIDE_OFFSET = BUILDER
+            .comment("Maximum random sideways offset in blocks from the fixed centerline for each impact.")
+            .defineInRange("elemental.lightning.front.sideOffset", 2.5, 0.0, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_DIRECTION_GAP = BUILDER
+            .comment("Minimum angle in degrees between active lanes. Directions are otherwise unrestricted.",
+                    "If no suitable direction is found, no new lane starts during that interval.")
+            .defineInRange("elemental.lightning.front.directionGapDegrees", 45.0, 0.0, 180.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_RADIUS = BUILDER
+            .comment("Damage radius in blocks for each lane impact, shown by its warning.")
+            .defineInRange("elemental.lightning.front.radius", 1.0, 0.1, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_HEIGHT = BUILDER
+            .comment("Damage height above each marked surface in blocks; solid cover blocks damage.")
+            .defineInRange("elemental.lightning.front.height", 3.0, 0.1, 32.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FRONT_DAMAGE = BUILDER
+            .comment(
+                    "Damage per lane in health points (2 = one heart). Each player can be damaged once per lane. 0 disables damage.",
+                    "Uses lightning strike sounds; lane impacts produce no follow-up rounds or residual zones.")
+            .defineInRange("elemental.lightning.front.damage", 2.0, 0.0, 1024.0);
+
     /** Water elemental boss and combat bounds (elemental.water). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water", 200.0);
 

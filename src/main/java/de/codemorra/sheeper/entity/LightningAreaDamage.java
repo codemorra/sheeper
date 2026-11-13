@@ -1,9 +1,12 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.List;
+
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -14,6 +17,21 @@ import net.minecraft.world.phys.Vec3;
  */
 final class LightningAreaDamage {
     private LightningAreaDamage() {
+    }
+
+    static void hurtPlayers(LightningSheeperEntity boss, List<ServerPlayer> players, Vec3 pos,
+            double radius, double height, float damage) {
+        if (damage > 0) {
+            for (ServerPlayer player : players) {
+                hurtPlayer(boss, player, pos, radius, height, damage);
+            }
+        }
+    }
+
+    static boolean hurtPlayer(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos,
+            double radius, double height, float damage) {
+        return damage > 0 && contains(boss, player, pos, radius, height)
+                && player.hurt(new EntityDamageSource("lightningBolt", boss), damage);
     }
 
     static boolean contains(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos, double radius, double height) {

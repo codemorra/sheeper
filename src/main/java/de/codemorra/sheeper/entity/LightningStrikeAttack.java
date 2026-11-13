@@ -9,17 +9,12 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
-import de.codemorra.sheeper.registry.ModEntities;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -305,36 +300,12 @@ final class LightningStrikeAttack {
     }
 
     private void showWarning(ServerLevel level, Strike strike) {
-        for (int index = 0; index < 24; index++) {
-            double angle = Math.PI * 2.0D * index / 24;
-            level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                    strike.pos.x + Math.cos(angle) * strike.radius, strike.pos.y + 0.15D,
-                    strike.pos.z + Math.sin(angle) * strike.radius, 1, 0.02D, 0.02D, 0.02D, 0.0D);
-        }
-        level.sendParticles(ParticleTypes.END_ROD, strike.pos.x, strike.pos.y + 0.15D, strike.pos.z,
-                4, 0.1D, 0.1D, 0.1D, 0.005D);
+        LightningStrikeEffect.showWarning(level, strike.pos, strike.radius);
     }
 
     private void impact(ServerLevel level, Strike strike, List<ServerPlayer> players) {
-        LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
-        effect.setPos(strike.pos);
-        level.addFreshEntity(effect);
-        float thunder = SheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
-        float impact = SheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (thunder > 0) {
-            level.playSound(null, strike.pos.x, strike.pos.y, strike.pos.z, SoundEvents.LIGHTNING_BOLT_THUNDER,
-                    SoundSource.HOSTILE, thunder, 0.9F + boss.getRandom().nextFloat() * 0.2F);
-        }
-        if (impact > 0) {
-            level.playSound(null, strike.pos.x, strike.pos.y, strike.pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
-                    SoundSource.HOSTILE, impact, 0.9F + boss.getRandom().nextFloat() * 0.2F);
-        }
-        for (ServerPlayer player : players) {
-            if (strike.damage > 0
-                    && LightningAreaDamage.contains(boss, player, strike.pos, strike.radius, strike.height)) {
-                player.hurt(new EntityDamageSource("lightningBolt", boss), strike.damage);
-            }
-        }
+        LightningStrikeEffect.spawn(boss, strike.pos);
+        LightningAreaDamage.hurtPlayers(boss, players, strike.pos, strike.radius, strike.height, strike.damage);
         if (strike.primary) {
             aftershocks.add(strike.pos);
             double innerMin = SheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MIN.get();
