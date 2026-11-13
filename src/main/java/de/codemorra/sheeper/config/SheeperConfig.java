@@ -36,17 +36,45 @@ public class SheeperConfig {
     /** Lightning arena preparation (elemental.lightning.arena). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
             .comment(
-                    "Seconds for each preparation wave to reach the arena edge. 0 skips preparation and its spawn waves.",
-                    "Combat starts after the final wave. Wave timing is captured at spawn and preserved when loading.")
+                    "Seconds for each preparation wave to reach the arena edge. 0 skips spawn waves and awakening.",
+                    "Storm awakening follows the final wave. Wave timing is captured at spawn and preserved when loading.")
             .defineInRange("elemental.lightning.arena.preparationSeconds", 4.0, 0.0, 600.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_PREPARATION_WAVE_COUNT = BUILDER
-            .comment("Number of outward preparation waves before combat begins.")
+            .comment("Number of outward preparation waves before storm awakening begins.")
             .defineInRange("elemental.lightning.arena.waveCount", 3, 1, 16);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_WAVE_INTERVAL = BUILDER
             .comment("Seconds between the starts of successive preparation waves; waves may overlap.")
             .defineInRange("elemental.lightning.arena.waveIntervalSeconds", 1.0, 0.0, 60.0);
+
+    /**
+     * Local weather, awakening and ambient edge strikes
+     * (elemental.lightning.storm).
+     */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_STORM_ENABLED = BUILDER
+            .comment("Local arena rain and thunder, including normal rain effects on exposed entities and blocks.")
+            .define("elemental.lightning.storm.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STORM_AWAKENING = BUILDER
+            .comment("Protected storm awakening seconds after the last preparation wave, before the first attack.")
+            .defineInRange("elemental.lightning.storm.awakeningSeconds", 3.0, 0.0, 60.0);
+
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_STORM_EDGE_ENABLED = BUILDER
+            .comment("Randomly clustered, announced lightning strikes at the outer arena edge during combat.")
+            .define("elemental.lightning.storm.edgeLightning", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STORM_EDGE_DAMAGE = BUILDER
+            .comment("Edge strike damage in health points (2 = one heart). Awakening strikes never deal damage.")
+            .defineInRange("elemental.lightning.storm.edgeDamage", 2.0, 0.0, 1024.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STORM_EDGE_WARNING = BUILDER
+            .comment("Warning seconds before a combat edge strike.")
+            .defineInRange("elemental.lightning.storm.edgeWarningSeconds", 1.5, 0.05, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STORM_RUMBLE_VOLUME = BUILDER
+            .comment("Ambient thunder volume for players inside the arena. 0 disables rumbling.")
+            .defineInRange("elemental.lightning.storm.rumbleVolume", 0.6, 0.0, 4.0);
 
     /** One flat knockback per preparation wave (elemental.lightning.spawnPush). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_RADIUS = BUILDER

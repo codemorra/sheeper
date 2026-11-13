@@ -76,6 +76,11 @@ public final class GameTestContext implements AutoCloseable {
         active = this;
         MinecraftForge.EVENT_BUS.register(this);
         set(SheeperConfig.NATURAL_SPAWN_CHANCE, 0.0);
+        // Existing combat scenes opt out of the independent ambient storm and
+        // awakening.
+        set(SheeperConfig.LIGHTNING_STORM_ENABLED, false);
+        set(SheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
+        set(SheeperConfig.LIGHTNING_STORM_AWAKENING, 0.0D);
         // Other scenarios isolate gameplay from timing; wave scenarios opt in
         // explicitly.
         set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (0) / 20.0D);

@@ -10,12 +10,13 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 /**
- * Synchronizes server-authoritative mutton visuals with tracking clients.
+ * Synchronizes server-authoritative player effects and arena weather with
+ * observing clients.
  */
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "2";
+    private static final String VERSION = "3";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -34,6 +35,9 @@ public final class ModNetwork {
                 .decoder(MuttonVisualPacket::decode)
                 .consumerMainThread(MuttonVisualPacket::handle)
                 .add();
+        CHANNEL.messageBuilder(LightningWeatherPacket.class, 1, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningWeatherPacket::encode).decoder(LightningWeatherPacket::decode)
+                .consumerMainThread(LightningWeatherPacket::handle).add();
     }
 
     /**
@@ -65,6 +69,10 @@ public final class ModNetwork {
      * @param packet   the observed player's visual snapshot
      */
     public static void sendTo(ServerPlayer observer, MuttonVisualPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    public static void sendWeather(ServerPlayer observer, LightningWeatherPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 }

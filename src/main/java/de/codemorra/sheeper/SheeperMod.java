@@ -59,6 +59,7 @@ public class SheeperMod {
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             BossWaterlogging.enable();
+            de.codemorra.sheeper.world.ArenaWeather.enable();
             FluidInteractionRegistry.addInteraction(ForgeMod.LAVA_TYPE.get(),
                     new FluidInteractionRegistry.InteractionInformation(ModFluids.BOSS_WATER_TYPE.get(),
                             state -> state.isSource() ? Blocks.OBSIDIAN.defaultBlockState()

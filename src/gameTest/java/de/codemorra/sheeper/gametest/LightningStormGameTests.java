@@ -150,6 +150,7 @@ final class LightningStormGameTests {
         context.expect(bolts(context) == 1 + inner + outer, "Outer bolts must not create another round");
         context.near(boss.position().distanceToSqr(origin), 0,
                 "The boss must remain stationary during its storm phase");
+        boss.discard();
         context.pass();
     }
 
