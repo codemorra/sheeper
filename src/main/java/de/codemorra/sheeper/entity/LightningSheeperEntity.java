@@ -35,7 +35,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private int preparationDuration = -1;
     private int preparationRemaining;
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
-    private final LightningSheeperCombat combat = new LightningSheeperCombat(this);
+    private final LightningSheeperCombat combat = new LightningSheeperCombat(this, teleports);
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);

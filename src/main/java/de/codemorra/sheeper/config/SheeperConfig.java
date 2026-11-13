@@ -274,6 +274,57 @@ public class SheeperConfig {
                     "Uses lightning strike sounds; lane impacts produce no follow-up rounds or residual zones.")
             .defineInRange("elemental.lightning.front.damage", 2.0, 0.0, 1024.0);
 
+    /**
+     * Teleport preparation and terrain-following rings (elemental.lightning.ring).
+     */
+    public static final ForgeConfigSpec.IntValue LIGHTNING_RING_TELEPORT_COUNT_MIN = BUILDER
+            .comment("Minimum rapid teleport attempts before charging. Unsafe destinations are skipped.")
+            .defineInRange("elemental.lightning.ring.teleportCountMin", 5, 0, 32);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_RING_TELEPORT_COUNT_MAX = BUILDER
+            .comment("Maximum rapid teleport attempts; capped below by teleportCountMin.")
+            .defineInRange("elemental.lightning.ring.teleportCountMax", 8, 0, 32);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_TELEPORT_INTERVAL = BUILDER
+            .comment("Seconds between rapid teleports. Uses the normal teleport area and safety checks.")
+            .defineInRange("elemental.lightning.ring.teleportIntervalSeconds", 0.35, 0.05, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_CHARGE = BUILDER
+            .comment("Visible stationary charge duration in seconds after the rapid teleports.")
+            .defineInRange("elemental.lightning.ring.chargeSeconds", 2.0, 0.05, 60.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_RING_COUNT_MIN = BUILDER
+            .comment("Minimum consecutive ring waves after charging.")
+            .defineInRange("elemental.lightning.ring.countMin", 3, 1, 16);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_RING_COUNT_MAX = BUILDER
+            .comment("Maximum consecutive ring waves; capped below by countMin.")
+            .defineInRange("elemental.lightning.ring.countMax", 5, 1, 16);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_INTERVAL = BUILDER
+            .comment("Seconds between releasing ring waves.")
+            .defineInRange("elemental.lightning.ring.intervalSeconds", 1.25, 0.05, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_SPEED = BUILDER
+            .comment("Outward speed in blocks per second. Rings finish at the arena boundary.")
+            .defineInRange("elemental.lightning.ring.speedBlocksPerSecond", 5.0, 0.5, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_WIDTH = BUILDER
+            .comment("Radial thickness of the visible ring and its damage band in blocks.")
+            .defineInRange("elemental.lightning.ring.width", 0.75, 0.1, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_HIT_HEIGHT = BUILDER
+            .comment("Damage height above the local ground in blocks; jumping above it avoids the ring.")
+            .defineInRange("elemental.lightning.ring.hitHeight", 0.35, 0.05, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_DAMAGE = BUILDER
+            .comment("Damage per ring wave in health points (2 = one heart), at most once per player per wave.")
+            .defineInRange("elemental.lightning.ring.damage", 2.0, 0.0, 1024.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_PARTICLE_SPACING = BUILDER
+            .comment("Distance between glowing ring segments in blocks. Lower values produce denser effects.")
+            .defineInRange("elemental.lightning.ring.particleSpacing", 0.5, 0.1, 1.0);
+
     /** Water elemental boss and combat bounds (elemental.water). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water", 200.0);
 

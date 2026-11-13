@@ -39,6 +39,7 @@ final class LightningFrontGameTests {
         context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
+        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 0.05D);
         context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 2.0D);

@@ -42,6 +42,7 @@ final class LightningStormGameTests {
         context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 1.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_STRIKE_DURATION_MIN, 3.0D);
         context.set(SheeperConfig.LIGHTNING_STRIKE_DURATION_MAX, 3.0D);
         context.set(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN, 0.05D);

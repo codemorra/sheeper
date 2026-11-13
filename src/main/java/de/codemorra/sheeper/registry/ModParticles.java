@@ -1,6 +1,8 @@
 package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.particle.LightningRingOptions;
+import com.mojang.serialization.Codec;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -24,6 +26,14 @@ public final class ModParticles {
 
     public static final RegistryObject<SimpleParticleType> WATER_FOUNTAIN = PARTICLES.register("water_fountain",
             () -> new SimpleParticleType(false));
+
+    public static final RegistryObject<ParticleType<LightningRingOptions>> LIGHTNING_RING = PARTICLES.register(
+            "lightning_ring", () -> new ParticleType<LightningRingOptions>(true, LightningRingOptions.DESERIALIZER) {
+                @Override
+                public Codec<LightningRingOptions> codec() {
+                    return LightningRingOptions.CODEC;
+                }
+            });
 
     private ModParticles() {
     }
