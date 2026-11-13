@@ -37,8 +37,8 @@ final class LightningRingGameTests {
         context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
         context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 0.05D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
         context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN, 0);
         context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX, 0);
         context.set(SheeperConfig.LIGHTNING_RING_CHARGE, 0.2D);
@@ -67,8 +67,8 @@ final class LightningRingGameTests {
     }
 
     private static void deferNextAttack(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN, 60.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX, 60.0D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
     }
 
     private static void sequence(GameTestContext context) {

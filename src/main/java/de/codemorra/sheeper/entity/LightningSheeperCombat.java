@@ -12,12 +12,12 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 
 /**
- * Alternates movement, stationary attacks and recovery, retaining announced
+ * Alternates teleport-capable rest and stationary attacks, retaining announced
  * strike positions.
  */
 final class LightningSheeperCombat {
     private enum Phase {
-        IDLE, STRIKES, FRONT, RING, REST
+        REST, STRIKES, FRONT, RING
     }
 
     /** Only implemented attacks take part in weighted selection. */
@@ -38,7 +38,7 @@ final class LightningSheeperCombat {
     private final LightningFrontAttack fronts;
     private final LightningRingAttack rings;
     private final LightningAftershockZones aftershocks;
-    private Phase phase = Phase.IDLE;
+    private Phase phase = Phase.REST;
     private int phaseRemaining = -1;
 
     LightningSheeperCombat(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
@@ -50,7 +50,7 @@ final class LightningSheeperCombat {
     }
 
     boolean canMove() {
-        return phase == Phase.IDLE;
+        return phase == Phase.REST;
     }
 
     private boolean isAttacking() {
@@ -69,14 +69,6 @@ final class LightningSheeperCombat {
         strikes.tickCooldowns();
         List<ServerPlayer> players = boss.getCombatParticipants();
         aftershocks.tick(players);
-        if (phase == Phase.REST) {
-            // Recovery also ends without players so the boss can resume idle movement.
-            if (--phaseRemaining <= 0) {
-                phase = Phase.IDLE;
-                phaseRemaining = -1;
-            }
-            return;
-        }
         if (players.isEmpty()) {
             if (isAttacking()) {
                 beginRest();
@@ -84,10 +76,10 @@ final class LightningSheeperCombat {
             boss.setTarget(null);
             return;
         }
-        if (phase == Phase.IDLE) {
+        if (phase == Phase.REST) {
             if (phaseRemaining < 0) {
-                phaseRemaining = interval(SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MIN.get(),
-                        SheeperConfig.LIGHTNING_ATTACK_INTERVAL_MAX.get());
+                phaseRemaining = interval(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
+                        SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
             }
             if (phaseRemaining > 0) {
                 phaseRemaining--;
@@ -179,10 +171,7 @@ final class LightningSheeperCombat {
         boss.setTarget(null);
         phaseRemaining = interval(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
                 SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
-        phase = phaseRemaining > 0 ? Phase.REST : Phase.IDLE;
-        if (phase == Phase.IDLE) {
-            phaseRemaining = -1;
-        }
+        phase = Phase.REST;
     }
 
     CompoundTag save() {
@@ -201,8 +190,7 @@ final class LightningSheeperCombat {
             case "STRIKES" -> Phase.STRIKES;
             case "FRONT" -> Phase.FRONT;
             case "RING" -> Phase.RING;
-            case "REST" -> Phase.REST;
-            default -> Phase.IDLE;
+            default -> Phase.REST;
         };
         phaseRemaining = tag.contains("PhaseRemaining", Tag.TAG_INT)
                 ? Mth.clamp(tag.getInt("PhaseRemaining"), -1, 12000)
