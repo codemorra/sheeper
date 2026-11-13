@@ -60,7 +60,7 @@ public class SheeperConfig {
 
     /** Lightning attack selection (elemental.lightning.attack). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER
-            .comment("Relative weight of targeted lightning strikes; 0 disables this type.",
+            .comment("Relative weight of lightning storm phases; 0 disables this type.",
                     "Attack types remain inactive until their implementation is available.")
             .defineInRange("elemental.lightning.attack.strikeWeight", 1.0, 0.0, 100.0);
 
@@ -75,6 +75,146 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_OVERLOAD_WEIGHT = BUILDER
             .comment("Relative weight of teleport overloads; 0 disables this type.")
             .defineInRange("elemental.lightning.attack.overloadWeight", 1.0, 0.0, 100.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds of movement between attacks while players are in the arena.",
+                    "An announced movement teleport finishes before a new attack starts.")
+            .defineInRange("elemental.lightning.attack.intervalMinSeconds", 4.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds between attacks; capped below by intervalMinSeconds.")
+            .defineInRange("elemental.lightning.attack.intervalMaxSeconds", 7.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MIN = BUILDER
+            .comment("Minimum stationary rest in seconds after an attack. Rest also ends without participants.",
+                    "NoAI cancels pending strikes and pauses timers. Waiting for the next attack pauses without participants.")
+            .defineInRange("elemental.lightning.attack.pauseMinSeconds", 2.0, 0.0, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MAX = BUILDER
+            .comment("Maximum stationary rest in seconds; capped below by pauseMinSeconds.")
+            .defineInRange("elemental.lightning.attack.pauseMaxSeconds", 3.0, 0.0, 60.0);
+
+    /** Lightning storm phase (elemental.lightning.strike). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_DURATION_MIN = BUILDER
+            .comment("Minimum lightning phase duration in seconds. Sampled at phase start.")
+            .defineInRange("elemental.lightning.strike.durationMinSeconds", 20.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_DURATION_MAX = BUILDER
+            .comment("Maximum lightning phase duration in seconds; capped below by durationMinSeconds.",
+                    "New centers stop early enough for all three warned rounds to finish within the phase.")
+            .defineInRange("elemental.lightning.strike.durationMaxSeconds", 30.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_INTERVAL_MIN = BUILDER
+            .comment("Minimum independent interval in seconds between central warnings per player and for the arena.")
+            .defineInRange("elemental.lightning.strike.intervalMinSeconds", 0.5, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_INTERVAL_MAX = BUILDER
+            .comment("Maximum central warning interval in seconds; capped below by intervalMinSeconds.")
+            .defineInRange("elemental.lightning.strike.intervalMaxSeconds", 1.0, 0.05, 600.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_PLAYER_COOLDOWN = BUILDER
+            .comment("Minimum seconds after a player's third round finishes before targeting that player again.",
+                    "The complete three-round sequence is reserved first; the usual interval and warning follow this cooldown.")
+            .defineInRange("elemental.lightning.strike.playerCooldownSeconds", 5.0, 0.0, 600.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_STRIKE_ARENA_COUNT = BUILDER
+            .comment(
+                    "Random arena centers announced per interval in addition to player centers. 0 disables random centers.")
+            .defineInRange("elemental.lightning.strike.arenaCount", 1, 0, 16);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WARNING = BUILDER
+            .comment("Seconds between marking a fixed strike position and impact.",
+                    "Unloaded positions are cancelled. Each center captures the warning duration for all three rounds.")
+            .defineInRange("elemental.lightning.strike.warningSeconds", 1.5, 0.05, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_RADIUS = BUILDER
+            .comment("Horizontal damage radius in blocks, shown by the warning ring.")
+            .defineInRange("elemental.lightning.strike.radius", 1.5, 0.1, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_HEIGHT = BUILDER
+            .comment(
+                    "Damage height above the marked surface in blocks. Solid cover between impact and player blocks damage.")
+            .defineInRange("elemental.lightning.strike.height", 3.0, 0.1, 32.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_DAMAGE = BUILDER
+            .comment("Damage per strike in health points (2 = one heart). 0 disables damage.",
+                    "Normal armor and damage immunity apply. Strikes do not ignite or transform anything.")
+            .defineInRange("elemental.lightning.strike.damage", 6.0, 0.0, 1024.0);
+
+    /**
+     * Two outward lightning rounds around each center
+     * (elemental.lightning.strike.followup).
+     */
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FOLLOWUP_INNER_COUNT_MIN = BUILDER
+            .comment("Minimum bolts in the first surrounding round. Announced as the central bolt hits.")
+            .defineInRange("elemental.lightning.strike.followup.innerCountMin", 3, 1, 16);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FOLLOWUP_INNER_COUNT_MAX = BUILDER
+            .comment("Maximum bolts in the first surrounding round; capped below by innerCountMin.")
+            .defineInRange("elemental.lightning.strike.followup.innerCountMax", 4, 1, 16);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FOLLOWUP_OUTER_COUNT_MIN = BUILDER
+            .comment("Minimum bolts in the outer round. Announced as the first surrounding round hits.")
+            .defineInRange("elemental.lightning.strike.followup.outerCountMin", 5, 1, 16);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FOLLOWUP_OUTER_COUNT_MAX = BUILDER
+            .comment("Maximum bolts in the outer round; capped below by outerCountMin.")
+            .defineInRange("elemental.lightning.strike.followup.outerCountMax", 7, 1, 16);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOLLOWUP_INNER_RADIUS_MIN = BUILDER
+            .comment("Minimum first-round distance from the center in blocks.")
+            .defineInRange("elemental.lightning.strike.followup.innerRadiusMin", 3.0, 0.1, 32.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOLLOWUP_INNER_RADIUS_MAX = BUILDER
+            .comment("Maximum first-round distance; capped below by innerRadiusMin.")
+            .defineInRange("elemental.lightning.strike.followup.innerRadiusMax", 4.0, 0.1, 32.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOLLOWUP_OUTER_RADIUS_MIN = BUILDER
+            .comment("Minimum outer-round distance; kept beyond the first round's maximum distance.")
+            .defineInRange("elemental.lightning.strike.followup.outerRadiusMin", 6.0, 0.1, 64.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOLLOWUP_OUTER_RADIUS_MAX = BUILDER
+            .comment("Maximum outer-round distance; capped below by the effective outerRadiusMin.")
+            .defineInRange("elemental.lightning.strike.followup.outerRadiusMax", 8.0, 0.1, 64.0);
+
+    /**
+     * Residual electrical zones at central impacts
+     * (elemental.lightning.strike.aftershock).
+     */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AFTERSHOCK_AFTER = BUILDER
+            .comment(
+                    "Seconds electrical zones remain after the storm phase ends. During the phase all central zones stay active.")
+            .defineInRange("elemental.lightning.strike.aftershock.afterSeconds", 5.0, 0.0, 120.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AFTERSHOCK_RADIUS = BUILDER
+            .comment("Radius of the circular crackling zone in blocks.")
+            .defineInRange("elemental.lightning.strike.aftershock.radius", 1.25, 0.1, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AFTERSHOCK_HEIGHT = BUILDER
+            .comment("Damage height above the zone in blocks; solid cover blocks damage.")
+            .defineInRange("elemental.lightning.strike.aftershock.height", 1.0, 0.1, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AFTERSHOCK_DAMAGE = BUILDER
+            .comment("Damage per zone pulse in health points (1 = half a heart), before armor. 0 disables damage.")
+            .defineInRange("elemental.lightning.strike.aftershock.damage", 1.0, 0.0, 40.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AFTERSHOCK_INTERVAL = BUILDER
+            .comment("Seconds between zone damage pulses per player. Overlapping zones share the cooldown.",
+                    "Zones expire during recovery and without participants; NoAI clears them.")
+            .defineInRange("elemental.lightning.strike.aftershock.intervalSeconds", 1.0, 0.05, 60.0);
+
+    /** Lightning attack audio (elemental.lightning.strike.sound). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_THUNDER_VOLUME = BUILDER
+            .comment("Thunder volume per bolt. 0 disables this sound.")
+            .defineInRange("elemental.lightning.strike.sound.thunderVolume", 0.6, 0.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_IMPACT_VOLUME = BUILDER
+            .comment("Electrical impact volume per bolt. 0 disables this sound.")
+            .defineInRange("elemental.lightning.strike.sound.impactVolume", 0.8, 0.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AFTERSHOCK_VOLUME = BUILDER
+            .comment("Local crackling volume while zones are active. 0 disables this sound.")
+            .defineInRange("elemental.lightning.strike.sound.crackleVolume", 0.2, 0.0, 4.0);
 
     /** Water elemental boss and combat bounds (elemental.water). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = elementalHealth("water", 200.0);

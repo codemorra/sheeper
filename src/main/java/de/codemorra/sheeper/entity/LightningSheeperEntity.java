@@ -35,6 +35,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private int preparationDuration = -1;
     private int preparationRemaining;
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
+    private final LightningSheeperCombat combat = new LightningSheeperCombat(this);
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -55,12 +56,12 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         goalSelector.addGoal(2, new RandomLookAroundGoal(this) {
             @Override
             public boolean canUse() {
-                return isCombatReady() && super.canUse();
+                return isCombatReady() && combat.canMove() && super.canUse();
             }
 
             @Override
             public boolean canContinueToUse() {
-                return isCombatReady() && super.canContinueToUse();
+                return isCombatReady() && combat.canMove() && super.canContinueToUse();
             }
         });
     }
@@ -134,7 +135,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        if (!level.isClientSide && type == MoverType.SELF && (!isCombatReady() || teleports.isPreparing())) {
+        if (!level.isClientSide && type == MoverType.SELF
+                && (!isCombatReady() || teleports.isPreparing() || !combat.canMove())) {
             movement = new Vec3(0.0D, movement.y, 0.0D);
         }
         super.move(type, movement);
@@ -153,7 +155,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     public void tick() {
         if (!level.isClientSide && isAlive()) {
             initializePreparation();
-            if (!isCombatReady() || teleports.isPreparing()) {
+            if (!isCombatReady() || teleports.isPreparing() || !combat.canMove()) {
                 getNavigation().stop();
                 Vec3 velocity = getDeltaMovement();
                 setDeltaMovement(0.0D, velocity.y, 0.0D);
@@ -178,7 +180,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 if (tickCount % 10 == 0) {
                     showArenaRing(server, getCombatRadius());
                 }
-                teleports.tick(!isNoAi());
+                combat.tick(teleports.isPreparing());
+                teleports.tick(!isNoAi() && combat.canMove());
             }
         }
     }
@@ -212,13 +215,19 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
      */
     @Nullable
     Double findArenaSurface(ServerLevel server, int x, int z) {
+        return findArenaSurface(server, x, z, getArenaCenter().getY());
+    }
+
+    @Nullable
+    Double findArenaSurface(ServerLevel server, int x, int z, int referenceY) {
         int originY = getArenaCenter().getY();
         int range = Mth.floor(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get());
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int offset = 0; offset <= range; offset++) {
+        for (int offset = 0; offset <= range * 2; offset++) {
             for (int side = 0; side < (offset == 0 ? 1 : 2); side++) {
-                int y = originY + (side == 0 ? -offset : offset);
-                if (y <= server.getMinBuildHeight() || y >= server.getMaxBuildHeight()) {
+                int y = referenceY + (side == 0 ? -offset : offset);
+                if (Math.abs(y - originY) > range || y <= server.getMinBuildHeight()
+                        || y >= server.getMaxBuildHeight()) {
                     continue;
                 }
                 pos.set(x, y, z);
@@ -244,6 +253,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.putInt("LightningPreparationDuration", preparationDuration);
         tag.putInt("LightningPreparationRemaining", preparationRemaining);
         tag.put("LightningTeleport", teleports.save());
+        tag.put("LightningCombat", combat.save());
     }
 
     @Override
@@ -261,5 +271,6 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 : Mth.clamp(tag.getInt("LightningPreparationRemaining"), 0, preparationDuration);
         entityData.set(DATA_COMBAT_READY, preparationDuration >= 0 && preparationRemaining == 0);
         teleports.load(sameDimension ? tag.getCompound("LightningTeleport") : new CompoundTag());
+        combat.load(sameDimension ? tag.getCompound("LightningCombat") : new CompoundTag());
     }
 }

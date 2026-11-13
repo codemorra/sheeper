@@ -15,6 +15,7 @@ import de.codemorra.sheeper.client.particle.MuttonCloudParticle;
 import de.codemorra.sheeper.client.particle.ArenaWaterParticle;
 import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.entity.LightningBoltRenderer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
@@ -81,6 +82,7 @@ public class ClientModEvents {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.LAVA_SHEEPER.get(), ElementalSheeperRenderer::new);
         event.registerEntityRenderer(ModEntities.LIGHTNING_SHEEPER.get(), ElementalSheeperRenderer::new);
+        event.registerEntityRenderer(ModEntities.LIGHTNING_STRIKE.get(), LightningBoltRenderer::new);
         event.registerEntityRenderer(ModEntities.WATER_SHEEPER.get(), ElementalSheeperRenderer::new);
         event.registerEntityRenderer(ModEntities.WATER_PROJECTILE.get(), WaterProjectileRenderer::new);
 
