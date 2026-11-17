@@ -467,10 +467,7 @@ public class SheeperConfig {
             .comment("Minimum time in seconds after a sprint before another sprint can begin.")
             .defineInRange("elemental.water.movement.sprintCooldownSeconds", 6.0, 0.0, 60.0);
 
-    /**
-     * Water-contact spawn wave and legacy proximity strengths
-     * (elemental.water.spawnPush).
-     */
+    /** Water-contact spawn wave (elemental.water.spawnPush). */
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_RADIUS = BUILDER
             .comment("Maximum distance from the boss for contact and launch of the spawn water wave; 0 disables it.")
             .defineInRange("elemental.water.spawnPush.radius", 15.0, 0.0, 128.0);
@@ -487,29 +484,34 @@ public class SheeperConfig {
             .comment("Horizontal launch velocity away from the arena center for the spawn water wave.")
             .defineInRange("elemental.water.spawnPush.horizontalStrength", 1.5, 0.0, 3.9);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_STRENGTH = BUILDER
-            .comment(
-                    "Horizontal proximity knockback strength. The spawn water wave uses horizontalStrength instead.")
-            .defineInRange("elemental.water.spawnPush.strength", 3.9, 0.0, 3.9);
+    /** Water boss close-range approach (elemental.water.closeRange). */
+    public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_ENTER_DISTANCE = BUILDER
+            .comment("Target distance in blocks at which projectiles pause and the boss approaches for melee.")
+            .defineInRange("elemental.water.closeRange.enterDistance", 9.0, 0.1, 20.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_UPWARD_STRENGTH = BUILDER
-            .comment("Upward proximity knockback strength. The spawn water wave uses height instead.")
-            .defineInRange("elemental.water.spawnPush.upwardStrength", 1.0, 0.0, 1.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_EXIT_DISTANCE = BUILDER
+            .comment("Target distance beyond which circling and projectiles resume; capped below by enterDistance.",
+                    "A larger exit distance prevents rapid switching at the entry boundary.")
+            .defineInRange("elemental.water.closeRange.exitDistance", 10.0, 0.1, 20.0);
 
     /** Water boss proximity push (elemental.water.proximityPush). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_RADIUS = BUILDER
-            .comment("Distance from the boss within which players accumulate time toward a proximity push.",
-                    "Leaving resets the timer. Uses spawnPush strengths; 0 disables proximity pushes.")
-            .defineInRange("elemental.water.proximityPush.radius", 3.0, 0.0, 128.0);
+            .comment("Distance from the boss within which each player accumulates time toward a proximity push.",
+                    "Leaving resets the timer. NoAI pauses timers; 0 disables pushes.")
+            .defineInRange("elemental.water.proximityPush.radius", 5.5, 0.0, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DELAY_MIN = BUILDER
-            .comment("Minimum continuous proximity seconds before a push.",
-                    "Sampled independently per player on entry and after each push. NoAI pauses timers.")
-            .defineInRange("elemental.water.proximityPush.delayMinSeconds", 8.0, 0.05, 600.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DELAY = BUILDER
+            .comment(
+                    "Continuous proximity seconds before each push; the same delay applies independently to every player.")
+            .defineInRange("elemental.water.proximityPush.delaySeconds", 2.0, 0.05, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DELAY_MAX = BUILDER
-            .comment("Maximum continuous proximity seconds before a push; capped below by delayMinSeconds.")
-            .defineInRange("elemental.water.proximityPush.delayMaxSeconds", 12.0, 0.05, 600.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_STRENGTH = BUILDER
+            .comment("Horizontal launch velocity away from the boss for proximity knockback.")
+            .defineInRange("elemental.water.proximityPush.strength", 2.0, 0.0, 3.9);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_UPWARD_STRENGTH = BUILDER
+            .comment("Upward launch velocity for proximity knockback.")
+            .defineInRange("elemental.water.proximityPush.upwardStrength", 1.0, 0.0, 5.0);
 
     /** Water projectiles (elemental.water.projectile). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
@@ -525,17 +527,17 @@ public class SheeperConfig {
             .defineInRange("elemental.water.projectile.knockback", 0.5, 0.0, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_INTERVAL = BUILDER
-            .comment("Seconds between shots within a regular projectile phase.")
-            .defineInRange("elemental.water.projectile.intervalSeconds", 2.0, 0.05, 600.0);
+            .comment("Seconds between default projectile shots while moving around the selected player.")
+            .defineInRange("elemental.water.projectile.intervalSeconds", 1.25, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MIN = BUILDER
-            .comment("Minimum seconds per regular projectile phase.",
-                    "The duration is sampled once at phase start; the first shot waits intervalSeconds.")
-            .defineInRange("elemental.water.projectile.durationMinSeconds", 4.0, 0.05, 60.0);
+            .comment("Minimum seconds of default firing before a two-second target-selection pause.",
+                    "Firing starts immediately after the pause; movement continues throughout.")
+            .defineInRange("elemental.water.projectile.durationMinSeconds", 10.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MAX = BUILDER
-            .comment("Maximum seconds per regular projectile phase; capped below by durationMinSeconds.")
-            .defineInRange("elemental.water.projectile.durationMaxSeconds", 8.0, 0.05, 60.0);
+            .comment("Maximum seconds of default firing before target selection; capped below by durationMinSeconds.")
+            .defineInRange("elemental.water.projectile.durationMaxSeconds", 15.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_LIFETIME = BUILDER
             .comment("Maximum flight duration in seconds; range is speedBlocksPerSecond multiplied by lifetimeSeconds.")
