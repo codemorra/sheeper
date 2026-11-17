@@ -609,21 +609,30 @@ public class SheeperConfig {
             .defineInRange("elemental.water.special.defaultOnlyMaxSeconds", 10.0, 0.1, 30.0);
 
     /** Water fountains (elemental.water.fountain). */
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_COOLDOWN = BUILDER
+            .comment("Seconds after the fountain phase ends before it may start again.")
+            .defineInRange("elemental.water.fountain.cooldownSeconds", 20.0, 1.0, 120.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DAMAGE = BUILDER
+            .comment("Direct damage in health points when a fountain launches a player; 2 = one heart.")
+            .defineInRange("elemental.water.fountain.damage", 2.0, 0.0, 20.0);
+
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
             .comment("Minimum fountain phase duration. Sampled once at phase start.")
-            .defineInRange("elemental.water.fountain.durationMinSeconds", 20.0, 0.05, 600.0);
+            .defineInRange("elemental.water.fountain.durationMinSeconds", 20.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MAX = BUILDER
             .comment("Maximum fountain phase duration; capped below by durationMinSeconds.")
-            .defineInRange("elemental.water.fountain.durationMaxSeconds", 30.0, 0.05, 600.0);
+            .defineInRange("elemental.water.fountain.durationMaxSeconds", 30.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MIN = BUILDER
-            .comment("Minimum independent delay in seconds between fountains for each player and the arena.")
-            .defineInRange("elemental.water.fountain.intervalMinSeconds", 0.5, 0.05, 600.0);
+            .comment("Minimum independent delay between fountain announcements for each player and the arena.",
+                    "A player's delay pauses until their previous fixed warning resolves.")
+            .defineInRange("elemental.water.fountain.intervalMinSeconds", 2.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MAX = BUILDER
             .comment("Maximum fountain delay in seconds; capped below by intervalMinSeconds.")
-            .defineInRange("elemental.water.fountain.intervalMaxSeconds", 1.0, 0.05, 600.0);
+            .defineInRange("elemental.water.fountain.intervalMaxSeconds", 4.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_ARENA_COUNT = BUILDER
             .comment("Random arena fountains announced per interval, in addition to each player's fountains.")
@@ -631,7 +640,7 @@ public class SheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WARNING = BUILDER
             .comment("Fishing-particle warning duration in seconds before a fixed fountain erupts.")
-            .defineInRange("elemental.water.fountain.warningSeconds", 1.5, 0.05, 60.0);
+            .defineInRange("elemental.water.fountain.warningSeconds", 1.5, 0.05, 5.0);
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_SIZE = BUILDER
             .comment("Width and depth of a fountain in blocks.")
