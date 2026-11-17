@@ -38,9 +38,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 #### Water Sheeper encounter
 
 - **Flooded arena:** The Water Sheeper floods nearby terrain before combat begins. Its water spreads outward and recedes after defeat, preserving existing natural water.
-- **Ranged attacks:** Water projectiles damage and knock back players. Charged salvos are announced by red eyes and track the focused player's movement between shots.
-- **Fountains:** Fishing particles warn of eruptions that launch players into the air. Fountains appear beneath players and across the arena, accompanied by local rain.
-- **Keep your distance:** Players lingering near the boss are pushed away. The fight supports multiple players and rotates its direct attack targets.
+- **Movement:** The Water Sheeper approaches and circles a player inside its flooded arena, with occasional short water sprints.
 
 #### Lightning Sheeper encounter
 
@@ -83,7 +81,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, `carpet`, and `elemental`.
 
 - **Elemental bosses:** Each element has independent `elemental.<element>.size` and `elemental.<element>.maxHealth` settings, where `<element>` is `lava`, `lightning`, or `water`. Size defaults to `2.0` (range `0.5–4.0`); `1.0` matches normal sheep/Sheeper size. Maximum health defaults to `200` for each element (range `1–1024` health points). Changes apply to existing bosses; health changes preserve the remaining health percentage. The server synchronizes size for matching models and hitboxes.
-- **Water boss:** `elemental.water` groups arena bounds, flooding and cleanup speed, movement, spawn/proximity launches, projectiles, fountains, salvos, and cosmetic rain. Attack weights under `elemental.water.attack` control how often each attack type is selected; all three default to equal weights.
+- **Water boss:** `elemental.water` controls arena bounds, flooding and cleanup speed, movement, and spawn launches.
 - **Lightning boss:** `elemental.lightning` groups arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather. Attack selection under `elemental.lightning.attack` uses equal weights by default.
 - **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
