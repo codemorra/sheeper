@@ -45,8 +45,8 @@ import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fluids.FluidType;
 
 /**
- * Owns arena discovery, tracked water placement and the current movement
- * target.
+ * Owns arena discovery, tracked water placement and the shared movement/attack
+ * target. Dedicated controllers handle projectile timing and proximity pushes.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
@@ -63,8 +63,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final Set<UUID> waterWaveContacts = new HashSet<>();
     private final Map<UUID, Integer> waterWaveDelays = new HashMap<>();
 
-    @Nullable
-    private UUID movementTargetId;
+    private final WaterDefaultAttack defaultAttack = new WaterDefaultAttack(this);
+    private final WaterProximityPush proximityPush = new WaterProximityPush(this);
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
@@ -151,6 +151,16 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         goalSelector.addGoal(0, new WaterOrbitGoal(this));
     }
 
+    /**
+     * Exposes the default attack's close-range mode to navigation without giving
+     * the movement goal control over projectile timing or target selection.
+     *
+     * @return whether the boss should approach rather than circle its target
+     */
+    public boolean isClosingOnTarget() {
+        return defaultAttack.isClosingOnTarget();
+    }
+
     /** Checks a horizontal circle around the center of the saved spawn block. */
     public boolean isWithinMovementArea(double x, double z) {
         return horizontalDistanceSquared(x, z) <= getMovementRadius() * getMovementRadius();
@@ -211,9 +221,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Retains the current eligible participant or immediately selects the nearest
-     * replacement. Called before the AI tick so navigation sees the updated target.
-     * Head tracking is kept separate from the body's navigation direction.
+     * Advances default attack target selection before the AI tick so movement and
+     * shooting share a valid participant. Head tracking remains separate from the
+     * body's navigation direction, including during firing pauses.
      */
     private void updateMovementTarget() {
         if (!isAlive() || !isCombatReady() || isNoAi()) {
@@ -221,13 +231,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             stopHorizontalMovement();
             return;
         }
-        List<ServerPlayer> participants = getCombatParticipants();
-        ServerPlayer target = participants.stream().filter(player -> player.getUUID().equals(movementTargetId))
-                .findFirst().orElse(null);
-        if (target == null) {
-            target = participants.stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
-            movementTargetId = target == null ? null : target.getUUID();
-        }
+        ServerPlayer target = defaultAttack.tickTarget(getCombatParticipants());
         setTarget(target);
         if (target == null) {
             stopHorizontalMovement();
@@ -357,6 +361,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             updateMovementTarget();
         }
         super.tick();
+        if (!level.isClientSide && isAlive() && isCombatReady() && !isNoAi()) {
+            defaultAttack.tickProjectiles();
+            proximityPush.tick(getCombatParticipants());
+        }
     }
 
     private void placeArenaWater(ServerLevel level) {
@@ -412,9 +420,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        if (movementTargetId != null) {
-            tag.putUUID("WaterMovementTarget", movementTargetId);
-        }
+        tag.put("WaterDefaultAttack", defaultAttack.save());
+        tag.put("WaterProximityPush", proximityPush.save());
         ListTag contacts = new ListTag();
         waterWaveContacts.forEach(id -> {
             CompoundTag entry = new CompoundTag();
@@ -454,7 +461,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 waterWaveDelays.put(player, Mth.clamp(entry.getInt("Ticks"), 1, 1200));
             }
         }
-        movementTargetId = tag.hasUUID("WaterMovementTarget") ? tag.getUUID("WaterMovementTarget") : null;
+        defaultAttack.load(tag.getCompound("WaterDefaultAttack"));
+        proximityPush.load(tag.getList("WaterProximityPush", Tag.TAG_COMPOUND));
         setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.
         arenaCenter = tag.contains("WaterArenaCenter", Tag.TAG_LONG)
