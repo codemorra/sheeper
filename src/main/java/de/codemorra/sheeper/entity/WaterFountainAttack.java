@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.annotation.Nullable;
+
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.registry.ModBlocks;
@@ -19,13 +21,18 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeMod;
 
-/** Server-owned, independently timed hazards and cosmetic arena rain. */
+/**
+ * Server-owned, independently timed hazards and cosmetic arena rain.
+ * Each warning captures a fixed surface position; later player movement cannot
+ * move an announced fountain or postpone its eruption until a hit succeeds.
+ */
 final class WaterFountainAttack {
     private final WaterSheeperEntity boss;
     private final Map<UUID, Integer> playerDelays = new HashMap<>();
@@ -39,19 +46,30 @@ final class WaterFountainAttack {
     private static final class Warning {
         private final BlockPos pos;
         private final int size;
+        @Nullable
+        private final UUID playerId;
         private int ticks;
 
-        private Warning(BlockPos pos, int size, int ticks) {
+        private Warning(BlockPos pos, int size, int ticks, @Nullable UUID playerId) {
             this.pos = pos;
             this.size = size;
             this.ticks = ticks;
+            this.playerId = playerId;
         }
     }
 
+    /**
+     * @param boss owner whose discovered water surfaces define valid fountain
+     *             locations
+     */
     WaterFountainAttack(WaterSheeperEntity boss) {
         this.boss = boss;
     }
 
+    /**
+     * Starts independent announcement timers for players and random arena
+     * positions.
+     */
     void start() {
         playerDelays.clear();
         warnings.clear();
@@ -59,6 +77,10 @@ final class WaterFountainAttack {
         erupted = false;
     }
 
+    /**
+     * Cancels pending warnings and keeps only the cosmetic rain tail after an
+     * eruption.
+     */
     void finish() {
         warnings.clear();
         playerDelays.clear();
@@ -69,8 +91,20 @@ final class WaterFountainAttack {
         }
     }
 
+    /** Clears hazards and rain when the boss dies or the encounter fully resets. */
+    void reset() {
+        warnings.clear();
+        playerDelays.clear();
+        arenaDelay = 0;
+        rainDelay = -1;
+        rainTicks = 0;
+        erupted = false;
+        rainParticleRemainder = 0;
+    }
+
     private int initialDelay() {
-        return 1 + boss.getRandom().nextInt(SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get()));
+        return 1 + boss.getRandom()
+                .nextInt(SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get()));
     }
 
     private int nextDelay() {
@@ -79,6 +113,14 @@ final class WaterFountainAttack {
         return min + boss.getRandom().nextInt(max - min + 1);
     }
 
+    /**
+     * Resolves existing snapshots and periodically captures new positions beneath
+     * eligible players, independent of the boss's projectile target.
+     *
+     * @param players        current arena participants eligible for launch and
+     *                       direct damage
+     * @param remainingTicks phase time used to avoid warnings that cannot finish
+     */
     void tick(List<ServerPlayer> players, int remainingTicks) {
         // Resolve existing warnings before adding new ones: every warning gets
         // its full configured duration, including the tick it is first visible.
@@ -100,6 +142,11 @@ final class WaterFountainAttack {
         }
         playerDelays.keySet().removeIf(id -> players.stream().noneMatch(p -> p.getUUID().equals(id)));
         for (ServerPlayer player : players) {
+            // Keep one fixed warning per player. Its next interval starts only
+            // after this warning resolves, so new snapshots cannot form a chase.
+            if (warnings.stream().anyMatch(warning -> player.getUUID().equals(warning.playerId))) {
+                continue;
+            }
             int delay = playerDelays.computeIfAbsent(player.getUUID(), id -> initialDelay()) - 1;
             if (delay <= 0) {
                 BlockPos pos = boss.getArenaSurfacePositions().stream()
@@ -109,7 +156,7 @@ final class WaterFountainAttack {
                                 && player.getY() <= cell.getY() + 1 + SheeperConfig.WATER_FOUNTAIN_HIT_HEIGHT.get())
                         .max(java.util.Comparator.comparingInt(BlockPos::getY)).orElse(null);
                 if (pos != null) {
-                    announce(pos);
+                    announce(pos, player.getUUID());
                 }
                 delay = nextDelay();
             }
@@ -137,10 +184,28 @@ final class WaterFountainAttack {
         }
     }
 
+    /**
+     * Announces an independent random arena hazard without reserving a player's
+     * timer.
+     */
     private void announce(BlockPos pos) {
+        announce(pos, null);
+    }
+
+    /**
+     * Captures a water cell once and reserves a player's next announcement until
+     * this warning resolves. Ownership affects timing, not who the eruption can
+     * hit.
+     *
+     * @param pos      fixed water cell at announcement time
+     * @param playerId player whose announcement timer is paused, or null for arena
+     *                 hazards
+     */
+    private void announce(BlockPos pos, @Nullable UUID playerId) {
         int size = SheeperConfig.WATER_FOUNTAIN_SIZE.get();
         if (suitable(pos, size) && warnings.stream().noneMatch(w -> w.pos.equals(pos))) {
-            Warning warning = new Warning(pos, size, SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get()));
+            Warning warning = new Warning(pos, size,
+                    SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get()), playerId);
             warnings.add(warning);
             showWarning(warning);
         }
@@ -181,6 +246,13 @@ final class WaterFountainAttack {
         }
     }
 
+    /**
+     * Launches players still inside the announced area and deals direct damage at
+     * lift-off. Escaped warnings expire normally without following their target.
+     *
+     * @param warning fixed, fully elapsed warning
+     * @param players current arena participants, rechecked for overlap at eruption
+     */
     private void erupt(Warning warning, List<ServerPlayer> players) {
         if (!erupted) {
             erupted = true;
@@ -210,6 +282,11 @@ final class WaterFountainAttack {
             }
             double gravity = player.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
             Vec3 movement = player.getDeltaMovement();
+            player.hurt(DamageSource.mobAttack(boss), SheeperConfig.WATER_FOUNTAIN_DAMAGE.get().floatValue());
+            if (!player.isAlive()) {
+                continue;
+            }
+            // Keep the original horizontal momentum instead of vanilla damage knockback.
             player.setDeltaMovement(movement.x, launchSpeed(height, gravity), movement.z);
             player.fallDistance = 0;
             player.connection.send(new ClientboundSetEntityMotionPacket(player));
@@ -300,6 +377,9 @@ final class WaterFountainAttack {
             entry.putLong("Pos", warning.pos.asLong());
             entry.putInt("Size", warning.size);
             entry.putInt("Ticks", warning.ticks);
+            if (warning.playerId != null) {
+                entry.putUUID("Player", warning.playerId);
+            }
             pending.add(entry);
         });
         tag.put("Warnings", pending);
@@ -322,7 +402,8 @@ final class WaterFountainAttack {
         for (Tag value : tag.getList("Warnings", Tag.TAG_COMPOUND)) {
             CompoundTag entry = (CompoundTag) value;
             warnings.add(new Warning(BlockPos.of(entry.getLong("Pos")),
-                    Math.max(1, Math.min(9, entry.getInt("Size"))), Math.max(1, entry.getInt("Ticks"))));
+                    Math.max(1, Math.min(9, entry.getInt("Size"))), Math.max(1, entry.getInt("Ticks")),
+                    entry.hasUUID("Player") ? entry.getUUID("Player") : null));
         }
     }
 }

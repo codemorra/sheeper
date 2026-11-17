@@ -473,6 +473,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                     proximityPush.tick(getCombatParticipants());
                 }
             }
+            specialAttacks.tickEffects();
         }
         if (level.isClientSide && isAlive() && !isInvisible() && tickCount % 2 == 0) {
             spawnBeamParticles();
