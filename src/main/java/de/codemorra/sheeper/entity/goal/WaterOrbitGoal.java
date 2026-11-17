@@ -48,7 +48,7 @@ public final class WaterOrbitGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady()
+        return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady() && !boss.isPerformingBeam()
                 && boss.getTarget() instanceof ServerPlayer && boss.getMovementRadius() > 0
                 && SheeperConfig.WATER_MOVEMENT_SPEED.get() > 0;
     }

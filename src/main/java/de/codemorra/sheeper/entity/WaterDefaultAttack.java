@@ -41,10 +41,12 @@ final class WaterDefaultAttack {
      * only after the pause and may choose the same player again.
      *
      * @param participants currently eligible arena players
+     * @param advanceCycle whether regular firing and target-switch timers may
+     *                     advance
      * @return shared movement and firing target, or {@code null} for an empty arena
      */
     @Nullable
-    ServerPlayer tickTarget(List<ServerPlayer> participants) {
+    ServerPlayer tickTarget(List<ServerPlayer> participants, boolean advanceCycle) {
         if (participants.isEmpty()) {
             // Keep the firing cycle frozen during a temporary arena exit.
             targetId = null;
@@ -56,7 +58,7 @@ final class WaterDefaultAttack {
         if (target == null) {
             target = selectTarget(participants);
         }
-        if (--phaseTicks <= 0) {
+        if (advanceCycle && --phaseTicks <= 0) {
             firing = !firing;
             if (firing) {
                 target = selectTarget(participants);
@@ -73,6 +75,20 @@ final class WaterDefaultAttack {
         }
         updateCloseRange(target);
         return target;
+    }
+
+    /**
+     * @return whether the entry pause has elapsed and the firing cycle is active
+     */
+    boolean isFiring() {
+        return firing;
+    }
+
+    /** Reselects a random target and resumes firing on the next cycle update. */
+    void resumeAfterSpecial() {
+        firing = false;
+        phaseTicks = 1;
+        shotTicks = 0;
     }
 
     private ServerPlayer selectTarget(List<ServerPlayer> participants) {

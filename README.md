@@ -39,6 +39,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 - **Flooded arena:** The Water Sheeper floods nearby terrain before combat begins. Its water spreads outward and recedes after defeat, preserving existing natural water.
 - **Arena boundary:** Water spray marks the combat boundary and becomes more visible nearby.
+- **Water beam:** A stationary, warned stream with gradual tracking and fixed reach replaces projectile support briefly, followed by a recovery window.
 - **Movement:** The Water Sheeper approaches and circles a player inside its flooded arena, with occasional short water sprints.
 - **Default attack:** Fires water projectiles while circling, with brief firing pauses before randomly selecting its next target. At close range, it pauses shooting and approaches for a melee opening. Players who remain too close are pushed away independently of its selected target.
 - **Arena rules:** Only players inside the arena and their attributable attacks can damage the boss. Creative players may deal damage but do not join combat or stop regeneration. Without combat participants, the boss blocks other damage and regenerates after a grace period; full recovery resets the encounter.
