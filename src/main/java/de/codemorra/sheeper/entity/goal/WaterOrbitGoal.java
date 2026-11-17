@@ -344,4 +344,15 @@ public final class WaterOrbitGoal extends Goal {
         sprintEndTick = 0;
         stopHorizontalMovement();
     }
+
+    /** Clears orbit history and sprint cooldown after full encounter recovery. */
+    public void reset() {
+        stop();
+        targetId = null;
+        previousPlayerPosition = null;
+        circleRadius = 0;
+        nextPlanTick = 0;
+        nextDirectionChangeTick = 0;
+        sprintReadyTick = 0;
+    }
 }

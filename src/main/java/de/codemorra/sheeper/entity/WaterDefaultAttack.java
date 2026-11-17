@@ -46,7 +46,9 @@ final class WaterDefaultAttack {
     @Nullable
     ServerPlayer tickTarget(List<ServerPlayer> participants) {
         if (participants.isEmpty()) {
-            reset();
+            // Keep the firing cycle frozen during a temporary arena exit.
+            targetId = null;
+            closingOnTarget = false;
             return null;
         }
         ServerPlayer target = participants.stream().filter(player -> player.getUUID().equals(targetId))
@@ -136,7 +138,7 @@ final class WaterDefaultAttack {
         }
     }
 
-    /** Restores the entry delay when no players remain in the arena. */
+    /** Restores the entry delay after the arena encounter has fully recovered. */
     void reset() {
         targetId = null;
         firing = false;

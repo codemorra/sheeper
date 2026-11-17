@@ -429,6 +429,17 @@ public class SheeperConfig {
                     "Only living survival/adventure players participate in combat.")
             .defineInRange("elemental.water.combatHeightRange", 15.0, 0.0, 128.0);
 
+    /** Empty-arena grace and recovery (elemental.water.arenaRecovery). */
+    public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = BUILDER
+            .comment("Seconds without arena participants before regeneration begins.",
+                    "The boss rejects damage immediately; returning players cancel recovery.")
+            .defineInRange("elemental.water.arenaRecovery.graceSeconds", 10.0, 0.0, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_REGENERATION = BUILDER
+            .comment("Percentage of maximum health restored per second after the empty-arena grace period.",
+                    "Full recovery resets the encounter; returning players stop further healing.")
+            .defineInRange("elemental.water.arenaRecovery.healthPercentPerSecond", 5.0, 0.1, 25.0);
+
     /** Water boss movement (elemental.water.movement). */
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds between local circling waypoints.")
