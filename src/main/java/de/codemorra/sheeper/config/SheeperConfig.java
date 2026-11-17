@@ -554,55 +554,59 @@ public class SheeperConfig {
             .comment("Maximum flight duration in seconds; range is speedBlocksPerSecond multiplied by lifetimeSeconds.")
             .defineInRange("elemental.water.projectile.lifetimeSeconds", 5.0, 0.05, 600.0);
 
-    /** Water projectile salvos (elemental.water.salvo). */
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_PREPARATION = BUILDER
-            .comment("Preparation seconds before the first salvo shot; eyes gradually turn red.")
-            .defineInRange("elemental.water.salvo.preparationSeconds", 2.0, 0.05, 60.0);
+    /** Continuous water beam (elemental.water.beam). */
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_COOLDOWN = BUILDER
+            .comment("Seconds after a beam ends before another beam may start.")
+            .defineInRange("elemental.water.beam.cooldownSeconds", 20.0, 1.0, 120.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_DURATION_MIN = BUILDER
-            .comment("Minimum salvo firing duration in seconds, excluding preparation.",
-                    "Sampled once at phase start; duration continues during sight loss.")
-            .defineInRange("elemental.water.salvo.durationMinSeconds", 5.0, 0.05, 60.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_PREPARATION = BUILDER
+            .comment("Stationary warning seconds before firing; eyes gradually turn red.")
+            .defineInRange("elemental.water.beam.preparationSeconds", 2.0, 0.1, 5.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_DURATION_MAX = BUILDER
-            .comment("Maximum salvo firing duration; capped below by durationMinSeconds.")
-            .defineInRange("elemental.water.salvo.durationMaxSeconds", 10.0, 0.05, 60.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_DURATION_MIN = BUILDER
+            .comment("Minimum firing duration, excluding preparation.")
+            .defineInRange("elemental.water.beam.durationMinSeconds", 5.0, 0.5, 15.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_INTERVAL = BUILDER
-            .comment("Seconds between salvo shots.")
-            .defineInRange("elemental.water.salvo.intervalSeconds", 0.3, 0.05, 60.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_DURATION_MAX = BUILDER
+            .comment("Maximum firing duration; capped below by durationMinSeconds.")
+            .defineInRange("elemental.water.beam.durationMaxSeconds", 8.0, 0.5, 15.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_SIGHT_TIMEOUT = BUILDER
-            .comment("Consecutive seconds without sight before aborting a salvo. Shots pause during sight loss.")
-            .defineInRange("elemental.water.salvo.sightTimeoutSeconds", 1.0, 0.05, 60.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_RANGE = BUILDER
+            .comment("Fixed beam reach in blocks, independent of target distance. Solid blocks stop the beam.")
+            .defineInRange("elemental.water.beam.range", 50.0, 1.0, 128.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_EYE_FADE = BUILDER
-            .comment("Seconds for red eyes to fade out after completing or aborting a salvo.")
-            .defineInRange("elemental.water.salvo.eyeFadeSeconds", 0.5, 0.05, 60.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_EXTENSION = BUILDER
+            .comment("Seconds for the beam to extend from the mouth to its full range.")
+            .defineInRange("elemental.water.beam.extensionSeconds", 0.5, 0.05, 2.0);
 
-    /** Water attack selection and rest periods (elemental.water.attack). */
-    public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_WEIGHT = BUILDER
-            .comment("Relative weight of regular projectile phases. Chance = weight / sum of all three attack weights.",
-                    "Equal weights give equal chances. 0 disables this type; all weights 0 disable new attacks.")
-            .defineInRange("elemental.water.attack.projectileWeight", 1.0, 0.0, 100.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_TRACKING_RESPONSE = BUILDER
+            .comment("Aim response time in seconds; larger values make player tracking slower.")
+            .defineInRange("elemental.water.beam.trackingResponseSeconds", 0.5, 0.05, 2.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WEIGHT = BUILDER
-            .comment("Relative weight of fountain phases; 0 disables this type.")
-            .defineInRange("elemental.water.attack.fountainWeight", 1.0, 0.0, 100.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_DAMAGE_PER_SECOND = BUILDER
+            .comment("Beam damage in health points on first contact, then once per second of contact.")
+            .defineInRange("elemental.water.beam.damagePerSecond", 2.0, 0.0, 20.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SALVO_WEIGHT = BUILDER
-            .comment("Relative weight of salvo phases; 0 disables this type.")
-            .defineInRange("elemental.water.attack.salvoWeight", 1.0, 0.0, 100.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_SIGHT_TIMEOUT = BUILDER
+            .comment("Consecutive seconds without sight before aborting; collision still stops the visible beam.")
+            .defineInRange("elemental.water.beam.sightTimeoutSeconds", 1.0, 0.1, 5.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_ATTACK_PAUSE_MIN = BUILDER
-            .comment("Minimum rest seconds after an attack. No new attacks start during rest.",
-                    "Rest pauses without eligible players. Projectile attacks end if their chosen target becomes ineligible.",
-                    "NoAI pauses both attack and rest timers.")
-            .defineInRange("elemental.water.attack.pauseMinSeconds", 2.0, 0.0, 60.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_EYE_FADE = BUILDER
+            .comment("Seconds for warning eyes to fade after the beam ends.")
+            .defineInRange("elemental.water.beam.eyeFadeSeconds", 0.5, 0.05, 2.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_ATTACK_PAUSE_MAX = BUILDER
-            .comment("Maximum rest seconds; capped below by pauseMinSeconds. Both may be 0 to disable rest.")
-            .defineInRange("elemental.water.attack.pauseMaxSeconds", 4.0, 0.0, 60.0);
+    /** Shared recovery after stationary specials (elemental.water.special). */
+    public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_RECOVERY = BUILDER
+            .comment("Seconds without attacks after a stationary special; movement resumes immediately.")
+            .defineInRange("elemental.water.special.recoverySeconds", 2.0, 0.1, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_DEFAULT_ONLY_MIN = BUILDER
+            .comment("Minimum default-only seconds following recovery before another special may start.")
+            .defineInRange("elemental.water.special.defaultOnlyMinSeconds", 5.0, 0.1, 20.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_DEFAULT_ONLY_MAX = BUILDER
+            .comment("Maximum default-only seconds following recovery; capped below by defaultOnlyMinSeconds.")
+            .defineInRange("elemental.water.special.defaultOnlyMaxSeconds", 10.0, 0.1, 30.0);
 
     /** Water fountains (elemental.water.fountain). */
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MIN = BUILDER

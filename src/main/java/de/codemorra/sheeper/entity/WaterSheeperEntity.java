@@ -21,6 +21,7 @@ import de.codemorra.sheeper.registry.ModFluids;
 import de.codemorra.sheeper.world.WaterArenaData;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -47,8 +48,18 @@ import net.minecraftforge.fluids.FluidType;
 /**
  * Owns arena discovery, tracked water placement and the shared movement/attack
  * target. Dedicated controllers handle projectile timing and proximity pushes.
+ * A separate special scheduler owns beam timing and stationary movement locks.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
+    public static final double BEAM_RADIUS = 0.25D;
+    private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_BEAM_X = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_BEAM_Y = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_BEAM_Z = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.BOOLEAN);
 
@@ -67,6 +78,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final WaterProximityPush proximityPush = new WaterProximityPush(this);
     private final WaterArenaCombat arenaCombat = new WaterArenaCombat(this);
     private final WaterArenaBoundary arenaBoundary = new WaterArenaBoundary(this);
+    private final WaterSpecialAttacks specialAttacks = new WaterSpecialAttacks(this);
+    private float previousBeamEyeIntensity;
     private WaterOrbitGoal orbitGoal;
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
@@ -82,6 +95,44 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+        entityData.define(DATA_BEAM_EYES, 0.0F);
+        entityData.define(DATA_BEAM_X, 0.0F);
+        entityData.define(DATA_BEAM_Y, 0.0F);
+        entityData.define(DATA_BEAM_Z, 0.0F);
+    }
+
+    /** @return interpolated red-eye warning intensity for client presentation */
+    public float getBeamEyeIntensity(float partialTick) {
+        return Mth.lerp(partialTick, previousBeamEyeIntensity, entityData.get(DATA_BEAM_EYES));
+    }
+
+    /** Updates the warning intensity on the server for all tracking clients. */
+    void setBeamEyeIntensity(float intensity) {
+        entityData.set(DATA_BEAM_EYES, Mth.clamp(intensity, 0, 1));
+    }
+
+    /**
+     * @return whether beam warning or firing currently locks horizontal movement
+     */
+    public boolean isPerformingBeam() {
+        return specialAttacks.isBeamActive();
+    }
+
+    /** @return mouth-height beam origin, scaled with the boss's body */
+    public Vec3 getBeamOrigin() {
+        return getEyePosition().add(0, -0.15D * getSizeMultiplier(), 0);
+    }
+
+    /** @return server-authoritative collision segment relative to the mouth */
+    public Vec3 getBeamOffset() {
+        return new Vec3(entityData.get(DATA_BEAM_X), entityData.get(DATA_BEAM_Y), entityData.get(DATA_BEAM_Z));
+    }
+
+    /** Synchronizes the collision segment; a zero vector hides the beam. */
+    void setBeamOffset(Vec3 offset) {
+        entityData.set(DATA_BEAM_X, (float) offset.x);
+        entityData.set(DATA_BEAM_Y, (float) offset.y);
+        entityData.set(DATA_BEAM_Z, (float) offset.z);
     }
 
     /**
@@ -172,7 +223,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        if (type == MoverType.SELF && !level.isClientSide && (!isCombatReady() || isNoAi())) {
+        if (type == MoverType.SELF && !level.isClientSide && (!isCombatReady() || isNoAi() || isPerformingBeam())) {
             movement = new Vec3(0.0D, movement.y, 0.0D);
         }
         if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()) {
@@ -253,11 +304,20 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             stopHorizontalMovement();
             return;
         }
-        ServerPlayer target = defaultAttack.tickTarget(getCombatParticipants());
+        List<ServerPlayer> participants = getCombatParticipants();
+        specialAttacks.tickTimers(participants, defaultAttack);
+        ServerPlayer target = defaultAttack.tickTarget(participants, !specialAttacks.suppressesDefault());
         setTarget(target);
         if (target == null) {
             stopHorizontalMovement();
         } else {
+            specialAttacks.tryStart(target, defaultAttack);
+            if (isPerformingBeam()) {
+                stopHorizontalMovement();
+                Vec3 aim = specialAttacks.getAimPosition();
+                getLookControl().setLookAt(aim.x, aim.y, aim.z, 90.0F, 45.0F);
+                return;
+            }
             // Look control turns the head without overwriting navigation's body yaw.
             getLookControl().setLookAt(target, 90.0F, 45.0F);
         }
@@ -289,6 +349,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     void resetArenaEncounter() {
         defaultAttack.reset();
         proximityPush.reset();
+        specialAttacks.reset();
         setTarget(null);
         orbitGoal.reset();
     }
@@ -378,6 +439,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void tick() {
+        previousBeamEyeIntensity = entityData.get(DATA_BEAM_EYES);
         if (!level.isClientSide) {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();
@@ -405,9 +467,28 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             arenaBoundary.tick();
             if (!isNoAi()) {
                 arenaCombat.tick(getCombatParticipants());
-                defaultAttack.tickProjectiles();
-                proximityPush.tick(getCombatParticipants());
+                specialAttacks.tickAttack();
+                if (!specialAttacks.suppressesDefault()) {
+                    defaultAttack.tickProjectiles();
+                    proximityPush.tick(getCombatParticipants());
+                }
             }
+        }
+        if (level.isClientSide && isAlive() && !isInvisible() && tickCount % 2 == 0) {
+            spawnBeamParticles();
+        }
+    }
+
+    /** Adds sparse client-side spray around the synchronized water tube. */
+    private void spawnBeamParticles() {
+        Vec3 offset = getBeamOffset();
+        int count = Math.min(24, (int) Math.ceil(offset.length() / 2));
+        for (int index = 0; index < count; index++) {
+            Vec3 point = getBeamOrigin().add(offset.scale((index + random.nextDouble()) / count));
+            level.addParticle(ParticleTypes.SPLASH,
+                    point.x + random.nextGaussian() * BEAM_RADIUS,
+                    point.y + random.nextGaussian() * BEAM_RADIUS,
+                    point.z + random.nextGaussian() * BEAM_RADIUS, 0, 0.03D, 0);
         }
     }
 
@@ -456,6 +537,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         super.die(source);
         if (dead && level instanceof ServerLevel server) {
             setTarget(null);
+            specialAttacks.reset();
             stopHorizontalMovement();
             WaterArenaData.get(server).release(getUUID());
         }
@@ -467,6 +549,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.put("WaterDefaultAttack", defaultAttack.save());
         tag.put("WaterProximityPush", proximityPush.save());
         tag.put("WaterArenaCombat", arenaCombat.save());
+        tag.put("WaterSpecialAttacks", specialAttacks.save());
         ListTag contacts = new ListTag();
         waterWaveContacts.forEach(id -> {
             CompoundTag entry = new CompoundTag();
@@ -509,6 +592,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         defaultAttack.load(tag.getCompound("WaterDefaultAttack"));
         proximityPush.load(tag.getList("WaterProximityPush", Tag.TAG_COMPOUND));
         arenaCombat.load(tag.getCompound("WaterArenaCombat"));
+        specialAttacks.load(tag.getCompound("WaterSpecialAttacks"));
         setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.
         arenaCenter = tag.contains("WaterArenaCenter", Tag.TAG_LONG)
