@@ -422,7 +422,7 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_RADIUS = BUILDER
             .comment("Horizontal movement radius around the water Sheeper's saved spawn position.",
                     "Capped at combatRadius; measured at the boss's feet.")
-            .defineInRange("elemental.water.movementRadius", 10.0, 0.0, 128.0);
+            .defineInRange("elemental.water.movementRadius", 30.0, 0.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_HEIGHT_RANGE = BUILDER
             .comment("Maximum player feet height difference above or below the saved arena origin.",
@@ -431,16 +431,41 @@ public class SheeperConfig {
 
     /** Water boss movement (elemental.water.movement). */
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
-            .comment("Minimum seconds between random arena movement targets.")
-            .defineInRange("elemental.water.movement.intervalMinSeconds", 5.0, 0.05, 600.0);
+            .comment("Minimum seconds between local circling waypoints.")
+            .defineInRange("elemental.water.movement.intervalMinSeconds", 1.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MAX = BUILDER
-            .comment("Maximum seconds between random arena movement targets; capped below by the minimum.")
-            .defineInRange("elemental.water.movement.intervalMaxSeconds", 10.0, 0.05, 600.0);
+            .comment("Maximum seconds between local circling waypoints; capped below by the minimum.")
+            .defineInRange("elemental.water.movement.intervalMaxSeconds", 2.0, 0.05, 600.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPEED = BUILDER
-            .comment("Navigation speed multiplier for random arena movement. 0 disables movement.")
+            .comment("Navigation speed multiplier for approaching and circling players. 0 disables movement.")
             .defineInRange("elemental.water.movement.speedMultiplier", 1.0, 0.0, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_ORBIT_DISTANCE = BUILDER
+            .comment("Preferred distance for circling the selected player in blocks.",
+                    "Approaching players shrink the circle instead of making the boss retreat.")
+            .defineInRange("elemental.water.movement.orbitDistance", 10.0, 1.0, 64.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SWIM_SPEED = BUILDER
+            .comment("Water boss swim acceleration multiplier; offsets ordinary sheep water slowdown.")
+            .defineInRange("elemental.water.movement.swimSpeedMultiplier", 4.0, 0.1, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_CHANCE = BUILDER
+            .comment("Chance of a short sprint when choosing a waypoint and the sprint cooldown has elapsed.")
+            .defineInRange("elemental.water.movement.sprintChance", 0.25, 0.0, 1.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_MULTIPLIER = BUILDER
+            .comment("Additional navigation speed multiplier during short water sprints.")
+            .defineInRange("elemental.water.movement.sprintSpeedMultiplier", 2.0, 1.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_DURATION = BUILDER
+            .comment("Water sprint duration in seconds; 0 disables sprints.")
+            .defineInRange("elemental.water.movement.sprintSeconds", 0.75, 0.0, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_COOLDOWN = BUILDER
+            .comment("Minimum time in seconds after a sprint before another sprint can begin.")
+            .defineInRange("elemental.water.movement.sprintCooldownSeconds", 6.0, 0.0, 60.0);
 
     /**
      * Water-contact spawn wave and legacy proximity strengths
