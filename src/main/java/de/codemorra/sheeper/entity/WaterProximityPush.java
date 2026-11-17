@@ -75,6 +75,11 @@ final class WaterProximityPush {
         player.hurtMarked = false;
     }
 
+    /** Clears all per-player progress when the encounter fully resets. */
+    void reset() {
+        remainingTicks.clear();
+    }
+
     /** @return per-player proximity timers for entity persistence */
     ListTag save() {
         ListTag tag = new ListTag();

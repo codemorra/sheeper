@@ -65,6 +65,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     private final WaterDefaultAttack defaultAttack = new WaterDefaultAttack(this);
     private final WaterProximityPush proximityPush = new WaterProximityPush(this);
+    private final WaterArenaCombat arenaCombat = new WaterArenaCombat(this);
+    private WaterOrbitGoal orbitGoal;
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
@@ -148,7 +150,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     protected void registerGoals() {
-        goalSelector.addGoal(0, new WaterOrbitGoal(this));
+        orbitGoal = new WaterOrbitGoal(this);
+        goalSelector.addGoal(0, orbitGoal);
     }
 
     /**
@@ -197,9 +200,27 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private boolean isEligiblePlayer(ServerPlayer player, double radius, double heightRange) {
-        return isActivePlayer(player)
+        return isActivePlayer(player) && isWithinArenaBounds(player, radius, heightRange);
+    }
+
+    /** Checks spatial bounds independently of game mode or combat participation. */
+    private boolean isWithinArenaBounds(ServerPlayer player, double radius, double heightRange) {
+        return player.level == level
                 && horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
                 && Math.abs(player.getY() - getArenaCenter().getY()) <= heightRange;
+    }
+
+    /**
+     * Grants damage permission independently of combat participation. Creative
+     * players may attack inside the arena without becoming targets or stopping
+     * regeneration; spectators and outside players remain excluded.
+     *
+     * @param player responsible player of a direct or indirect attack
+     * @return whether the player is alive and inside this arena's combat bounds
+     */
+    boolean canPlayerDamage(ServerPlayer player) {
+        return isAlive() && player.isAlive() && !player.isRemoved() && !player.isSpectator()
+                && isWithinArenaBounds(player, getCombatRadius(), SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get());
     }
 
     private boolean isActivePlayer(ServerPlayer player) {
@@ -247,10 +268,28 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 || level instanceof ServerLevel server && WaterArenaData.get(server).isGenerated(getUUID());
     }
 
+    /**
+     * Rejects combat damage unless its responsible player has arena damage
+     * permission. Administrative removal and the void retain vanilla handling.
+     *
+     * @param source incoming damage source, including indirect attack ownership
+     * @return whether this source is blocked by vanilla or arena rules
+     */
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
-        // Keep /kill and void removal available during preparation.
-        return !isCombatReady() && source != DamageSource.OUT_OF_WORLD || super.isInvulnerableTo(source);
+        return super.isInvulnerableTo(source)
+                || source != DamageSource.OUT_OF_WORLD && !arenaCombat.allowsDamage(source);
+    }
+
+    /**
+     * Restores attack and movement controllers after full empty-arena recovery.
+     * Arena origin, discovered terrain and existing water remain intact.
+     */
+    void resetArenaEncounter() {
+        defaultAttack.reset();
+        proximityPush.reset();
+        setTarget(null);
+        orbitGoal.reset();
     }
 
     private boolean touchesArenaWater(ServerPlayer player, WaterArenaData data) {
@@ -362,6 +401,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         super.tick();
         if (!level.isClientSide && isAlive() && isCombatReady() && !isNoAi()) {
+            arenaCombat.tick(getCombatParticipants());
             defaultAttack.tickProjectiles();
             proximityPush.tick(getCombatParticipants());
         }
@@ -422,6 +462,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         super.addAdditionalSaveData(tag);
         tag.put("WaterDefaultAttack", defaultAttack.save());
         tag.put("WaterProximityPush", proximityPush.save());
+        tag.put("WaterArenaCombat", arenaCombat.save());
         ListTag contacts = new ListTag();
         waterWaveContacts.forEach(id -> {
             CompoundTag entry = new CompoundTag();
@@ -463,6 +504,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         defaultAttack.load(tag.getCompound("WaterDefaultAttack"));
         proximityPush.load(tag.getList("WaterProximityPush", Tag.TAG_COMPOUND));
+        arenaCombat.load(tag.getCompound("WaterArenaCombat"));
         setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.
         arenaCenter = tag.contains("WaterArenaCenter", Tag.TAG_LONG)
