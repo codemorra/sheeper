@@ -658,6 +658,23 @@ public class SheeperConfig {
             .comment("Maximum local raindrops per second and arena.")
             .defineInRange("elemental.water.fountain.rain.particlesPerSecond", 480, 0, 5120);
 
+    /** Cosmetic combat boundary (elemental.water.boundary). */
+    public static final ForgeConfigSpec.BooleanValue WATER_BOUNDARY_ENABLED = BUILDER
+            .comment("Show water spray along the water boss's combat boundary.")
+            .define("elemental.water.boundary.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SPACING = BUILDER
+            .comment("Approximate blocks between boundary samples; at most 512 samples per arena.")
+            .defineInRange("elemental.water.boundary.spacing", 2.0, 0.5, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_INTERVAL = BUILDER
+            .comment("Seconds between boundary particle pulses.")
+            .defineInRange("elemental.water.boundary.intervalSeconds", 0.5, 0.1, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_WARNING_DISTANCE = BUILDER
+            .comment("Distance to a boundary sample at which additional water droplets appear.")
+            .defineInRange("elemental.water.boundary.warningDistance", 8.0, 1.0, 16.0);
+
     /** Water arena discovery, flooding and cleanup (elemental.water.arena). */
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
             .comment("Maximum surface-cell height difference above or below the saved spawn position.",
