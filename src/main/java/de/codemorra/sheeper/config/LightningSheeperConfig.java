@@ -3,11 +3,12 @@ package de.codemorra.sheeper.config;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
- * Installation-wide lightning Sheeper settings, currently part of the shared
- * common file.
+ * Installation-wide lightning Sheeper settings in their own common
+ * configuration file.
  */
 public final class LightningSheeperConfig {
-    private static final ForgeConfigSpec.Builder BUILDER = CommonConfigBuilder.BUILDER;
+    public static final String FILE_NAME = "sheeper/lightning.toml";
+    private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Lightning elemental boss and combat bounds (elemental.lightning). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = ElementalConfigValues
@@ -406,12 +407,7 @@ public final class LightningSheeperConfig {
             .comment("Electrical impact volume per discharge. 0 disables this sound.")
             .defineInRange("elemental.lightning.proximityPush.impactVolume", 0.8, 0.0, 4.0);
 
-    /**
-     * Ensures these definitions exist before the shared common specification is
-     * built.
-     */
-    static void initialize() {
-    }
+    public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private LightningSheeperConfig() {
     }

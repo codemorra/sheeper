@@ -83,11 +83,8 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 **Gameplay: `config/sheeper-common.toml`**
 
-The server's copy controls gameplay in multiplayer. All settings are grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, `carpet`, and `elemental`.
+The server's copy controls gameplay in multiplayer. Normal Sheeper settings remain grouped under `sheeper`, `spawning`, `baby`, `breeding`, `mutton`, `wool`, and `carpet`.
 
-- **Elemental bosses:** Each element has independent `elemental.<element>.size` and `elemental.<element>.maxHealth` settings, where `<element>` is `lava`, `lightning`, or `water`. Size defaults to `2.0` (range `0.5–4.0`); `1.0` matches normal sheep/Sheeper size. Maximum health defaults to `200` for each element (range `1–1024` health points). Changes apply to existing bosses; health changes preserve the remaining health percentage. The server synchronizes size for matching models and hitboxes.
-- **Water boss:** `elemental.water` controls arena bounds, flooding and cleanup speed, movement, and spawn launches.
-- **Lightning boss:** `elemental.lightning` groups arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather. Attack selection under `elemental.lightning.attack` uses equal weights by default.
 - **Adults and spawning:** Detection radius, observation angle, fuse distance/duration, adult explosion strength, and natural spawn chance. Fatal fire uses the same fuse duration and explosion strength as stealth. Fuse distance is capped at detection radius; spawn chance ranges from 0% to 100%.
 - **Retaliation and bursts:** Pursuit speed, contact fuse duration, attack pause, and burst radius, damage, and additional knockback. Pursuit uses the existing detection radius. Zero disables burst damage or additional knockback; ordinary hit reactions still apply.
 - **Babies:** Extra speed, bump knockback, explosion strength, and minimum/maximum attack pauses. A maximum pause below the minimum is treated as equal to the minimum.
@@ -102,6 +99,14 @@ The server's copy controls gameplay in multiplayer. All settings are grouped und
 Durations and intervals use seconds. Projectile speed and particle/processing rates use units per second. Damage uses health points: 1 is half a heart. A zero eating duration disables that food's effect for new meals; zero damage, knockback, or speed disables that component. Ordinary Minecraft damage immunity still applies to very short intervals. Explosion strength 0 suppresses the blast but retains the enabled reaction's consumption and appliance removal. Use the reaction's enable switch to disable it entirely.
 
 Eating durations and normal wool fuses are captured when eating/igniting. New internal-explosion intervals apply after the next scheduled explosion; damage and speed settings are read during the active effect. Other existing Sheeper settings retain their previous behavior.
+
+**Elemental bosses: `config/sheeper/lava.toml`, `lightning.toml`, and `water.toml`**
+
+Each element has its own common config file, with settings under `elemental.<element>`.
+
+- **Shared options:** Each element has independent `size` and `maxHealth` settings. Size changes also affect hitboxes; health changes preserve the remaining health percentage. The server synchronizes boss size to clients.
+- **Water:** `elemental.water` controls the flooded arena, movement, attacks, proximity defense, and recovery.
+- **Lightning:** `elemental.lightning` controls arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather.
 
 **Presentation: `config/sheeper-client.toml`**
 

@@ -1,6 +1,8 @@
 package de.codemorra.sheeper.gametest;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
@@ -9,6 +11,7 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LavaSheeperConfig;
 import de.codemorra.sheeper.entity.SheeperEntity;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
@@ -53,7 +56,7 @@ public final class GameTestContext implements AutoCloseable {
     final ServerLevel level;
     final List<Explosion> explosions = new ArrayList<>();
     private final List<TestPlayer> players = new ArrayList<>();
-    private final CommentedConfig originalConfig;
+    private final Map<ForgeConfigSpec, CommentedConfig> originalConfigs = new LinkedHashMap<>();
     private final List<Runnable> ruleRestorers = new ArrayList<>();
     private final AABB bounds;
     private final long startTick;
@@ -66,15 +69,21 @@ public final class GameTestContext implements AutoCloseable {
         startTick = helper.getTick();
         bounds = new AABB(pos(0, 0, 0), pos(24, 9, 24)).inflate(3);
         clearEntities();
-        originalConfig = ConfigTracker.INSTANCE.configSets().get(ModConfig.Type.COMMON).stream()
-                .filter(config -> config.getSpec() == SheeperConfig.SPEC)
-                .findFirst().orElseThrow(() -> new IllegalStateException("Sheeper common config is not loaded"))
-                .getConfigData();
-        // A file-backed ConfigValue.set() autosaves and triggers asynchronous reloads.
-        // Give this scene fresh defaults in memory; the real config remains untouched.
-        CommentedConfig sceneConfig = CommentedConfig.inMemory();
-        SheeperConfig.SPEC.correct(sceneConfig);
-        SheeperConfig.SPEC.setConfig(sceneConfig);
+        for (ForgeConfigSpec spec : List.of(SheeperConfig.SPEC, LavaSheeperConfig.SPEC,
+                LightningSheeperConfig.SPEC, WaterSheeperConfig.SPEC)) {
+            CommentedConfig original = ConfigTracker.INSTANCE.configSets().get(ModConfig.Type.COMMON).stream()
+                    .filter(config -> config.getSpec() == spec)
+                    .findFirst().orElseThrow(() -> new IllegalStateException("Sheeper common config is not loaded"))
+                    .getConfigData();
+            originalConfigs.put(spec, original);
+        }
+        // ConfigValue.set() on a file-backed spec autosaves. Isolate every common
+        // specification in memory so scenes never modify the installed boss files.
+        originalConfigs.keySet().forEach(spec -> {
+            CommentedConfig sceneConfig = CommentedConfig.inMemory();
+            spec.correct(sceneConfig);
+            spec.setConfig(sceneConfig);
+        });
         active = this;
         MinecraftForge.EVENT_BUS.register(this);
         set(SheeperConfig.NATURAL_SPAWN_CHANCE, 0.0);
@@ -277,7 +286,7 @@ public final class GameTestContext implements AutoCloseable {
             MinecraftForge.EVENT_BUS.post(new PlayerEvent.PlayerLoggedOutEvent(player));
             level.removePlayerImmediately(player, Entity.RemovalReason.DISCARDED);
         }
-        SheeperConfig.SPEC.setConfig(originalConfig);
+        originalConfigs.forEach((spec, original) -> spec.setConfig(original));
         for (int index = ruleRestorers.size() - 1; index >= 0; index--) {
             ruleRestorers.get(index).run();
         }

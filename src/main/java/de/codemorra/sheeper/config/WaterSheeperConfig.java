@@ -3,11 +3,12 @@ package de.codemorra.sheeper.config;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
- * Installation-wide water Sheeper settings, currently part of the shared common
+ * Installation-wide water Sheeper settings in their own common configuration
  * file.
  */
 public final class WaterSheeperConfig {
-    private static final ForgeConfigSpec.Builder BUILDER = CommonConfigBuilder.BUILDER;
+    public static final String FILE_NAME = "sheeper/water.toml";
+    private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Water elemental boss and combat bounds (elemental.water). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = ElementalConfigValues
@@ -409,12 +410,7 @@ public final class WaterSheeperConfig {
                     "0 disables layer timing. Unloaded cells are retried without blocking loaded cleanup.")
             .defineInRange("elemental.water.arena.drainWaveIntervalSeconds", 0.1, 0.0, 10.0);
 
-    /**
-     * Ensures these definitions exist before the shared common specification is
-     * built.
-     */
-    static void initialize() {
-    }
+    public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private WaterSheeperConfig() {
     }
