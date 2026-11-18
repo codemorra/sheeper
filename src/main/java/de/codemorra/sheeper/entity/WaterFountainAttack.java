@@ -47,6 +47,7 @@ final class WaterFountainAttack {
         private final Set<UUID> hitPlayers = new HashSet<>();
         private int warningTicks;
         private int activeTicks;
+        private boolean restoreEffects;
 
         private Fountain(BlockPos pos, int size, double ceiling, @Nullable UUID playerId,
                 int warningTicks, int activeTicks) {
@@ -121,6 +122,12 @@ final class WaterFountainAttack {
             if (!suitable(fountain.pos, fountain.size)) {
                 iterator.remove();
                 continue;
+            }
+            if (fountain.restoreEffects) {
+                // Loading NBT precedes arena initialization. Recreate only the
+                // emitter once water bounds are available, using remaining time.
+                showColumn(fountain, fountain.warningTicks > 0);
+                fountain.restoreEffects = false;
             }
             if (fountain.warningTicks > 0) {
                 fountain.warningTicks--;
@@ -385,7 +392,13 @@ final class WaterFountainAttack {
         return tag;
     }
 
-    /** @param tag saved columns; incompatible old launch/rain state is discarded */
+    /**
+     * Restores hit history and transport without replaying their initial effects.
+     * Saved warning/current emitters resume on the next active tick, after the
+     * arena has initialized, for their remaining lifetime only.
+     *
+     * @param tag saved columns; incompatible old launch/rain state is discarded
+     */
     void load(CompoundTag tag) {
         reset();
         if (tag.getInt("Version") != SAVE_VERSION) {
@@ -409,6 +422,7 @@ final class WaterFountainAttack {
                     entry.hasUUID("Player") ? entry.getUUID("Player") : null,
                     Mth.clamp(entry.getInt("WarningTicks"), 0, 100),
                     Mth.clamp(entry.getInt("ActiveTicks"), 1, 160));
+            fountain.restoreEffects = true;
             for (Tag hitValue : entry.getList("Hits", Tag.TAG_COMPOUND)) {
                 CompoundTag hit = (CompoundTag) hitValue;
                 if (hit.hasUUID("Player")) {
