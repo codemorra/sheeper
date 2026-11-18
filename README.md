@@ -44,6 +44,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 - **Movement:** The Water Sheeper swims toward and around players throughout the flooded volume, following height changes and navigating around terrain, with occasional short water sprints. Without participants, it roams the arena at a relaxed pace.
 - **Default attack:** Fires water projectiles while circling, with brief firing pauses before randomly selecting its next target. At close range, it pauses shooting and approaches for a melee opening. When any player stays too close, everyone within reach takes damage and is pushed away, independently of its selected target.
 - **Arena rules:** Only players inside the arena and their attributable attacks can damage the boss. Creative players may deal damage but do not join combat or stop regeneration. Without combat participants, the boss blocks other damage and regenerates after a grace period; full recovery resets the encounter.
+- **Multiplayer health:** Maximum health scales with peak simultaneous participation, preserving the remaining health percentage. Leaving does not lower it until the encounter fully resets.
 
 #### Lightning Sheeper encounter
 

@@ -171,14 +171,22 @@ public class ElementalSheeperEntity extends Sheep {
      * Keeps the current health fraction when the server's configured maximum
      * changes.
      */
-    private void refreshConfiguredHealth() {
-        double maximum = element.configuredMaxHealth();
+    protected final void refreshConfiguredHealth() {
+        double maximum = getConfiguredMaxHealth();
         AttributeInstance attribute = getAttribute(Attributes.MAX_HEALTH);
         if (attribute.getBaseValue() != maximum) {
             float fraction = getHealth() / getMaxHealth();
             attribute.setBaseValue(maximum);
             setHealth(fraction * getMaxHealth());
         }
+    }
+
+    /**
+     * @return the configured maximum, optionally adjusted by an element's encounter
+     *         rules
+     */
+    protected double getConfiguredMaxHealth() {
+        return element.configuredMaxHealth();
     }
 
     @Override

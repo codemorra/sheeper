@@ -1,14 +1,19 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
@@ -21,12 +26,15 @@ import net.minecraft.world.entity.projectile.EvokerFangs;
 import net.minecraft.world.entity.projectile.Projectile;
 
 /**
- * Enforces arena damage ownership and the empty-arena grace/regeneration cycle.
+ * Enforces arena damage ownership, multiplayer health and empty-arena recovery.
  * Membership is checked at damage time rather than cached from the previous
  * tick.
  */
 final class WaterArenaCombat {
+    private static final int HEALTH_ENTRY_TICKS = 60;
     private final WaterSheeperEntity boss;
+    private final Map<UUID, Integer> healthEntryTicks = new HashMap<>();
+    private int highestPlayerCount = 1;
     private boolean encounterActive;
     private int emptyTicks;
     private int regenerationTicks;
@@ -99,6 +107,7 @@ final class WaterArenaCombat {
      * @param participants currently eligible arena players
      */
     void tick(List<ServerPlayer> participants) {
+        updateHealthScaling(participants);
         if (!participants.isEmpty()) {
             encounterActive = true;
             emptyTicks = 0;
@@ -125,6 +134,9 @@ final class WaterArenaCombat {
         }
         if (boss.getHealth() >= boss.getMaxHealth()) {
             // Reset only after full recovery; a brief boundary exit keeps combat progress.
+            highestPlayerCount = 1;
+            healthEntryTicks.clear();
+            boss.refreshConfiguredHealth();
             boss.resetArenaEncounter();
             encounterActive = false;
             emptyTicks = 0;
@@ -133,13 +145,58 @@ final class WaterArenaCombat {
     }
 
     /**
-     * @return grace and regeneration progress, frozen while the entity is unloaded
+     * Counts only simultaneous, continuously present participants. Replacements
+     * cannot increase an already reached count; exits never lower it mid-fight.
+     */
+    private void updateHealthScaling(List<ServerPlayer> participants) {
+        Set<UUID> present = new HashSet<>();
+        int qualified = 0;
+        for (ServerPlayer player : participants) {
+            UUID id = player.getUUID();
+            present.add(id);
+            int ticks = Math.min(HEALTH_ENTRY_TICKS, healthEntryTicks.getOrDefault(id, 0) + 1);
+            healthEntryTicks.put(id, ticks);
+            if (ticks == HEALTH_ENTRY_TICKS) {
+                qualified++;
+            }
+        }
+        healthEntryTicks.keySet().retainAll(present);
+        if (qualified > highestPlayerCount) {
+            highestPlayerCount = qualified;
+            // Apply before other attacks this tick, preserving the health ratio
+            // rather than reducing the progress shown by the boss bar.
+            boss.refreshConfiguredHealth();
+        }
+    }
+
+    /**
+     * @return solo health plus the encounter's peak-player bonus, capped at
+     *         Minecraft's limit
+     */
+    double getScaledMaxHealth() {
+        double bonus = (highestPlayerCount - 1)
+                * WaterSheeperConfig.WATER_HEALTH_PER_ADDITIONAL_PLAYER.get() / 100.0D;
+        return Math.min(1024.0D, WaterSheeperConfig.WATER_MAX_HEALTH.get() * (1 + bonus));
+    }
+
+    /**
+     * @return recovery progress, peak player count and entry timers, frozen while
+     *         unloaded
      */
     CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("EncounterActive", encounterActive);
         tag.putInt("EmptyTicks", emptyTicks);
         tag.putInt("RegenerationTicks", regenerationTicks);
+        tag.putInt("HighestPlayerCount", highestPlayerCount);
+        ListTag entries = new ListTag();
+        healthEntryTicks.forEach((id, ticks) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Player", id);
+            entry.putInt("Ticks", ticks);
+            entries.add(entry);
+        });
+        tag.put("HealthEntryTicks", entries);
         return tag;
     }
 
@@ -150,6 +207,14 @@ final class WaterArenaCombat {
      * @param tag saved arena combat state
      */
     void load(CompoundTag tag) {
+        highestPlayerCount = Math.max(1, tag.getInt("HighestPlayerCount"));
+        healthEntryTicks.clear();
+        for (Tag value : tag.getList("HealthEntryTicks", Tag.TAG_COMPOUND)) {
+            CompoundTag entry = (CompoundTag) value;
+            if (entry.hasUUID("Player")) {
+                healthEntryTicks.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Ticks"), 0, HEALTH_ENTRY_TICKS));
+            }
+        }
         encounterActive = tag.getBoolean("EncounterActive") || boss.getHealth() < boss.getMaxHealth();
         emptyTicks = Mth.clamp(tag.getInt("EmptyTicks"), 0,
                 SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_EMPTY_ARENA_GRACE.get()));
