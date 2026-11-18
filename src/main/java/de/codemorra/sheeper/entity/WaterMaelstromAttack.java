@@ -6,34 +6,41 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Owns Maelstrom's immune approach and initial rotation. This first stage ends
- * after rotation; ascent, suction and impact are added in subsequent
- * milestones.
+ * Owns Maelstrom's immune approach, rotation, ascent and staged suction.
+ * The impact and outgoing wave are added in the next milestone.
  */
 final class WaterMaelstromAttack {
     private static final double PREPARATION_RADIUS = 6.0D;
     private static final double PREPARATION_HEIGHT_RANGE = 2.0D;
 
     private enum Phase {
-        IDLE, APPROACH, ROTATION
+        IDLE, APPROACH, ROTATION, ASCENT, MEDIUM_PULL, STRONG_PULL
     }
 
     private final WaterSheeperEntity boss;
+    private final WaterMaelstromSuction suction = new WaterMaelstromSuction();
     private Phase phase = Phase.IDLE;
     @Nullable
     private Vec3 destination;
     private int phaseTicks;
     private int replanTicks;
     private double minimumPreparationY = Double.NaN;
+    private double ascentStartY;
+    private double ascentTargetY;
+    private float rotationDegrees;
 
     /** @param boss owner whose existing swimming navigation handles the approach */
     WaterMaelstromAttack(WaterSheeperEntity boss) {
@@ -220,11 +227,83 @@ final class WaterMaelstromAttack {
             }
         }
         holdPosition();
-        boss.setMaelstromRotation(++phaseTicks * SheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue() / 20);
+        phaseTicks++;
+        if (phase == Phase.ASCENT) {
+            ascend();
+        }
+        if (isPulling()) {
+            pullPlayers();
+        }
+        int rotationMultiplier = phase == Phase.STRONG_PULL ? 4 : phase == Phase.MEDIUM_PULL ? 2 : 1;
+        rotationDegrees += SheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue()
+                * rotationMultiplier / 20;
+        boss.setMaelstromRotation(rotationDegrees);
         if (phaseTicks % 4 == 0) {
             showVortex();
         }
-        return phaseTicks < SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_ROTATION_DURATION.get());
+        if (phaseTicks >= phaseDuration()) {
+            switch (phase) {
+                case ROTATION -> {
+                    phase = Phase.ASCENT;
+                    ascentStartY = boss.getY();
+                    ascentTargetY = Math.min(boss.getArenaWaterSurfaceY() - boss.getBbHeight() - 0.15D,
+                            ascentStartY + SheeperConfig.WATER_MAELSTROM_ASCENT_HEIGHT.get());
+                }
+                case ASCENT -> phase = Phase.MEDIUM_PULL;
+                case MEDIUM_PULL -> phase = Phase.STRONG_PULL;
+                default -> {
+                    // The final milestone will continue into the downward impact.
+                    return false;
+                }
+            }
+            phaseTicks = 0;
+        }
+        return true;
+    }
+
+    private int phaseDuration() {
+        double seconds = switch (phase) {
+            case ROTATION -> SheeperConfig.WATER_MAELSTROM_ROTATION_DURATION.get();
+            case ASCENT -> SheeperConfig.WATER_MAELSTROM_ASCENT_DURATION.get();
+            case MEDIUM_PULL -> SheeperConfig.WATER_MAELSTROM_MEDIUM_DURATION.get();
+            case STRONG_PULL -> SheeperConfig.WATER_MAELSTROM_STRONG_DURATION.get();
+            default -> 0.05D;
+        };
+        return SheeperConfig.secondsToTicks(seconds);
+    }
+
+    /**
+     * Moves through ordinary collision handling and stays submerged even under a
+     * low ceiling.
+     */
+    private void ascend() {
+        double progress = Math.min(1.0D, (double) phaseTicks / phaseDuration());
+        double nextY = Mth.lerp(progress, ascentStartY, ascentTargetY);
+        // Keep each step slow even when a formerly obstructed column opens again.
+        double step = Math.min(Math.max(0, nextY - boss.getY()),
+                Math.max(0, ascentTargetY - ascentStartY) / phaseDuration());
+        Vec3 next = boss.position().add(0, step, 0);
+        if (step > 0 && boss.canSwimAt(next)) {
+            boss.move(MoverType.SELF, new Vec3(0, step, 0));
+        }
+    }
+
+    private boolean isPulling() {
+        return phase == Phase.ASCENT || phase == Phase.MEDIUM_PULL || phase == Phase.STRONG_PULL;
+    }
+
+    /**
+     * Adds an inward impulse without locking player controls or changing height.
+     * Collision remains ordinary player movement; no player is moved through
+     * blocks.
+     */
+    private void pullPlayers() {
+        double weak = SheeperConfig.WATER_MAELSTROM_WEAK_PULL.get();
+        double medium = Math.max(weak, SheeperConfig.WATER_MAELSTROM_MEDIUM_PULL.get());
+        double strength = phase == Phase.STRONG_PULL
+                ? Math.max(medium, SheeperConfig.WATER_MAELSTROM_STRONG_PULL.get())
+                : phase == Phase.MEDIUM_PULL ? medium : weak;
+        suction.tick(boss.getCombatParticipants(), destination, strength);
     }
 
     private void beginRotation() {
@@ -246,15 +325,23 @@ final class WaterMaelstromAttack {
      * blocks.
      */
     private void showVortex() {
-        double radius = boss.getBbWidth() * 0.5D + 0.5D;
-        double angle = phaseTicks * Math.PI / 20;
-        for (int index = 0; index < 8; index++) {
-            double theta = angle + index * Math.PI / 4;
-            Vec3 point = boss.getBoundingBox().getCenter().add(Math.cos(theta) * radius,
-                    Math.sin(theta * 2) * boss.getBbHeight() * 0.25D, Math.sin(theta) * radius);
-            if (boss.isArenaWaterCell(new BlockPos(point))) {
-                ((ServerLevel) boss.level).sendParticles(ParticleTypes.BUBBLE_COLUMN_UP,
-                        point.x, point.y, point.z, 1, 0.05D, 0.05D, 0.05D, 0.02D);
+        int intensity = phase == Phase.STRONG_PULL ? 3 : phase == Phase.MEDIUM_PULL ? 2 : 1;
+        int layers = isPulling() ? 3 : 1;
+        double angle = rotationDegrees * Math.PI / 180;
+        for (int layer = 0; layer < layers; layer++) {
+            double radius = boss.getBbWidth() * 0.5D + 0.5D + layer * intensity;
+            for (int index = 0; index < 8 * intensity; index++) {
+                double theta = angle + index * Math.PI * 2 / (8 * intensity) + layer * 0.5D;
+                Vec3 point = boss.getBoundingBox().getCenter().add(Math.cos(theta) * radius,
+                        Math.sin(theta * 2) * boss.getBbHeight() * 0.25D - layer * 0.3D,
+                        Math.sin(theta) * radius);
+                BlockPos cell = new BlockPos(point);
+                if (boss.isArenaWaterCell(cell)
+                        && WaterArenaData.isLoaded((ServerLevel) boss.level, cell)
+                        && boss.level.getFluidState(cell).is(FluidTags.WATER)) {
+                    ((ServerLevel) boss.level).sendParticles(ParticleTypes.BUBBLE_COLUMN_UP,
+                            point.x, point.y, point.z, 1, 0.05D, 0.05D, 0.05D, 0.02D);
+                }
             }
         }
     }
@@ -269,7 +356,7 @@ final class WaterMaelstromAttack {
 
     /** @return whether the current phase must remain stationary */
     boolean isStationary() {
-        return phase == Phase.ROTATION;
+        return phase == Phase.ROTATION || phase == Phase.MEDIUM_PULL || phase == Phase.STRONG_PULL;
     }
 
     /**
@@ -285,6 +372,10 @@ final class WaterMaelstromAttack {
         phaseTicks = 0;
         replanTicks = 0;
         minimumPreparationY = Double.NaN;
+        ascentStartY = 0;
+        ascentTargetY = 0;
+        rotationDegrees = 0;
+        suction.clear();
         boss.setMaelstromRotation(0);
     }
 
@@ -295,6 +386,9 @@ final class WaterMaelstromAttack {
         CompoundTag tag = new CompoundTag();
         tag.putInt("Phase", phase.ordinal());
         tag.putInt("Ticks", phaseTicks);
+        tag.putFloat("RotationDegrees", rotationDegrees);
+        tag.putDouble("AscentStartY", ascentStartY);
+        tag.putDouble("AscentTargetY", ascentTargetY);
         if (Double.isFinite(minimumPreparationY)) {
             tag.putDouble("MinimumY", minimumPreparationY);
         }
@@ -320,14 +414,21 @@ final class WaterMaelstromAttack {
         }
         phase = Phase.values()[savedPhase];
         destination = point;
-        if (tag.contains("MinimumY", net.minecraft.nbt.Tag.TAG_DOUBLE)
+        if (tag.contains("MinimumY", Tag.TAG_DOUBLE)
                 && Double.isFinite(tag.getDouble("MinimumY"))) {
             minimumPreparationY = tag.getDouble("MinimumY");
         }
-        phaseTicks = Mth.clamp(tag.getInt("Ticks"), 0, phase == Phase.APPROACH ? 600 : 100);
-        if (phase == Phase.ROTATION) {
-            boss.setMaelstromRotation(
-                    phaseTicks * SheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue() / 20);
+        phaseTicks = Mth.clamp(tag.getInt("Ticks"), 0, phase == Phase.APPROACH ? 600 : 200);
+        ascentStartY = tag.getDouble("AscentStartY");
+        ascentTargetY = tag.getDouble("AscentTargetY");
+        if (!Double.isFinite(ascentStartY) || !Double.isFinite(ascentTargetY)
+                || ascentTargetY < ascentStartY || ascentTargetY - ascentStartY > 8) {
+            stop();
+            return;
         }
+        float savedRotation = tag.contains("RotationDegrees", Tag.TAG_FLOAT) ? tag.getFloat("RotationDegrees")
+                : phaseTicks * SheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue() / 20;
+        rotationDegrees = Float.isFinite(savedRotation) ? Mth.clamp(savedRotation, 0, 1000000) : 0;
+        boss.setMaelstromRotation(rotationDegrees);
     }
 }
