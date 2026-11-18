@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.particle.LightningRingOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -81,19 +82,19 @@ final class LightningRingAttack {
     void start() {
         clear();
         stage = Stage.TELEPORTS;
-        teleportsRemaining = count(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN.get(),
-                SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX.get());
-        teleportInterval = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_RING_TELEPORT_INTERVAL.get());
-        chargeDuration = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_RING_CHARGE.get());
+        teleportsRemaining = count(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN.get(),
+                LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX.get());
+        teleportInterval = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_INTERVAL.get());
+        chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_RING_CHARGE.get());
         chargeRemaining = chargeDuration;
-        wavesRemaining = count(SheeperConfig.LIGHTNING_RING_COUNT_MIN.get(),
-                SheeperConfig.LIGHTNING_RING_COUNT_MAX.get());
-        releaseInterval = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_RING_INTERVAL.get());
-        speed = SheeperConfig.LIGHTNING_RING_SPEED.get();
-        width = SheeperConfig.LIGHTNING_RING_WIDTH.get();
-        hitHeight = SheeperConfig.LIGHTNING_RING_HIT_HEIGHT.get();
-        damage = SheeperConfig.LIGHTNING_RING_DAMAGE.get().floatValue();
-        particleSpacing = SheeperConfig.LIGHTNING_RING_PARTICLE_SPACING.get().floatValue();
+        wavesRemaining = count(LightningSheeperConfig.LIGHTNING_RING_COUNT_MIN.get(),
+                LightningSheeperConfig.LIGHTNING_RING_COUNT_MAX.get());
+        releaseInterval = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_RING_INTERVAL.get());
+        speed = LightningSheeperConfig.LIGHTNING_RING_SPEED.get();
+        width = LightningSheeperConfig.LIGHTNING_RING_WIDTH.get();
+        hitHeight = LightningSheeperConfig.LIGHTNING_RING_HIT_HEIGHT.get();
+        damage = LightningSheeperConfig.LIGHTNING_RING_DAMAGE.get().floatValue();
+        particleSpacing = LightningSheeperConfig.LIGHTNING_RING_PARTICLE_SPACING.get().floatValue();
     }
 
     private int count(int min, int max) {
@@ -116,7 +117,7 @@ final class LightningRingAttack {
                 arenaCenter = Vec3.atBottomCenterOf(boss.getArenaCenter());
                 arenaRadius = boss.getCombatRadius();
                 maxRadius = arenaRadius + Math.sqrt(origin.subtract(arenaCenter).horizontalDistanceSqr());
-                double height = SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get();
+                double height = LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get();
                 minY = Math.max(boss.level.getMinBuildHeight(), Mth.ceil(arenaCenter.y - height));
                 maxY = Math.min(boss.level.getMaxBuildHeight() - 1, Mth.floor(arenaCenter.y + height));
                 stage = Stage.CHARGE;
@@ -166,7 +167,7 @@ final class LightningRingAttack {
             Wave wave = new Wave();
             waves.add(wave);
             showWave(level, wave);
-            float volume = SheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+            float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
             if (volume > 0) {
                 level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                         SoundSource.HOSTILE, volume, 1.4F);

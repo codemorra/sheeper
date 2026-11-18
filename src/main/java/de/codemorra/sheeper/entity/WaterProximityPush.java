@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -39,16 +40,16 @@ final class WaterProximityPush {
      * @param participants current arena players, excluding dead and outside players
      */
     void tick(List<ServerPlayer> participants) {
-        double radius = SheeperConfig.WATER_PROXIMITY_PUSH_RADIUS.get();
-        double horizontal = SheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH.get();
-        double upward = SheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
-        double damage = SheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get();
+        double radius = WaterSheeperConfig.WATER_PROXIMITY_PUSH_RADIUS.get();
+        double horizontal = WaterSheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH.get();
+        double upward = WaterSheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
+        double damage = WaterSheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get();
         if (radius == 0 || horizontal == 0 && upward == 0 && damage == 0) {
             remainingTicks.clear();
             return;
         }
         Set<UUID> nearby = new HashSet<>();
-        int delay = SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get());
+        int delay = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get());
         for (ServerPlayer player : participants) {
             if (boss.distanceToSqr(player) > radius * radius) {
                 continue;
@@ -113,7 +114,7 @@ final class WaterProximityPush {
             CompoundTag entry = (CompoundTag) value;
             if (entry.hasUUID("Player")) {
                 remainingTicks.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Ticks"), 1,
-                        SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get())));
+                        SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get())));
             }
         }
     }

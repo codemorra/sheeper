@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -47,7 +47,7 @@ final class WaterFountainTransport {
      */
     void start(ServerPlayer player, double ceiling) {
         double rise = Math.max(0, ceiling - player.getBbHeight() - 0.15D - player.getY());
-        double speed = SheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D;
+        double speed = WaterSheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D;
         int duration = Mth.clamp((int) Math.ceil(rise / speed * 2) + 40, 40, 3600);
         lifts.put(player.getUUID(), new Lift(player.getX(), player.getZ(), ceiling, duration));
     }
@@ -77,7 +77,7 @@ final class WaterFountainTransport {
                 iterator.remove();
                 continue;
             }
-            double rise = Math.min(remaining, SheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D);
+            double rise = Math.min(remaining, WaterSheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D);
             AABB swept = player.getBoundingBox().expandTowards(0, rise, 0);
             if (!loaded(swept)) {
                 stop(player);

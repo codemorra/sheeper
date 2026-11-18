@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
@@ -44,9 +45,9 @@ final class WaterSalvoGameTests {
         context.set(SheeperConfig.WATER_SALVO_EYE_FADE, (2) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (3) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (3) / 20.0D);
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 5.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8);
@@ -260,16 +261,16 @@ final class WaterSalvoGameTests {
     private static void selection(GameTestContext context) {
         WaterSheeperEntity boss = boss(context, 1, 2, 1);
         // Fountain phases wait for terrain discovery before their duration advances.
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (10000) * 20);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (10000) * 20);
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 1.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (3) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (3) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN, (3) / 20.0D);
-        context.set(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX, (3) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, (3) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, (3) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_FOUNTAIN_DURATION_MIN, (3) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_FOUNTAIN_DURATION_MAX, (3) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (2) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (2) / 20.0D);
         context.player(16, 2, 8);

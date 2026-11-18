@@ -3,7 +3,9 @@ package de.codemorra.sheeper.entity;
 import java.util.List;
 import javax.annotation.Nullable;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LavaSheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -62,17 +64,17 @@ public class ElementalSheeperEntity extends Sheep {
 
         float configuredSize() {
             return switch (this) {
-                case LAVA -> SheeperConfig.LAVA_SIZE.get().floatValue();
-                case LIGHTNING -> SheeperConfig.LIGHTNING_SIZE.get().floatValue();
-                case WATER -> SheeperConfig.WATER_SIZE.get().floatValue();
+                case LAVA -> LavaSheeperConfig.LAVA_SIZE.get().floatValue();
+                case LIGHTNING -> LightningSheeperConfig.LIGHTNING_SIZE.get().floatValue();
+                case WATER -> WaterSheeperConfig.WATER_SIZE.get().floatValue();
             };
         }
 
         double configuredMaxHealth() {
             return switch (this) {
-                case LAVA -> SheeperConfig.LAVA_MAX_HEALTH.get();
-                case LIGHTNING -> SheeperConfig.LIGHTNING_MAX_HEALTH.get();
-                case WATER -> SheeperConfig.WATER_MAX_HEALTH.get();
+                case LAVA -> LavaSheeperConfig.LAVA_MAX_HEALTH.get();
+                case LIGHTNING -> LightningSheeperConfig.LIGHTNING_MAX_HEALTH.get();
+                case WATER -> WaterSheeperConfig.WATER_MAX_HEALTH.get();
             };
         }
     }

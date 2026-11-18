@@ -3,7 +3,7 @@ package de.codemorra.sheeper.gametest;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.core.particles.ParticleTypes;
@@ -26,13 +26,13 @@ final class LightningSpawnGameTests {
     }
 
     private static LightningSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 8.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 6.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 4.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 3);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 8.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 6.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 3);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 3.0D);
         LightningSheeperEntity boss = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
         boss.setNoAi(true);
         boss.setNoGravity(true);
@@ -102,7 +102,7 @@ final class LightningSpawnGameTests {
 
     private static void reload(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.LIGHTNING_SPAWN_PUSH_DELAY, 0.3D);
+        context.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_DELAY, 0.3D);
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         TestPlayer boundary = player(context, center.add(3, 0, 0));
         TestPlayer leaving = player(context, center.add(1, 0, 0));
@@ -120,7 +120,7 @@ final class LightningSpawnGameTests {
             }
             if (elapsed == 65) {
                 // The third wave's push will still be pending when preparation finishes.
-                context.set(SheeperConfig.LIGHTNING_SPAWN_PUSH_DELAY, 3.0D);
+                context.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_DELAY, 3.0D);
             }
             if (elapsed == 121) {
                 late = player(context, center.add(2, 0, 0));
@@ -134,9 +134,9 @@ final class LightningSpawnGameTests {
                 boss = restore(context, boss);
             }
             if (elapsed == 35) {
-                context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.05D);
-                context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 1);
-                context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 10.0D);
+                context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.05D);
+                context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 1);
+                context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 10.0D);
             }
             context.expect(boss.isCombatReady() == (elapsed >= 120),
                     "Reload and config changes must retain the captured three-wave preparation timing");

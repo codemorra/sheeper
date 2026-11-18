@@ -5,6 +5,8 @@ import java.util.List;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.SheeperEntity;
@@ -78,13 +80,13 @@ public final class GameTestContext implements AutoCloseable {
         set(SheeperConfig.NATURAL_SPAWN_CHANCE, 0.0);
         // Existing combat scenes opt out of the independent ambient storm and
         // awakening.
-        set(SheeperConfig.LIGHTNING_STORM_ENABLED, false);
-        set(SheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
-        set(SheeperConfig.LIGHTNING_STORM_AWAKENING, 0.0D);
+        set(LightningSheeperConfig.LIGHTNING_STORM_ENABLED, false);
+        set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
+        set(LightningSheeperConfig.LIGHTNING_STORM_AWAKENING, 0.0D);
         // Other scenarios isolate gameplay from timing; wave scenarios opt in
         // explicitly.
-        set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (0) / 20.0D);
-        set(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (0) / 20.0D);
+        set(WaterSheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (0) / 20.0D);
+        set(WaterSheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (0) / 20.0D);
         rule(GameRules.RULE_MOBGRIEFING, false);
         rule(GameRules.RULE_DOMOBLOOT, true);
         rule(GameRules.RULE_DOBLOCKDROPS, true);

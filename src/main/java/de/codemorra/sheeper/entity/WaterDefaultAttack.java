@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.nbt.CompoundTag;
@@ -64,9 +65,9 @@ final class WaterDefaultAttack {
             firing = !firing;
             if (firing) {
                 target = selectTarget(participants);
-                int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_DURATION_MIN.get());
+                int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN.get());
                 int maximum = Math.max(minimum,
-                        SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_DURATION_MAX.get()));
+                        SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX.get()));
                 phaseTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
                 // Fire immediately after the entry or target-switch pause, without a second
                 // delay.
@@ -113,7 +114,7 @@ final class WaterDefaultAttack {
      * @param target current shared movement and attack target
      */
     private void updateCloseRange(ServerPlayer target) {
-        double threshold = SheeperConfig.WATER_CLOSE_RANGE_DISTANCE.get();
+        double threshold = WaterSheeperConfig.WATER_CLOSE_RANGE_DISTANCE.get();
         closingOnTarget = boss.getBoundingBox().getCenter()
                 .distanceToSqr(target.getBoundingBox().getCenter()) <= threshold * threshold;
         if (!closingOnTarget) {
@@ -162,9 +163,9 @@ final class WaterDefaultAttack {
                 direction = boss.getLookAngle();
             }
             projectile.setDeltaMovement(direction.normalize()
-                    .scale(SheeperConfig.WATER_PROJECTILE_SPEED_PER_SECOND.get() / 20.0D));
+                    .scale(WaterSheeperConfig.WATER_PROJECTILE_SPEED_PER_SECOND.get() / 20.0D));
             if (boss.level.addFreshEntity(projectile)) {
-                shotTicks = SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_INTERVAL.get());
+                shotTicks = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL.get());
             }
         }
     }

@@ -2,7 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.nbt.CompoundTag;
@@ -28,14 +28,14 @@ final class LightningProximityGameTests {
 
     private static LightningSheeperEntity boss(GameTestContext context) {
         context.difficulty(Difficulty.NORMAL);
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MIN, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MAX, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MIN, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MAX, 1.0D);
         LightningSheeperEntity boss = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
         boss.setNoAi(true);
         for (int tick = 0; tick < 10; tick++) {
@@ -113,16 +113,16 @@ final class LightningProximityGameTests {
 
     private static void reload(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 0.3D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 0.3D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DAMAGE, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 0.3D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 0.3D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DAMAGE, 0.0D);
         TestPlayer player = player(context, boss.position().add(2, 0, 0));
         tick(boss, 1, player);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 5.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 5.0D);
         tick(boss, 7, player); // The short lane attack has ended, but the proximity charge continues.
         context.expect(player.damageEvents.isEmpty(), "A phase change must not trigger an early discharge");
         CompoundTag saved = boss.saveWithoutId(new CompoundTag());

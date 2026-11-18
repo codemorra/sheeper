@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
@@ -88,14 +89,14 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     public double getCombatRadius() {
-        return SheeperConfig.LIGHTNING_COMBAT_RADIUS.get();
+        return LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS.get();
     }
 
     /**
      * Teleport destinations must stay inside both the movement and combat bounds.
      */
     public double getMovementRadius() {
-        return Math.min(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS.get(), getCombatRadius());
+        return Math.min(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS.get(), getCombatRadius());
     }
 
     private double horizontalDistanceSquared(double x, double z) {
@@ -123,7 +124,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                         && horizontalDistanceSquared(player.getX(), player.getZ()) <= getCombatRadius()
                                 * getCombatRadius()
                         && Math.abs(player.getY()
-                                - getArenaCenter().getY()) <= SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get())
+                                - getArenaCenter().getY()) <= LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE
+                                        .get())
                 .toList();
     }
 
@@ -155,10 +157,12 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private void initializePreparation() {
         getArenaCenter();
         if (preparationDuration < 0) {
-            preparationWaveDuration = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_PREPARATION_DURATION.get());
+            preparationWaveDuration = SheeperConfig
+                    .secondsToTicks(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION.get());
             preparationWaveInterval = SheeperConfig
-                    .secondsToTicks(SheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL.get());
-            int count = preparationWaveDuration == 0 ? 0 : SheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT.get();
+                    .secondsToTicks(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL.get());
+            int count = preparationWaveDuration == 0 ? 0
+                    : LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT.get();
             for (int index = 0; index < count; index++) {
                 spawnWaves.add(new LightningSpawnPush(this));
             }
@@ -166,7 +170,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                     : preparationWaveDuration + (count - 1) * preparationWaveInterval;
             preparationRemaining = preparationDuration;
             awakeningDuration = preparationDuration == 0 ? 0
-                    : SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STORM_AWAKENING.get());
+                    : SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STORM_AWAKENING.get());
             awakeningRemaining = awakeningDuration;
             entityData.set(DATA_COMBAT_READY, preparationRemaining == 0);
             if (preparationRemaining == 0) {
@@ -291,7 +295,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     @Nullable
     Double findArenaSurface(ServerLevel server, int x, int z, int referenceY) {
         int originY = getArenaCenter().getY();
-        int range = Mth.floor(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get());
+        int range = Mth.floor(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get());
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int offset = 0; offset <= range * 2; offset++) {
             for (int side = 0; side < (offset == 0 ? 1 : 2); side++) {

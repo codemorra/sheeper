@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -61,7 +61,7 @@ final class WaterMaelstromTransport {
                 projection * projection + radius * radius - relative.lengthSqr()));
         Vec3 target = player.position().add(direction.scale(distance));
         int ticks = (int) Math.ceil(player.position().distanceTo(target)
-                / SheeperConfig.WATER_MAELSTROM_TRANSPORT_SPEED.get() * 40) + 40;
+                / WaterSheeperConfig.WATER_MAELSTROM_TRANSPORT_SPEED.get() * 40) + 40;
         player.stopRiding();
         rides.put(player.getUUID(), new Ride(target, direction, Mth.clamp(ticks, 40, 2600)));
     }
@@ -87,7 +87,7 @@ final class WaterMaelstromTransport {
                 continue;
             }
             Vec3 remaining = new Vec3(ride.target().x - player.getX(), 0, ride.target().z - player.getZ());
-            double speed = SheeperConfig.WATER_MAELSTROM_TRANSPORT_SPEED.get() / 20.0D;
+            double speed = WaterSheeperConfig.WATER_MAELSTROM_TRANSPORT_SPEED.get() / 20.0D;
             if (remaining.length() <= speed || remaining.dot(ride.direction()) <= 0) {
                 Vec3 endpoint = ride.target();
                 Vec3 correction = endpoint.subtract(player.position());

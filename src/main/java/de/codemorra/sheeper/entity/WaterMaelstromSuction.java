@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -28,7 +28,7 @@ final class WaterMaelstromSuction {
      */
     void tick(List<ServerPlayer> players, Vec3 center, double strength) {
         previousPositions.keySet().removeIf(id -> players.stream().noneMatch(player -> player.getUUID().equals(id)));
-        double speedLimit = SheeperConfig.WATER_MAELSTROM_PULL_SPEED_LIMIT.get() / 20.0D;
+        double speedLimit = WaterSheeperConfig.WATER_MAELSTROM_PULL_SPEED_LIMIT.get() / 20.0D;
         for (ServerPlayer player : players) {
             Vec3 previous = previousPositions.put(player.getUUID(), player.position());
             Vec3 motion = player.getDeltaMovement();

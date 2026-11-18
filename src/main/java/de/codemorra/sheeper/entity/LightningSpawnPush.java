@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -30,9 +31,9 @@ final class LightningSpawnPush {
     }
 
     void tick(double waveRadius, boolean preparing) {
-        double radius = SheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS.get();
-        if (radius <= 0 || SheeperConfig.LIGHTNING_SPAWN_PUSH_STRENGTH.get() == 0
-                && SheeperConfig.LIGHTNING_SPAWN_PUSH_UPWARD_STRENGTH.get() == 0) {
+        double radius = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS.get();
+        if (radius <= 0 || LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_STRENGTH.get() == 0
+                && LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_UPWARD_STRENGTH.get() == 0) {
             delays.clear();
             return;
         }
@@ -61,7 +62,7 @@ final class LightningSpawnPush {
                     || !contacts.add(player.getUUID())) {
                 continue;
             }
-            int delay = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_SPAWN_PUSH_DELAY.get());
+            int delay = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_DELAY.get());
             if (delay == 0) {
                 push(player);
             } else {
@@ -76,8 +77,9 @@ final class LightningSpawnPush {
         if (direction.lengthSqr() < 1.0E-8D) {
             direction = new Vec3(1, 0, 0);
         }
-        direction = direction.normalize().scale(SheeperConfig.LIGHTNING_SPAWN_PUSH_STRENGTH.get());
-        player.setDeltaMovement(direction.x, SheeperConfig.LIGHTNING_SPAWN_PUSH_UPWARD_STRENGTH.get(), direction.z);
+        direction = direction.normalize().scale(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_STRENGTH.get());
+        player.setDeltaMovement(direction.x, LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_UPWARD_STRENGTH.get(),
+                direction.z);
         player.fallDistance = 0;
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.hurtMarked = false;

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import net.minecraft.core.BlockPos;
@@ -50,7 +51,7 @@ public final class WaterOrbitGoal extends Goal {
         return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady()
                 && !boss.isPerformingBeam() && !boss.isPerformingMaelstrom()
                 && boss.getTarget() instanceof ServerPlayer && boss.getMovementRadius() > 0
-                && SheeperConfig.WATER_MOVEMENT_SPEED.get() > 0;
+                && WaterSheeperConfig.WATER_MOVEMENT_SPEED.get() > 0;
     }
 
     @Override
@@ -135,7 +136,7 @@ public final class WaterOrbitGoal extends Goal {
      * @param changed whether this update starts tracking a different player
      */
     private void updateCircle(ServerPlayer player, boolean changed) {
-        double preferred = SheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get();
+        double preferred = WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get();
         double distance = horizontal(boss.position().subtract(player.position())).length();
         if (changed || previousPlayerPosition == null) {
             circleRadius = Math.min(preferred, distance);
@@ -157,8 +158,9 @@ public final class WaterOrbitGoal extends Goal {
     }
 
     private void scheduleNextPlan(long now) {
-        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN.get());
-        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX.get()));
+        int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MOVEMENT_INTERVAL_MIN.get());
+        int maximum = Math.max(minimum,
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MOVEMENT_INTERVAL_MAX.get()));
         nextPlanTick = now + minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
@@ -194,10 +196,10 @@ public final class WaterOrbitGoal extends Goal {
             return boss.clampSwimmingPosition(playerCenter.add(spacing).add(0, -boss.getBbHeight() * 0.5D, 0));
         }
         double height = player.getBoundingBox().getCenter().y - boss.getBbHeight() * 0.5D
-                + SheeperConfig.WATER_MOVEMENT_HEIGHT_OFFSET.get();
+                + WaterSheeperConfig.WATER_MOVEMENT_HEIGHT_OFFSET.get();
         if (away.lengthSqr() < 4.0D) {
             Vec3 basis = away.lengthSqr() < 1.0E-7D ? new Vec3(1, 0, 0) : away.normalize();
-            circleRadius = Math.max(circleRadius, Math.min(2, SheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()));
+            circleRadius = Math.max(circleRadius, Math.min(2, WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()));
             return boss.clampSwimmingPosition(new Vec3(boss.getX() - basis.z * direction * 3,
                     height, boss.getZ() + basis.x * direction * 3));
         }
@@ -286,7 +288,7 @@ public final class WaterOrbitGoal extends Goal {
             return false;
         }
         Vec3 away = horizontal(boss.position().subtract(player.position()));
-        return away.lengthSqr() <= 1.0E-7D || away.length() > SheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()
+        return away.lengthSqr() <= 1.0E-7D || away.length() > WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()
                 || horizontal(travel).dot(away.normalize()) <= 0.5D;
     }
 
@@ -304,7 +306,7 @@ public final class WaterOrbitGoal extends Goal {
      * @return three-dimensional center-to-center stopping distance in blocks
      */
     private double closeRangeDistance() {
-        return SheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE.get();
+        return WaterSheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE.get();
     }
 
     /**
@@ -331,17 +333,17 @@ public final class WaterOrbitGoal extends Goal {
 
     /** Attempts a short speed boost; its cooldown starts when the boost ends. */
     private void beginSprint(long now) {
-        if (now >= sprintReadyTick && SheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get() > 0
-                && boss.getRandom().nextDouble() < SheeperConfig.WATER_MOVEMENT_SPRINT_CHANCE.get()) {
-            sprintEndTick = now + SheeperConfig.secondsToTicks(SheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get());
+        if (now >= sprintReadyTick && WaterSheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get() > 0
+                && boss.getRandom().nextDouble() < WaterSheeperConfig.WATER_MOVEMENT_SPRINT_CHANCE.get()) {
+            sprintEndTick = now + SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get());
             sprintReadyTick = sprintEndTick
-                    + SheeperConfig.secondsToTicks(SheeperConfig.WATER_MOVEMENT_SPRINT_COOLDOWN.get());
+                    + SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MOVEMENT_SPRINT_COOLDOWN.get());
         }
     }
 
     private double speed(long now) {
-        double speed = SheeperConfig.WATER_MOVEMENT_SPEED.get();
-        return now < sprintEndTick ? speed * SheeperConfig.WATER_MOVEMENT_SPRINT_MULTIPLIER.get() : speed;
+        double speed = WaterSheeperConfig.WATER_MOVEMENT_SPEED.get();
+        return now < sprintEndTick ? speed * WaterSheeperConfig.WATER_MOVEMENT_SPRINT_MULTIPLIER.get() : speed;
     }
 
     private static Vec3 horizontal(Vec3 vector) {

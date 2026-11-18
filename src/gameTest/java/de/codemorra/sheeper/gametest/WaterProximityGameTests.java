@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -28,8 +29,8 @@ final class WaterProximityGameTests {
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
         context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MIN, (4) / 20.0D);
         context.set(SheeperConfig.WATER_PROXIMITY_PUSH_DELAY_MAX, (4) / 20.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.8D);
@@ -115,10 +116,10 @@ final class WaterProximityGameTests {
         restored.tick();
         context.expect(player.motionPackets.size() == 1, "Reload must resume proximity without repeating spawn push");
 
-        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_RADIUS, 0.0D);
         tick(restored, 10);
         context.expect(player.motionPackets.size() == 1, "Radius zero must disable proximity pushes");
-        context.set(SheeperConfig.WATER_PROXIMITY_PUSH_RADIUS, 3.0D);
+        context.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_RADIUS, 3.0D);
         tick(restored, 3);
         context.expect(player.motionPackets.size() == 1, "Re-enabling proximity must start a fresh timer");
         restored.tick();

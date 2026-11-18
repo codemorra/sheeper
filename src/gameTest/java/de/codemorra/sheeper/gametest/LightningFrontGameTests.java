@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -32,27 +32,27 @@ final class LightningFrontGameTests {
     }
 
     private static LightningSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 9.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MIN, 60.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MAX, 60.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_MAX_ACTIVE, 1);
-        context.set(SheeperConfig.LIGHTNING_FRONT_STEP_DISTANCE, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_STEP_INTERVAL, 0.1D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WARNING, 0.2D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_SIDE_OFFSET, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DAMAGE, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 9.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MIN, 60.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MAX, 60.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_MAX_ACTIVE, 1);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_STEP_DISTANCE, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_STEP_INTERVAL, 0.1D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WARNING, 0.2D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_SIDE_OFFSET, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DAMAGE, 0.0D);
         LightningSheeperEntity boss = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
         boss.setNoAi(true);
         for (int index = 0; index < 10; index++) {
@@ -112,8 +112,8 @@ final class LightningFrontGameTests {
                 Vec3 end = point(cue.get(cue.size() - 1)).subtract(origin);
                 direction = new Vec3(end.x, 0, end.z).normalize();
                 player.standAt(groundPoint(context, boss, 18, 12));
-                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
-                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
+                context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+                context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
             }
             if (elapsed == 2) {
                 boss = restore(context, boss);
@@ -154,15 +154,15 @@ final class LightningFrontGameTests {
         LightningSheeperEntity boss = boss(context);
         TestPlayer first = player(context, boss, 10, 10);
         TestPlayer second = player(context, boss, 14, 10);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 5.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 5.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_STEP_DISTANCE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MIN, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MAX, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_STEP_DISTANCE, 1.0D);
         // More than vanilla's half-second protection separates successive hits.
-        context.set(SheeperConfig.LIGHTNING_FRONT_STEP_INTERVAL, 0.6D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WARNING, 0.1D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_SIDE_OFFSET, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_DAMAGE, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_STEP_INTERVAL, 0.6D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WARNING, 0.1D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_SIDE_OFFSET, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_DAMAGE, 2.0D);
         int marks = 0;
         for (int elapsed = 1; elapsed <= 80; elapsed++) {
             first.tick();

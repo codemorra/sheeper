@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -113,8 +114,9 @@ final class LightningStrikeAttack {
 
     void start() {
         clear();
-        int min = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_DURATION_MIN.get());
-        int max = Math.max(min, SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_DURATION_MAX.get()));
+        int min = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STRIKE_DURATION_MIN.get());
+        int max = Math.max(min,
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STRIKE_DURATION_MAX.get()));
         remaining = min + boss.getRandom().nextInt(max - min + 1);
         arenaDelay = initialDelay();
     }
@@ -134,12 +136,13 @@ final class LightningStrikeAttack {
 
     private int initialDelay() {
         return 1 + boss.getRandom()
-                .nextInt(SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN.get()));
+                .nextInt(SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN.get()));
     }
 
     private int nextDelay() {
-        int min = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN.get());
-        int max = Math.max(min, SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MAX.get()));
+        int min = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN.get());
+        int max = Math.max(min,
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MAX.get()));
         return min + boss.getRandom().nextInt(max - min + 1);
     }
 
@@ -183,7 +186,7 @@ final class LightningStrikeAttack {
                 }
             }
         }
-        int warning = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_WARNING.get());
+        int warning = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STRIKE_WARNING.get());
         // A newly announced center needs time for all three fully warned rounds.
         if (remaining > warning * 3) {
             playerDelays.keySet().removeIf(id -> players.stream().noneMatch(player -> player.getUUID().equals(id)));
@@ -204,7 +207,8 @@ final class LightningStrikeAttack {
                             // no later than three warning periods after the initial announcement.
                             playerCooldowns.put(player.getUUID(), warning * 3
                                     + SheeperConfig
-                                            .secondsToTicks(SheeperConfig.LIGHTNING_STRIKE_PLAYER_COOLDOWN.get()));
+                                            .secondsToTicks(
+                                                    LightningSheeperConfig.LIGHTNING_STRIKE_PLAYER_COOLDOWN.get()));
                         }
                     }
                     delay = nextDelay();
@@ -212,7 +216,7 @@ final class LightningStrikeAttack {
                 playerDelays.put(player.getUUID(), delay);
             }
             if (--arenaDelay <= 0) {
-                for (int index = 0; index < SheeperConfig.LIGHTNING_STRIKE_ARENA_COUNT.get(); index++) {
+                for (int index = 0; index < LightningSheeperConfig.LIGHTNING_STRIKE_ARENA_COUNT.get(); index++) {
                     Vec3 pos = randomArenaPosition(level);
                     if (pos != null) {
                         announceCenter(level, pos, warning);
@@ -226,8 +230,9 @@ final class LightningStrikeAttack {
     }
 
     private void announce(ServerLevel level, Vec3 pos, boolean primary, int warning) {
-        Strike strike = new Strike(pos, SheeperConfig.LIGHTNING_STRIKE_RADIUS.get(),
-                SheeperConfig.LIGHTNING_STRIKE_HEIGHT.get(), SheeperConfig.LIGHTNING_STRIKE_DAMAGE.get().floatValue(),
+        Strike strike = new Strike(pos, LightningSheeperConfig.LIGHTNING_STRIKE_RADIUS.get(),
+                LightningSheeperConfig.LIGHTNING_STRIKE_HEIGHT.get(),
+                LightningSheeperConfig.LIGHTNING_STRIKE_DAMAGE.get().floatValue(),
                 primary, warning, warning);
         strikes.add(strike);
         showWarning(level, strike);
@@ -294,7 +299,7 @@ final class LightningStrikeAttack {
     private boolean isValidPosition(ServerLevel level, Vec3 pos) {
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         return pos.subtract(center).horizontalDistanceSqr() <= boss.getCombatRadius() * boss.getCombatRadius()
-                && Math.abs(pos.y - center.y) <= SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get()
+                && Math.abs(pos.y - center.y) <= LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get()
                 && pos.y >= level.getMinBuildHeight() && pos.y < level.getMaxBuildHeight()
                 && level.getChunkSource().hasChunk(Mth.floor(pos.x) >> 4, Mth.floor(pos.z) >> 4);
     }
@@ -308,14 +313,15 @@ final class LightningStrikeAttack {
         LightningAreaDamage.hurtPlayers(boss, players, strike.pos, strike.radius, strike.height, strike.damage);
         if (strike.primary) {
             aftershocks.add(strike.pos);
-            double innerMin = SheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MIN.get();
-            double innerMax = Math.max(innerMin, SheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MAX.get());
-            double outerMin = Math.max(innerMax + 0.1D, SheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MIN.get());
-            double outerMax = Math.max(outerMin, SheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MAX.get());
-            int innerCount = randomCount(SheeperConfig.LIGHTNING_FOLLOWUP_INNER_COUNT_MIN.get(),
-                    SheeperConfig.LIGHTNING_FOLLOWUP_INNER_COUNT_MAX.get());
-            int outerCount = randomCount(SheeperConfig.LIGHTNING_FOLLOWUP_OUTER_COUNT_MIN.get(),
-                    SheeperConfig.LIGHTNING_FOLLOWUP_OUTER_COUNT_MAX.get());
+            double innerMin = LightningSheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MIN.get();
+            double innerMax = Math.max(innerMin, LightningSheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MAX.get());
+            double outerMin = Math.max(innerMax + 0.1D,
+                    LightningSheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MIN.get());
+            double outerMax = Math.max(outerMin, LightningSheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MAX.get());
+            int innerCount = randomCount(LightningSheeperConfig.LIGHTNING_FOLLOWUP_INNER_COUNT_MIN.get(),
+                    LightningSheeperConfig.LIGHTNING_FOLLOWUP_INNER_COUNT_MAX.get());
+            int outerCount = randomCount(LightningSheeperConfig.LIGHTNING_FOLLOWUP_OUTER_COUNT_MIN.get(),
+                    LightningSheeperConfig.LIGHTNING_FOLLOWUP_OUTER_COUNT_MAX.get());
             followups.add(new Followup(strike.pos, innerCount, outerCount, innerMin, innerMax,
                     outerMin, outerMax, strike.warningDuration, 0, 0));
         }

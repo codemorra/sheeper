@@ -2,6 +2,7 @@ package de.codemorra.sheeper.entity;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -65,7 +66,7 @@ final class LightningTeleportMovement {
             finish();
             return;
         }
-        warningRemaining = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_TELEPORT_WARNING.get());
+        warningRemaining = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TELEPORT_WARNING.get());
         if (warningRemaining == 0) {
             teleport();
         } else {
@@ -74,9 +75,9 @@ final class LightningTeleportMovement {
     }
 
     private int nextInterval() {
-        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MIN.get());
+        int minimum = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MIN.get());
         int maximum = Math.max(minimum,
-                SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MAX.get()));
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MAX.get()));
         return minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
@@ -106,8 +107,9 @@ final class LightningTeleportMovement {
     private boolean isSafe(Vec3 target) {
         ServerLevel level = (ServerLevel) boss.level;
         if (!boss.isWithinMovementArea(target.x, target.z)
-                || Math.abs(target.y - boss.getArenaCenter().getY()) > SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE
-                        .get()) {
+                || Math.abs(
+                        target.y - boss.getArenaCenter().getY()) > LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE
+                                .get()) {
             return false;
         }
         AABB bounds = boss.getBoundingBox().move(target.subtract(boss.position()));
@@ -128,7 +130,7 @@ final class LightningTeleportMovement {
                 return false;
             }
         }
-        double distance = SheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE.get();
+        double distance = LightningSheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE.get();
         return level.players().stream().noneMatch(player -> player.isAlive() && !player.isRemoved()
                 && !player.isSpectator() && player.distanceToSqr(target) < distance * distance);
     }

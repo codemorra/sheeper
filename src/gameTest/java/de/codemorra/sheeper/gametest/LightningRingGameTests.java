@@ -3,7 +3,7 @@ package de.codemorra.sheeper.gametest;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.particle.LightningRingOptions;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -28,20 +28,20 @@ final class LightningRingGameTests {
     }
 
     private static LightningSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 9.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 4.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN, 0);
-        context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX, 0);
-        context.set(SheeperConfig.LIGHTNING_RING_CHARGE, 0.2D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 9.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN, 0);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX, 0);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_CHARGE, 0.2D);
         LightningSheeperEntity boss = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
         boss.setNoAi(true);
         for (int tick = 0; tick < 10; tick++) {
@@ -67,21 +67,21 @@ final class LightningRingGameTests {
     }
 
     private static void deferNextAttack(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
     }
 
     private static void sequence(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 5.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN, 3);
-        context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX, 3);
-        context.set(SheeperConfig.LIGHTNING_RING_TELEPORT_INTERVAL, 0.1D);
-        context.set(SheeperConfig.LIGHTNING_RING_COUNT_MIN, 3);
-        context.set(SheeperConfig.LIGHTNING_RING_COUNT_MAX, 3);
-        context.set(SheeperConfig.LIGHTNING_RING_INTERVAL, 0.3D);
-        context.set(SheeperConfig.LIGHTNING_RING_SPEED, 10.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_DAMAGE, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN, 3);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX, 3);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_INTERVAL, 0.1D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_COUNT_MIN, 3);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_COUNT_MAX, 3);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_INTERVAL, 0.3D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_SPEED, 10.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_DAMAGE, 0.0D);
         TestPlayer observer = player(context, boss.position().add(7, 0, 0));
         List<Integer> teleports = new ArrayList<>();
         List<Integer> releases = new ArrayList<>();
@@ -128,12 +128,12 @@ final class LightningRingGameTests {
 
     private static void damage(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 4.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_COUNT_MIN, 2);
-        context.set(SheeperConfig.LIGHTNING_RING_COUNT_MAX, 2);
-        context.set(SheeperConfig.LIGHTNING_RING_INTERVAL, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_SPEED, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_DAMAGE, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_COUNT_MIN, 2);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_COUNT_MAX, 2);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_INTERVAL, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_SPEED, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_DAMAGE, 2.0D);
         Vec3 center = boss.position();
         TestPlayer grounded = player(context, center.add(2, 0, 0));
         TestPlayer jumping = player(context, center.add(-2, 0.6D, 0));

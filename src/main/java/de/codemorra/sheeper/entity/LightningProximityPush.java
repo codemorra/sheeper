@@ -2,6 +2,7 @@ package de.codemorra.sheeper.entity;
 
 import java.util.List;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -28,7 +29,7 @@ final class LightningProximityPush {
     }
 
     void tick() {
-        double radius = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS.get();
+        double radius = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS.get();
         List<ServerPlayer> nearby = radius <= 0 ? List.of()
                 : boss.getCombatParticipants().stream()
                         .filter(player -> boss.distanceToSqr(player) <= radius * radius).toList();
@@ -40,9 +41,9 @@ final class LightningProximityPush {
             return;
         }
         if (duration == 0) {
-            int min = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MIN.get());
+            int min = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MIN.get());
             int max = Math.max(min,
-                    SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MAX.get()));
+                    SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_DELAY_MAX.get()));
             duration = min + boss.getRandom().nextInt(max - min + 1);
             remaining = duration;
         }
@@ -57,7 +58,7 @@ final class LightningProximityPush {
     private void showCharge() {
         ServerLevel level = (ServerLevel) boss.level;
         double progress = 1.0D - (double) remaining / duration;
-        int peak = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_PARTICLE_COUNT.get();
+        int peak = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_PARTICLE_COUNT.get();
         int count = Math.max(1, (int) (peak * (0.04D + 0.96D * progress * progress)));
         Vec3 center = boss.getBoundingBox().getCenter();
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, center.x, center.y, center.z, count,
@@ -68,9 +69,9 @@ final class LightningProximityPush {
 
     private void discharge(List<ServerPlayer> nearby) {
         showDischarge();
-        float damage = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_DAMAGE.get().floatValue();
-        double horizontal = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_STRENGTH.get();
-        double upward = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
+        float damage = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_DAMAGE.get().floatValue();
+        double horizontal = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_STRENGTH.get();
+        double upward = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
         for (ServerPlayer player : nearby) {
             Vec3 motion = player.getDeltaMovement();
             if (damage > 0) {
@@ -92,7 +93,7 @@ final class LightningProximityPush {
     private void showDischarge() {
         ServerLevel level = (ServerLevel) boss.level;
         Vec3 center = boss.getBoundingBox().getCenter();
-        int count = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_PARTICLE_COUNT.get();
+        int count = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_PARTICLE_COUNT.get();
         // A flattened spherical shell sends dense sparks outward as a pressure wave.
         for (int index = 0; index < count; index++) {
             double vertical = 1.0D - 2.0D * (index + 0.5D) / count;
@@ -107,8 +108,8 @@ final class LightningProximityPush {
                     0, direction.x, direction.y, direction.z, 0.6D);
         }
         level.sendParticles(ParticleTypes.FLASH, center.x, center.y, center.z, 1, 0, 0, 0, 0);
-        float thunder = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_THUNDER_VOLUME.get().floatValue();
-        float impact = SheeperConfig.LIGHTNING_PROXIMITY_PUSH_IMPACT_VOLUME.get().floatValue();
+        float thunder = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_THUNDER_VOLUME.get().floatValue();
+        float impact = LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_IMPACT_VOLUME.get().floatValue();
         if (thunder > 0) {
             level.playSound(null, boss.blockPosition(), SoundEvents.LIGHTNING_BOLT_THUNDER,
                     SoundSource.HOSTILE, thunder, 1.0F);

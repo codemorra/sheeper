@@ -1,6 +1,6 @@
 package de.codemorra.sheeper.entity;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.Packet;
@@ -45,8 +45,8 @@ public final class LightningStrikeEffect extends LightningBolt {
         LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
         effect.setPos(pos);
         level.addFreshEntity(effect);
-        float thunder = SheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
-        float impact = SheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float thunder = LightningSheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
+        float impact = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (thunder > 0) {
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_THUNDER,
                     SoundSource.HOSTILE, thunder, 0.9F + boss.getRandom().nextFloat() * 0.2F);
@@ -65,7 +65,7 @@ public final class LightningStrikeEffect extends LightningBolt {
         LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
         effect.setPos(pos);
         level.addFreshEntity(effect);
-        float volume = SheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (volume > 0) {
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                     SoundSource.WEATHER, volume, 0.9F + level.random.nextFloat() * 0.2F);

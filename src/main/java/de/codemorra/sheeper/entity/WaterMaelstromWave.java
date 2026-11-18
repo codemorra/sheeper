@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.nbt.CompoundTag;
@@ -64,7 +65,7 @@ final class WaterMaelstromWave {
         players.forEach(player -> current.put(player.getUUID(), player));
         if (radius < maximumRadius) {
             double previousRadius = radius;
-            radius = Math.min(maximumRadius, radius + SheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D);
+            radius = Math.min(maximumRadius, radius + WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D);
             if (visualTicks++ % 2 == 0 || radius == maximumRadius) {
                 showFront(players);
             }
@@ -90,7 +91,7 @@ final class WaterMaelstromWave {
                 }
             }
             int interval = damageInterval();
-            float amount = (float) (SheeperConfig.WATER_MAELSTROM_DAMAGE.get() * interval / 20.0D);
+            float amount = (float) (WaterSheeperConfig.WATER_MAELSTROM_DAMAGE.get() * interval / 20.0D);
             var damage = damageDelays.entrySet().iterator();
             while (damage.hasNext()) {
                 var entry = damage.next();
@@ -119,7 +120,7 @@ final class WaterMaelstromWave {
     }
 
     private int damageInterval() {
-        return SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_DAMAGE_INTERVAL.get());
+        return SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_DAMAGE_INTERVAL.get());
     }
 
     /**
@@ -127,7 +128,7 @@ final class WaterMaelstromWave {
      *         origin
      */
     static double dangerRadius(WaterSheeperEntity boss) {
-        return Math.max(0, boss.getCombatRadius() - SheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH.get());
+        return Math.max(0, boss.getCombatRadius() - WaterSheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH.get());
     }
 
     /**
@@ -135,7 +136,7 @@ final class WaterMaelstromWave {
      * offset.
      */
     static boolean isSafeArea(WaterSheeperEntity boss, Vec3 point) {
-        if (SheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH.get() <= 0) {
+        if (WaterSheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH.get() <= 0) {
             return false;
         }
         double dx = point.x - boss.getArenaCenter().getX() - 0.5D;

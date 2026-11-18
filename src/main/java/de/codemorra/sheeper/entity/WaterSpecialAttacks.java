@@ -2,6 +2,7 @@ package de.codemorra.sheeper.entity;
 
 import java.util.List;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -49,7 +50,7 @@ final class WaterSpecialAttacks {
     void tickTimers(List<ServerPlayer> participants, WaterDefaultAttack defaultAttack) {
         if (!beamActive) {
             boss.setBeamEyeIntensity(Mth.approach(boss.getBeamEyeIntensity(1), 0,
-                    1.0F / SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_EYE_FADE.get())));
+                    1.0F / SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_EYE_FADE.get())));
         }
         if (participants.isEmpty()) {
             if (maelstrom.isActive()) {
@@ -66,7 +67,7 @@ final class WaterSpecialAttacks {
         if (maelstromCooldown < 0) {
             // Unlike other specials, Maelstrom must first earn its cooldown at
             // encounter entry. Brief arena exits pause, rather than restart, it.
-            maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+            maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
         } else if (maelstromCooldown > 0) {
             maelstromCooldown--;
         }
@@ -104,7 +105,7 @@ final class WaterSpecialAttacks {
         boolean fountainReady = fountainCooldown == 0;
         boolean maelstromReady = maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
                 || defaultAttack.getMeleeTicks() >= SheeperConfig
-                        .secondsToTicks(SheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));
+                        .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));
         int choices = (beamReady ? 1 : 0) + (fountainReady ? 1 : 0) + (maelstromReady ? 1 : 0);
         if (choices == 0) {
             return;
@@ -116,13 +117,13 @@ final class WaterSpecialAttacks {
         } else if (fountainReady && choice-- == 0) {
             fountains.start();
             fountainActive = true;
-            int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN.get());
+            int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_DURATION_MIN.get());
             int maximum = Math.max(minimum,
-                    SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX.get()));
+                    SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_DURATION_MAX.get()));
             fountainTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
         } else if (maelstromReady && !maelstrom.start()) {
             // Failed center searches must not repeat their pathfinding every tick.
-            maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+            maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
         }
     }
 
@@ -187,14 +188,14 @@ final class WaterSpecialAttacks {
     private void finishBeam() {
         beamActive = false;
         beam.stop();
-        beamCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_COOLDOWN.get());
+        beamCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_COOLDOWN.get());
         beginRecovery();
     }
 
     private void finishMaelstrom() {
         boolean impacted = maelstrom.hasImpacted();
         maelstrom.finish();
-        maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+        maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
         beginRecovery();
         if (impacted) {
             // The attack already held its vulnerable recovery at the impact.
@@ -204,10 +205,10 @@ final class WaterSpecialAttacks {
     }
 
     private void beginRecovery() {
-        recoveryTicks = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_RECOVERY.get());
-        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MIN.get());
+        recoveryTicks = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_RECOVERY.get());
+        int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MIN.get());
         int maximum = Math.max(minimum,
-                SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MAX.get()));
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MAX.get()));
         defaultOnlyTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
@@ -218,7 +219,7 @@ final class WaterSpecialAttacks {
         fountainActive = false;
         fountainTicks = 0;
         fountains.finish();
-        fountainCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_COOLDOWN.get());
+        fountainCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_COOLDOWN.get());
     }
 
     /**

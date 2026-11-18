@@ -2,7 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -27,17 +27,17 @@ final class LightningGameTests {
     }
 
     private static LightningSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.2D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 1);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.2D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 1);
         return context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
     }
 
@@ -68,7 +68,7 @@ final class LightningGameTests {
         boss.tick();
         context.near(boss.getX(), origin.x, "Preparation must prevent horizontal movement");
         context.near(boss.getZ(), origin.z, "Preparation must prevent horizontal movement");
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 20.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 20.0D);
         boss.tick();
         double halfway = furthestSpark(player, origin);
         context.expect(halfway > 0 && halfway < boss.getCombatRadius(),
@@ -110,7 +110,7 @@ final class LightningGameTests {
         boss = restore(context, boss); // Saving before the first tick must capture the original arena.
         boss.tick();
         boss = restore(context, boss);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 20.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 20.0D);
         tick(boss, 2);
         context.expect(!boss.isCombatReady(), "Reload must retain the remaining preparation time");
         boss.tick();
@@ -123,7 +123,7 @@ final class LightningGameTests {
         context.expect(boss.getArenaCenter().equals(origin), "Moving the boss must not move its arena origin");
         boss.discard();
         LightningSheeperEntity immediate = boss(context);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         immediate.tick();
         context.expect(immediate.isCombatReady(), "Zero preparation duration must start combat immediately");
         context.pass();
@@ -148,7 +148,7 @@ final class LightningGameTests {
         boundary.standAt(context.point(18, 1, 12));
         context.expect(boss.getCombatParticipants().equals(List.of(boundary)),
                 "Returning players must rejoin the encounter");
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 2.0D);
         context.expect(boss.getCombatParticipants().isEmpty(), "Combat bounds must follow current configuration");
         context.near(boss.getMovementRadius(), 2.0D, "Movement must remain within the combat radius");
         context.expect(boss.isWithinMovementArea(context.point(14, 1, 12).x, context.point(14, 1, 12).z)

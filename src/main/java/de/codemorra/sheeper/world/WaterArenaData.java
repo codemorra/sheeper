@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import javax.annotation.Nullable;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 
 import de.codemorra.sheeper.registry.ModBlocks;
@@ -289,7 +290,7 @@ public final class WaterArenaData extends SavedData {
      * budget.
      */
     public void advanceCleanup(ServerLevel level, int budget) {
-        int interval = SheeperConfig.secondsToTicks(SheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS.get());
+        int interval = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS.get());
         long now = level.getGameTime();
         int examined = 0;
         int waiting = 0;
