@@ -483,6 +483,21 @@ public class SheeperConfig {
             .comment("Minimum time in seconds after a sprint before another sprint can begin.")
             .defineInRange("elemental.water.movement.sprintCooldownSeconds", 6.0, 0.0, 60.0);
 
+    /**
+     * Quiet movement without combat participants (elemental.water.movement.idle).
+     */
+    public static final ForgeConfigSpec.DoubleValue WATER_IDLE_SPEED = BUILDER
+            .comment("Idle speed relative to normal navigation speed; no sprint boosts. 0 disables idle swimming.")
+            .defineInRange("elemental.water.movement.idle.speedMultiplier", 0.5, 0.0, 1.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_IDLE_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds between idle swim plans. Active routes finish before choosing another.")
+            .defineInRange("elemental.water.movement.idle.intervalMinSeconds", 2.0, 0.1, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_IDLE_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds between idle swim plans; capped below by intervalMinSeconds.")
+            .defineInRange("elemental.water.movement.idle.intervalMaxSeconds", 5.0, 0.1, 15.0);
+
     /** Water-contact spawn wave (elemental.water.spawnPush). */
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_RADIUS = BUILDER
             .comment("Maximum distance from the boss for contact and launch of the spawn water wave; 0 disables it.")

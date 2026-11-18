@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.WaterOrbitGoal;
+import de.codemorra.sheeper.entity.goal.WaterIdleSwimGoal;
 import de.codemorra.sheeper.entity.navigation.WaterArenaNavigation;
 import de.codemorra.sheeper.entity.navigation.WaterSwimMoveControl;
 import de.codemorra.sheeper.fluid.BossWaterFluid;
@@ -87,6 +88,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final WaterSpecialAttacks specialAttacks = new WaterSpecialAttacks(this);
     private float previousBeamEyeIntensity;
     private WaterOrbitGoal orbitGoal;
+    private WaterIdleSwimGoal idleGoal;
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
@@ -320,6 +322,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     protected void registerGoals() {
         orbitGoal = new WaterOrbitGoal(this);
         goalSelector.addGoal(0, orbitGoal);
+        idleGoal = new WaterIdleSwimGoal(this);
+        goalSelector.addGoal(1, idleGoal);
     }
 
     /**
@@ -443,9 +447,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         specialAttacks.tickTimers(participants, defaultAttack);
         ServerPlayer target = defaultAttack.tickTarget(participants, !specialAttacks.suppressesDefault());
         setTarget(target);
-        if (target == null) {
-            stopMovement();
-        } else {
+        // An empty arena leaves navigation to the idle goal instead of cancelling
+        // its current route every tick. Goal priorities handle combat transitions.
+        if (target != null) {
             specialAttacks.tryStart(target, defaultAttack);
             if (isPerformingBeam()) {
                 stopMovement();
@@ -487,6 +491,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         specialAttacks.reset();
         setTarget(null);
         orbitGoal.reset();
+        idleGoal.reset();
     }
 
     private boolean touchesArenaWater(ServerPlayer player, WaterArenaData data) {
