@@ -51,9 +51,9 @@ import net.minecraftforge.fluids.FluidType;
  * A separate special scheduler owns beam timing and stationary movement locks.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
-    // Temporary underwater test stage: default projectiles only; specials and
-    // proximity/spawn knockback stay disabled until their separate in-game checks.
-    private static final boolean PROJECTILE_TEST_MODE = true;
+    // Temporary underwater test stage: projectiles and beam are enabled;
+    // fountains and proximity/spawn knockback await their separate in-game checks.
+    private static final boolean BEAM_TEST_MODE = true;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -121,7 +121,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * @return whether beam warning or firing currently locks horizontal movement
+     * @return whether beam warning or firing currently locks swimming movement
      */
     public boolean isPerformingBeam() {
         return specialAttacks.isBeamActive();
@@ -410,9 +410,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (target == null) {
             stopMovement();
         } else {
-            if (!PROJECTILE_TEST_MODE) {
-                specialAttacks.tryStart(target, defaultAttack);
-            }
+            specialAttacks.tryStart(target, defaultAttack, !BEAM_TEST_MODE);
             if (isPerformingBeam()) {
                 stopMovement();
                 Vec3 aim = specialAttacks.getAimPosition();
@@ -469,7 +467,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private void tickWaterWave(boolean preparing) {
-        if (PROJECTILE_TEST_MODE) {
+        if (BEAM_TEST_MODE) {
             waterWaveDelays.clear();
             return;
         }
@@ -581,10 +579,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 }
             }
             getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(SheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
-            if (PROJECTILE_TEST_MODE) {
-                // Clear saved specials so this test stage cannot lock movement or
-                // trigger an attack that has not yet been enabled for underwater testing.
-                specialAttacks.reset();
+            if (BEAM_TEST_MODE) {
+                // Preserve beam cooldown/recovery while removing fountain hazards
+                // restored from a save made during an earlier test stage.
+                specialAttacks.disableFountains();
             }
             updateMovementTarget();
         }
@@ -593,12 +591,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             arenaBoundary.tick();
             if (!isNoAi()) {
                 arenaCombat.tick(getCombatParticipants());
-                if (!PROJECTILE_TEST_MODE) {
-                    specialAttacks.tickAttack();
-                }
+                specialAttacks.tickAttack();
                 if (!specialAttacks.suppressesDefault()) {
                     defaultAttack.tickProjectiles();
-                    if (!PROJECTILE_TEST_MODE) {
+                    if (!BEAM_TEST_MODE) {
                         proximityPush.tick(getCombatParticipants());
                     }
                 }

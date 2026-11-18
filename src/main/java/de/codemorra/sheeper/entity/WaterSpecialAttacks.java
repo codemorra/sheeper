@@ -77,16 +77,18 @@ final class WaterSpecialAttacks {
      * beam entry only; fountains may accompany normal combat at any distance.
      * Once started, approaching the boss cannot cancel a beam.
      *
-     * @param target        current shared target
-     * @param defaultAttack default cycle whose initial entry pause must have
-     *                      elapsed
+     * @param target         current shared target
+     * @param defaultAttack  default cycle whose initial entry pause must have
+     *                       elapsed
+     * @param allowFountains whether fountains are enabled for the current
+     *                       underwater test stage
      */
-    void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack) {
+    void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack, boolean allowFountains) {
         if (beamActive || fountainActive || recoveryTicks > 0 || defaultOnlyTicks > 0 || !defaultAttack.isFiring()) {
             return;
         }
         boolean beamReady = beamCooldown == 0 && !defaultAttack.isClosingOnTarget() && boss.hasLineOfSight(target);
-        boolean fountainReady = fountainCooldown == 0;
+        boolean fountainReady = allowFountains && fountainCooldown == 0;
         if (beamReady && (!fountainReady || boss.getRandom().nextBoolean())) {
             beam.start();
             beamActive = true;
@@ -159,6 +161,16 @@ final class WaterSpecialAttacks {
         fountainTicks = 0;
         fountains.finish();
         fountainCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_COOLDOWN.get());
+    }
+
+    /**
+     * Disables pending fountain hazards without resetting beam progress, cooldown
+     * or recovery.
+     */
+    void disableFountains() {
+        fountainActive = false;
+        fountainTicks = 0;
+        fountains.reset();
     }
 
     /** Makes all implemented special cooldowns ready after full arena recovery. */
