@@ -2,6 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -27,8 +28,8 @@ final class WaterCombatGameTests {
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 5.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 5.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
         WaterSheeperEntity boss = context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8));
@@ -73,12 +74,12 @@ final class WaterCombatGameTests {
     }
 
     private static void returnToArea(GameTestContext context) {
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 6.0D);
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 8.0D);
-        context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN, (5) / 20.0D);
-        context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX, (5) / 20.0D);
-        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (200) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 8.0D);
+        context.set(WaterSheeperConfig.WATER_MOVEMENT_INTERVAL_MIN, (5) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_MOVEMENT_INTERVAL_MAX, (5) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (200) / 20.0D);
         WaterSheeperEntity boss = context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8));
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         double[] previousDistance = { 25.0D };
@@ -118,17 +119,17 @@ final class WaterCombatGameTests {
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (1200) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (1200) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (12000) / 20.0D);
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 7.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, (1200) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, (1200) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, (12000) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 7.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MIN, (10) / 20.0D);
-        context.set(SheeperConfig.WATER_MOVEMENT_INTERVAL_MAX, (10) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_MOVEMENT_INTERVAL_MIN, (10) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_MOVEMENT_INTERVAL_MAX, (10) / 20.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
-        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (200) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (200) / 20.0D);
         // Navigation must respect both collision and the circular movement bound.
         for (int z = 5; z <= 11; z++) {
             for (int y = 1; y <= 4; y++) {

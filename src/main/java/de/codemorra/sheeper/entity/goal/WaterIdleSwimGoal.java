@@ -4,6 +4,7 @@ import java.util.EnumSet;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import net.minecraft.core.BlockPos;
@@ -30,8 +31,8 @@ public final class WaterIdleSwimGoal extends Goal {
         return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady() && boss.isInArenaWater()
                 && boss.getTarget() == null && !boss.isPerformingBeam() && !boss.isPerformingMaelstrom()
                 && boss.getMovementRadius() > 0
-                && SheeperConfig.WATER_MOVEMENT_SPEED.get() > 0
-                && SheeperConfig.WATER_IDLE_SPEED.get() > 0;
+                && WaterSheeperConfig.WATER_MOVEMENT_SPEED.get() > 0
+                && WaterSheeperConfig.WATER_IDLE_SPEED.get() > 0;
     }
 
     @Override
@@ -57,14 +58,15 @@ public final class WaterIdleSwimGoal extends Goal {
             return;
         }
         long now = boss.level.getGameTime();
-        double speed = SheeperConfig.WATER_MOVEMENT_SPEED.get() * SheeperConfig.WATER_IDLE_SPEED.get();
+        double speed = WaterSheeperConfig.WATER_MOVEMENT_SPEED.get() * WaterSheeperConfig.WATER_IDLE_SPEED.get();
         if (boss.getNavigation().isDone() && now >= nextPlanTick) {
             Path path = choosePath();
             if (path != null) {
                 boss.getNavigation().moveTo(path, speed);
             }
-            int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_IDLE_INTERVAL_MIN.get());
-            int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_IDLE_INTERVAL_MAX.get()));
+            int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_IDLE_INTERVAL_MIN.get());
+            int maximum = Math.max(minimum,
+                    SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_IDLE_INTERVAL_MAX.get()));
             nextPlanTick = now + minimum + boss.getRandom().nextInt(maximum - minimum + 1);
         }
         boss.getNavigation().setSpeedModifier(speed);

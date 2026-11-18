@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -50,7 +51,7 @@ public class WaterProjectile extends Projectile {
         }
         super.tick();
         if (!level.isClientSide) {
-            if (flightTicks >= SheeperConfig.secondsToTicks(SheeperConfig.WATER_PROJECTILE_LIFETIME.get())
+            if (flightTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_LIFETIME.get())
                     || !level.getChunkSource().hasChunk(chunkPosition().x, chunkPosition().z)) {
                 discard();
                 return;
@@ -84,10 +85,10 @@ public class WaterProjectile extends Projectile {
         Entity target = hit.getEntity();
         Vec3 previousMotion = target.getDeltaMovement();
         if (target.hurt(DamageSource.thrown(this, getOwner()),
-                SheeperConfig.WATER_PROJECTILE_DAMAGE.get().floatValue())) {
+                WaterSheeperConfig.WATER_PROJECTILE_DAMAGE.get().floatValue())) {
             // Replace vanilla's attacker-relative impulse with the flight direction.
             target.setDeltaMovement(previousMotion.add(getDeltaMovement().normalize()
-                    .scale(SheeperConfig.WATER_PROJECTILE_KNOCKBACK.get())));
+                    .scale(WaterSheeperConfig.WATER_PROJECTILE_KNOCKBACK.get())));
             target.hurtMarked = true;
             if (target instanceof ServerPlayer player) {
                 player.connection.send(new ClientboundSetEntityMotionPacket(player));

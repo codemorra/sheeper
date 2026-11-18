@@ -3,6 +3,7 @@ package de.codemorra.sheeper.gametest;
 import java.util.List;
 import java.util.UUID;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
@@ -29,12 +30,12 @@ final class WaterPreparationGameTests {
     }
 
     private static WaterSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
-        context.set(SheeperConfig.WATER_SPAWN_PUSH_DELAY, (10) / 20.0D);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 10.0D);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.2D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 10.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_SPAWN_PUSH_DELAY, (10) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 10.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.2D);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
         boss.setNoAi(true);
         return boss;
@@ -76,7 +77,7 @@ final class WaterPreparationGameTests {
         data.finishGeneration(boss.getUUID());
         tick(boss, 5);
         context.expect(launches(touching) == 0, "Water contact must wait the full configured delay: configured="
-                + SheeperConfig.WATER_SPAWN_PUSH_DELAY.get() + ", state="
+                + WaterSheeperConfig.WATER_SPAWN_PUSH_DELAY.get() + ", state="
                 + boss.saveWithoutId(new CompoundTag()).getList("WaterWaveDelays", 10));
         touching.setDeltaMovement(3.0D, 4.0D, -2.0D);
         boss.tick();
@@ -107,7 +108,7 @@ final class WaterPreparationGameTests {
 
     private static void radius(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_RADIUS, 3.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_RADIUS, 3.0D);
         TestPlayer boundary = player(context, 11);
         TestPlayer outside = player(context, 12);
         TestPlayer leaving = player(context, 9);
@@ -139,8 +140,8 @@ final class WaterPreparationGameTests {
 
     private static void reload(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 4.0D);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 4.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.0D);
         boss = restore(context, boss); // Save before its first tick.
         TestPlayer player = player(context, 9);
         WaterArenaData.get(context.level).claim(context.level, boss.getUUID(), context.pos(9, 1, 8));
@@ -161,21 +162,21 @@ final class WaterPreparationGameTests {
     }
 
     private static void preparation(GameTestContext context) {
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 1.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
-        context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (2) * 20);
-        context.set(SheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (2) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
+        context.set(WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, (2) * 20);
+        context.set(WaterSheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (2) / 20.0D);
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, (1) / 20.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_HEIGHT, 0.0D);
+        context.set(WaterSheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH, 0.0D);
         WaterSheeperEntity[] boss = { context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8) };
         Vec3 origin = boss[0].position();
         TestPlayer target = player(context, 10);

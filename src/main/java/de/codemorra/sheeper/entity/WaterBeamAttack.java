@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
@@ -44,10 +45,10 @@ final class WaterBeamAttack {
 
     /** Begins a stationary warning and samples the subsequent firing duration. */
     void start() {
-        preparationDuration = SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_PREPARATION.get());
+        preparationDuration = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_PREPARATION.get());
         preparationTicks = preparationDuration;
-        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_DURATION_MIN.get());
-        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_DURATION_MAX.get()));
+        int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_DURATION_MIN.get());
+        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_DURATION_MAX.get()));
         remainingAttackTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
         sightLossTicks = 0;
         beamLength = 0.0D;
@@ -81,7 +82,7 @@ final class WaterBeamAttack {
         damageCooldowns.values().removeIf(ticks -> ticks <= 0);
         boolean visible = boss.hasLineOfSight(target);
         sightLossTicks = visible ? 0 : sightLossTicks + 1;
-        if (sightLossTicks >= SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_SIGHT_TIMEOUT.get())) {
+        if (sightLossTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_SIGHT_TIMEOUT.get())) {
             return false;
         }
         if (aimPosition == null) {
@@ -89,7 +90,7 @@ final class WaterBeamAttack {
         } else if (visible) {
             // A gradual response leaves room to dodge without abrupt aiming steps.
             int trackingTicks = Math.max(1,
-                    SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_TRACKING_RESPONSE.get()));
+                    SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_TRACKING_RESPONSE.get()));
             aimPosition = aimPosition.lerp(target.getEyePosition(), 1.0D / trackingTicks);
         }
         if (preparationTicks > 0) {
@@ -99,9 +100,9 @@ final class WaterBeamAttack {
             return true;
         }
         boss.setBeamEyeIntensity(1.0F);
-        double range = SheeperConfig.WATER_BEAM_RANGE.get();
+        double range = WaterSheeperConfig.WATER_BEAM_RANGE.get();
         int extensionTicks = Math.max(1,
-                SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_EXTENSION.get()));
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_EXTENSION.get()));
         beamLength = Math.min(range, beamLength + range / extensionTicks);
         Vec3 start = boss.getBeamOrigin();
         Vec3 direction = aimPosition.subtract(start);
@@ -122,7 +123,7 @@ final class WaterBeamAttack {
             // one-second interval; invulnerability must not consume that interval.
             if (!damageCooldowns.containsKey(player.getUUID())
                     && player.hurt(DamageSource.mobAttack(boss),
-                            SheeperConfig.WATER_BEAM_DAMAGE_PER_SECOND.get().floatValue())) {
+                            WaterSheeperConfig.WATER_BEAM_DAMAGE_PER_SECOND.get().floatValue())) {
                 damageCooldowns.put(player.getUUID(), 20);
             }
         }

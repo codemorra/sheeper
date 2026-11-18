@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
@@ -30,16 +31,16 @@ final class WaterAttackGameTests {
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (duration) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (duration) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, (duration) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, (duration) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (rest) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (rest) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (interval) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, (interval) / 20.0D);
         return context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8));
     }
 
@@ -57,7 +58,7 @@ final class WaterAttackGameTests {
         WaterSheeperEntity boss = boss(context, 6, 3, 2);
         context.player(16, 2, 8);
         // Reversed bounds must use the minimum, matching movement intervals.
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (1) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, (1) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (1) / 20.0D);
         for (int tick = 1; tick <= 6; tick++) {
             boss.tick();
@@ -80,7 +81,7 @@ final class WaterAttackGameTests {
 
     private static void randomDurations(GameTestContext context) {
         WaterSheeperEntity boss = boss(context, 3, 2, 1);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (7) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, (7) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (5) / 20.0D);
         context.player(16, 2, 8);
         boss.getRandom().setSeed(12345L);

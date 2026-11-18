@@ -1,7 +1,7 @@
 package de.codemorra.sheeper.event;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.server.level.ServerLevel;
@@ -27,7 +27,7 @@ public final class WaterArenaEvents {
                     boss.enforceArenaPlayerCeiling();
                 }
             }
-            WaterArenaData.tick(level, SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
+            WaterArenaData.tick(level, WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
         }
     }
 

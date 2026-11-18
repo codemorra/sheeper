@@ -2,6 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.entity.WaterArenaSearch;
@@ -113,9 +114,9 @@ final class WaterGameTests {
     }
 
     private static void discoveryLifecycle(GameTestContext context) {
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
-        context.set(SheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (64) * 20);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 2.0D);
+        context.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (64) * 20);
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
         context.at(5, () -> {
             context.expect(boss.isArenaSearchComplete() && boss.getArenaSurfacePositions().size() == 13,
@@ -175,11 +176,11 @@ final class WaterGameTests {
 
     private static void radii(GameTestContext context) {
         WaterSheeperEntity boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 1, 8);
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 30.0D);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 30.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 8.0D);
         context.near(boss.getCombatRadius(), 30.0D, "Combat radius must follow configuration");
         context.near(boss.getMovementRadius(), 8.0D, "Movement radius must follow configuration");
-        context.set(SheeperConfig.WATER_COMBAT_RADIUS, 5.0D);
+        context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 5.0D);
         context.near(boss.getMovementRadius(), 5.0D, "Movement radius must stay within the combat radius");
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.near(boss.getMovementRadius(), 0.0D, "Zero movement radius must be supported");

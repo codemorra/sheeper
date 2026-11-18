@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.mojang.math.Vector3f;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -70,16 +71,16 @@ final class LightningAftershockZones {
 
     void add(Vec3 pos) {
         // Negative remaining time keeps this zone active until its storm phase ends.
-        Zone zone = new Zone(pos, SheeperConfig.LIGHTNING_AFTERSHOCK_RADIUS.get(),
-                SheeperConfig.LIGHTNING_AFTERSHOCK_HEIGHT.get(),
-                SheeperConfig.LIGHTNING_AFTERSHOCK_DAMAGE.get().floatValue(),
-                SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_AFTERSHOCK_INTERVAL.get()), -1);
+        Zone zone = new Zone(pos, LightningSheeperConfig.LIGHTNING_AFTERSHOCK_RADIUS.get(),
+                LightningSheeperConfig.LIGHTNING_AFTERSHOCK_HEIGHT.get(),
+                LightningSheeperConfig.LIGHTNING_AFTERSHOCK_DAMAGE.get().floatValue(),
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AFTERSHOCK_INTERVAL.get()), -1);
         zones.add(zone);
         show((ServerLevel) boss.level, zone);
     }
 
     void finishPhase() {
-        int tail = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_AFTERSHOCK_AFTER.get());
+        int tail = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AFTERSHOCK_AFTER.get());
         for (Zone zone : zones) {
             if (zone.remaining < 0) {
                 zone.remaining = tail;
@@ -104,7 +105,7 @@ final class LightningAftershockZones {
             if (effectTicks % 4 == 0) {
                 show(level, zone);
             }
-            float volume = SheeperConfig.LIGHTNING_AFTERSHOCK_VOLUME.get().floatValue();
+            float volume = LightningSheeperConfig.LIGHTNING_AFTERSHOCK_VOLUME.get().floatValue();
             if (volume > 0.0F && effectTicks % 20 == 0) {
                 level.playSound(null, zone.pos.x, zone.pos.y, zone.pos.z, SoundEvents.REDSTONE_TORCH_BURNOUT,
                         SoundSource.HOSTILE, volume, 1.3F + boss.getRandom().nextFloat() * 0.2F);

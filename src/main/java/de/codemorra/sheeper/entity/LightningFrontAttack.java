@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -97,21 +98,22 @@ final class LightningFrontAttack {
     void start() {
         clear();
         origin = boss.position();
-        int min = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_FRONT_DURATION_MIN.get());
-        int max = Math.max(min, SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_FRONT_DURATION_MAX.get()));
+        int min = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MIN.get());
+        int max = Math.max(min,
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FRONT_DURATION_MAX.get()));
         remaining = min + boss.getRandom().nextInt(max - min + 1);
-        spawnMin = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MIN.get());
+        spawnMin = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MIN.get());
         spawnMax = Math.max(spawnMin,
-                SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MAX.get()));
-        maxActive = SheeperConfig.LIGHTNING_FRONT_MAX_ACTIVE.get();
-        stepInterval = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_FRONT_STEP_INTERVAL.get());
-        warningDuration = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_FRONT_WARNING.get());
-        stepDistance = SheeperConfig.LIGHTNING_FRONT_STEP_DISTANCE.get();
-        sideOffset = SheeperConfig.LIGHTNING_FRONT_SIDE_OFFSET.get();
-        directionGap = Math.toRadians(SheeperConfig.LIGHTNING_FRONT_DIRECTION_GAP.get());
-        hitRadius = SheeperConfig.LIGHTNING_FRONT_RADIUS.get();
-        hitHeight = SheeperConfig.LIGHTNING_FRONT_HEIGHT.get();
-        damage = SheeperConfig.LIGHTNING_FRONT_DAMAGE.get().floatValue();
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FRONT_SPAWN_INTERVAL_MAX.get()));
+        maxActive = LightningSheeperConfig.LIGHTNING_FRONT_MAX_ACTIVE.get();
+        stepInterval = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FRONT_STEP_INTERVAL.get());
+        warningDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FRONT_WARNING.get());
+        stepDistance = LightningSheeperConfig.LIGHTNING_FRONT_STEP_DISTANCE.get();
+        sideOffset = LightningSheeperConfig.LIGHTNING_FRONT_SIDE_OFFSET.get();
+        directionGap = Math.toRadians(LightningSheeperConfig.LIGHTNING_FRONT_DIRECTION_GAP.get());
+        hitRadius = LightningSheeperConfig.LIGHTNING_FRONT_RADIUS.get();
+        hitHeight = LightningSheeperConfig.LIGHTNING_FRONT_HEIGHT.get();
+        damage = LightningSheeperConfig.LIGHTNING_FRONT_DAMAGE.get().floatValue();
         lookAngle = Math.toRadians(boss.getYRot() + 90.0D);
     }
 
@@ -248,7 +250,8 @@ final class LightningFrontAttack {
 
     private boolean isValidPoint(ServerLevel level, Vec3 pos) {
         return isWithinArena(pos.x, pos.z)
-                && Math.abs(pos.y - boss.getArenaCenter().getY()) <= SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get()
+                && Math.abs(pos.y
+                        - boss.getArenaCenter().getY()) <= LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get()
                 && pos.y >= level.getMinBuildHeight() && pos.y < level.getMaxBuildHeight()
                 && level.getChunkSource().hasChunk(Mth.floor(pos.x) >> 4, Mth.floor(pos.z) >> 4);
     }

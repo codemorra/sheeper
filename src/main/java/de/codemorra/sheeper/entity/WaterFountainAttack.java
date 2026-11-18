@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.world.WaterArenaData;
@@ -97,12 +98,13 @@ final class WaterFountainAttack {
 
     private int initialDelay() {
         return 1 + boss.getRandom()
-                .nextInt(SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get()));
+                .nextInt(SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get()));
     }
 
     private int nextDelay() {
-        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get());
-        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX.get()));
+        int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get());
+        int maximum = Math.max(minimum,
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX.get()));
         return minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
@@ -143,7 +145,7 @@ final class WaterFountainAttack {
             }
         }
         transports.tick(players);
-        if (remainingTicks <= SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get())) {
+        if (remainingTicks <= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_WARNING.get())) {
             return;
         }
         playerDelays.keySet().removeIf(id -> players.stream().noneMatch(player -> player.getUUID().equals(id)));
@@ -165,10 +167,10 @@ final class WaterFountainAttack {
         }
         if (--arenaDelay <= 0) {
             List<BlockPos> selected = new ArrayList<>();
-            int limit = SheeperConfig.WATER_FOUNTAIN_ARENA_COUNT.get();
+            int limit = WaterSheeperConfig.WATER_FOUNTAIN_ARENA_COUNT.get();
             int count = 0;
             for (BlockPos pos : boss.getArenaSurfacePositions()) {
-                if (!suitable(pos, SheeperConfig.WATER_FOUNTAIN_SIZE.get()) || occupied(pos)) {
+                if (!suitable(pos, WaterSheeperConfig.WATER_FOUNTAIN_SIZE.get()) || occupied(pos)) {
                     continue;
                 }
                 int slot = boss.getRandom().nextInt(++count);
@@ -207,13 +209,13 @@ final class WaterFountainAttack {
     }
 
     private void announce(BlockPos pos, @Nullable UUID playerId) {
-        int size = SheeperConfig.WATER_FOUNTAIN_SIZE.get();
+        int size = WaterSheeperConfig.WATER_FOUNTAIN_SIZE.get();
         if (!suitable(pos, size) || occupied(pos)) {
             return;
         }
         Fountain fountain = new Fountain(pos, size, boss.getArenaWaterSurfaceY(), playerId,
-                SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get()),
-                SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_ACTIVE.get()));
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_WARNING.get()),
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_ACTIVE.get()));
         fountains.add(fountain);
         showWarning(fountain);
     }
@@ -275,7 +277,7 @@ final class WaterFountainAttack {
                 if (height > 0) {
                     ((ServerLevel) boss.level).sendParticles(ModParticles.WATER_FOUNTAIN.get(),
                             base.getX() + 0.5D, base.getY() + 0.1D, base.getZ() + 0.5D,
-                            0, height - 0.2D, warning ? 0 : SheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D,
+                            0, height - 0.2D, warning ? 0 : WaterSheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D,
                             warning ? fountain.warningTicks : fountain.activeTicks, 1);
                 }
             }
@@ -297,7 +299,7 @@ final class WaterFountainAttack {
             if (transports.contains(player)) {
                 continue;
             }
-            player.hurt(DamageSource.mobAttack(boss), SheeperConfig.WATER_FOUNTAIN_DAMAGE.get().floatValue());
+            player.hurt(DamageSource.mobAttack(boss), WaterSheeperConfig.WATER_FOUNTAIN_DAMAGE.get().floatValue());
             if (player.isAlive()) {
                 transports.start(player, fountain.ceiling);
             }

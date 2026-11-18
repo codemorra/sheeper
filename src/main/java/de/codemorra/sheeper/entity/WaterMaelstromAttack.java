@@ -5,6 +5,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
@@ -184,7 +185,7 @@ final class WaterMaelstromAttack {
     private void followApproach(Path path) {
         destination = point(path.getTarget());
         phase = Phase.APPROACH;
-        boss.getNavigation().moveTo(path, SheeperConfig.WATER_MAELSTROM_CENTER_SPEED.get());
+        boss.getNavigation().moveTo(path, WaterSheeperConfig.WATER_MAELSTROM_CENTER_SPEED.get());
         replanTicks = 20;
     }
 
@@ -209,7 +210,7 @@ final class WaterMaelstromAttack {
             if (boss.position().distanceToSqr(destination) <= 0.36D && isPreparationPosition(boss.position())) {
                 beginRotation();
             } else if (++phaseTicks >= SheeperConfig
-                    .secondsToTicks(SheeperConfig.WATER_MAELSTROM_CENTER_TIMEOUT.get())) {
+                    .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_CENTER_TIMEOUT.get())) {
                 return false;
             } else {
                 // Stopping the combat goal can cancel the initial route during
@@ -219,7 +220,7 @@ final class WaterMaelstromAttack {
                     Path path = approachPath(Set.of(new BlockPos(destination.x - offset, destination.y,
                             destination.z - offset)));
                     if (path != null) {
-                        boss.getNavigation().moveTo(path, SheeperConfig.WATER_MAELSTROM_CENTER_SPEED.get());
+                        boss.getNavigation().moveTo(path, WaterSheeperConfig.WATER_MAELSTROM_CENTER_SPEED.get());
                     } else if (!chooseApproach()) {
                         return false;
                     }
@@ -235,7 +236,7 @@ final class WaterMaelstromAttack {
         }
         if (phase == Phase.RECOVERY) {
             holdPosition();
-            return ++phaseTicks < SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_RECOVERY.get());
+            return ++phaseTicks < SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_RECOVERY.get());
         }
         holdPosition();
         phaseTicks++;
@@ -246,7 +247,7 @@ final class WaterMaelstromAttack {
             pullPlayers();
         }
         int rotationMultiplier = phase == Phase.STRONG_PULL ? 4 : phase == Phase.MEDIUM_PULL ? 2 : 1;
-        rotationDegrees += SheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue()
+        rotationDegrees += WaterSheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue()
                 * rotationMultiplier / 20;
         boss.setMaelstromRotation(rotationDegrees);
         if (phaseTicks % 4 == 0) {
@@ -258,7 +259,7 @@ final class WaterMaelstromAttack {
                     phase = Phase.ASCENT;
                     ascentStartY = boss.getY();
                     ascentTargetY = Math.min(boss.getArenaWaterSurfaceY() - boss.getBbHeight() - 0.15D,
-                            ascentStartY + SheeperConfig.WATER_MAELSTROM_ASCENT_HEIGHT.get());
+                            ascentStartY + WaterSheeperConfig.WATER_MAELSTROM_ASCENT_HEIGHT.get());
                 }
                 case ASCENT -> phase = Phase.MEDIUM_PULL;
                 case MEDIUM_PULL -> phase = Phase.STRONG_PULL;
@@ -285,7 +286,7 @@ final class WaterMaelstromAttack {
         holdPosition();
         double bottom = Math.max(boss.getArenaWaterMinimumY(), minimumPreparationY);
         double distance = Math.max(0, boss.getY() - bottom);
-        double step = Math.min(distance, SheeperConfig.WATER_MAELSTROM_SLAM_SPEED.get() / 20.0D);
+        double step = Math.min(distance, WaterSheeperConfig.WATER_MAELSTROM_SLAM_SPEED.get() / 20.0D);
         double movement = Shapes.collide(Direction.Axis.Y, boss.getBoundingBox(),
                 boss.level.getBlockCollisions(boss, boss.getBoundingBox().expandTowards(0, -step, 0)), -step);
         if (movement < 0) {
@@ -322,10 +323,10 @@ final class WaterMaelstromAttack {
 
     private int phaseDuration() {
         double seconds = switch (phase) {
-            case ROTATION -> SheeperConfig.WATER_MAELSTROM_ROTATION_DURATION.get();
-            case ASCENT -> SheeperConfig.WATER_MAELSTROM_ASCENT_DURATION.get();
-            case MEDIUM_PULL -> SheeperConfig.WATER_MAELSTROM_MEDIUM_DURATION.get();
-            case STRONG_PULL -> SheeperConfig.WATER_MAELSTROM_STRONG_DURATION.get();
+            case ROTATION -> WaterSheeperConfig.WATER_MAELSTROM_ROTATION_DURATION.get();
+            case ASCENT -> WaterSheeperConfig.WATER_MAELSTROM_ASCENT_DURATION.get();
+            case MEDIUM_PULL -> WaterSheeperConfig.WATER_MAELSTROM_MEDIUM_DURATION.get();
+            case STRONG_PULL -> WaterSheeperConfig.WATER_MAELSTROM_STRONG_DURATION.get();
             default -> 0.05D;
         };
         return SheeperConfig.secondsToTicks(seconds);
@@ -357,10 +358,10 @@ final class WaterMaelstromAttack {
      * blocks.
      */
     private void pullPlayers() {
-        double weak = SheeperConfig.WATER_MAELSTROM_WEAK_PULL.get();
-        double medium = Math.max(weak, SheeperConfig.WATER_MAELSTROM_MEDIUM_PULL.get());
+        double weak = WaterSheeperConfig.WATER_MAELSTROM_WEAK_PULL.get();
+        double medium = Math.max(weak, WaterSheeperConfig.WATER_MAELSTROM_MEDIUM_PULL.get());
         double strength = phase == Phase.STRONG_PULL
-                ? Math.max(medium, SheeperConfig.WATER_MAELSTROM_STRONG_PULL.get())
+                ? Math.max(medium, WaterSheeperConfig.WATER_MAELSTROM_STRONG_PULL.get())
                 : phase == Phase.MEDIUM_PULL ? medium : weak;
         suction.tick(boss.getCombatParticipants(), destination, strength);
     }
@@ -498,7 +499,7 @@ final class WaterMaelstromAttack {
             return;
         }
         float savedRotation = tag.contains("RotationDegrees", Tag.TAG_FLOAT) ? tag.getFloat("RotationDegrees")
-                : phaseTicks * SheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue() / 20;
+                : phaseTicks * WaterSheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue() / 20;
         rotationDegrees = Float.isFinite(savedRotation) ? Mth.clamp(savedRotation, 0, 1000000) : 0;
         boss.setMaelstromRotation(rotationDegrees);
     }

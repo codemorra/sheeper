@@ -4,6 +4,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.nbt.CompoundTag;
@@ -26,9 +27,9 @@ final class LightningSheeperCombat {
 
         double weight() {
             return switch (this) {
-                case STRIKES -> SheeperConfig.LIGHTNING_STRIKE_WEIGHT.get();
-                case FRONT -> SheeperConfig.LIGHTNING_FRONT_WEIGHT.get();
-                case RING -> SheeperConfig.LIGHTNING_RING_WEIGHT.get();
+                case STRIKES -> LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT.get();
+                case FRONT -> LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT.get();
+                case RING -> LightningSheeperConfig.LIGHTNING_RING_WEIGHT.get();
             };
         }
     }
@@ -86,8 +87,8 @@ final class LightningSheeperCombat {
         }
         if (phase == Phase.REST) {
             if (phaseRemaining < 0) {
-                phaseRemaining = interval(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
-                        SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
+                phaseRemaining = interval(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
+                        LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
             }
             if (phaseRemaining > 0) {
                 phaseRemaining--;
@@ -177,8 +178,8 @@ final class LightningSheeperCombat {
         fronts.clear();
         rings.clear();
         boss.setTarget(null);
-        phaseRemaining = interval(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
-                SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
+        phaseRemaining = interval(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get(),
+                LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
         phase = Phase.REST;
     }
 

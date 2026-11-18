@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -82,22 +82,22 @@ final class LightningWeatherGameTests {
     }
 
     private static void configure(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 8.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 6.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.1D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 3);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 0.1D);
-        context.set(SheeperConfig.LIGHTNING_STORM_ENABLED, true);
-        context.set(SheeperConfig.LIGHTNING_STORM_AWAKENING, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
-        context.set(SheeperConfig.LIGHTNING_STORM_RUMBLE_VOLUME, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 8.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 6.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.1D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 3);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 0.1D);
+        context.set(LightningSheeperConfig.LIGHTNING_STORM_ENABLED, true);
+        context.set(LightningSheeperConfig.LIGHTNING_STORM_AWAKENING, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
+        context.set(LightningSheeperConfig.LIGHTNING_STORM_RUMBLE_VOLUME, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
         for (int x = 3; x <= 21; x++) {
             for (int z = 3; z <= 21; z++) {
                 context.setBlock(x, 0, z, Blocks.STONE);
@@ -123,12 +123,12 @@ final class LightningWeatherGameTests {
 
     private static void awakening(GameTestContext context) {
         configure(context);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MAX, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_ARENA_COUNT, 0);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MAX, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_ARENA_COUNT, 0);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
         try (Scene scene = new Scene(context)) {
             Vec3 center = Vec3.atBottomCenterOf(scene.boss.getArenaCenter());
             TestPlayer player = context.player(13, 1, 12);
@@ -181,9 +181,9 @@ final class LightningWeatherGameTests {
 
     private static void weather(GameTestContext context) {
         configure(context);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STORM_EDGE_WARNING, 1.5D);
-        context.set(SheeperConfig.LIGHTNING_STORM_EDGE_DAMAGE, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_WARNING, 1.5D);
+        context.set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_DAMAGE, 2.0D);
         // Rain is column-based: probe above natural terrain instead of excavating the
         // underground arena.
         BlockPos exposed = skyPoint(context, 10, 12);
@@ -226,7 +226,7 @@ final class LightningWeatherGameTests {
             scene.tick();
             context.expect(context.level.isRainingAt(exposed), "Unloading the boss must preserve arena rain");
 
-            context.set(SheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, true);
+            context.set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, true);
             context.level.random.setSeed(1973L);
             Vec3 marker = null;
             for (int attempts = 0; attempts < 400 && marker == null; attempts++) {
@@ -252,7 +252,7 @@ final class LightningWeatherGameTests {
                 }
             }
             context.near(observer.getHealth(), 18, "The announced edge strike must deal one heart");
-            context.set(SheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
+            context.set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
             for (int elapsed = 0; elapsed < 40; elapsed++) {
                 observer.particlePackets.clear();
                 observer.tick();

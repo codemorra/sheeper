@@ -2,7 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -31,32 +31,32 @@ final class LightningStormGameTests {
     }
 
     private static LightningSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 10.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WEIGHT, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_DURATION_MIN, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_DURATION_MAX, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_INTERVAL_MAX, 0.05D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_PLAYER_COOLDOWN, 5.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_ARENA_COUNT, 0);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_WARNING, 0.2D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_RADIUS, 1.5D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_DAMAGE, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MIN, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MAX, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MIN, 4.0D);
-        context.set(SheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MAX, 5.0D);
-        context.set(SheeperConfig.LIGHTNING_AFTERSHOCK_DAMAGE, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_AFTERSHOCK_AFTER, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 10.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_DURATION_MIN, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_DURATION_MAX, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MIN, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_INTERVAL_MAX, 0.05D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_PLAYER_COOLDOWN, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_ARENA_COUNT, 0);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WARNING, 0.2D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_RADIUS, 1.5D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_DAMAGE, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MIN, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FOLLOWUP_INNER_RADIUS_MAX, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MIN, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_FOLLOWUP_OUTER_RADIUS_MAX, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_AFTERSHOCK_DAMAGE, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_AFTERSHOCK_AFTER, 1.0D);
         LightningSheeperEntity boss = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
         boss.setNoAi(true);
         tick(boss, 10);
@@ -195,16 +195,16 @@ final class LightningStormGameTests {
     private static void zones(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
         TestPlayer player = player(context, boss);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_DURATION_MIN, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_STRIKE_DURATION_MAX, 2.0D);
-        context.set(SheeperConfig.LIGHTNING_AFTERSHOCK_DAMAGE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_DURATION_MIN, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_STRIKE_DURATION_MAX, 2.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_AFTERSHOCK_DAMAGE, 1.0D);
         Vec3 center = player.position();
         for (int elapsed = 1; elapsed <= 60; elapsed++) {
             player.tick();
             boss.tick();
             if (elapsed == 1) {
-                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
-                context.set(SheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
+                context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 60.0D);
+                context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX, 60.0D);
             }
             if (elapsed == 15 || elapsed == 50) {
                 boss = restore(context, boss);

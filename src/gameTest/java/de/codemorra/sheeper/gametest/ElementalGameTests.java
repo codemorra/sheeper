@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LavaSheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.nbt.CompoundTag;
@@ -59,7 +61,7 @@ final class ElementalGameTests {
     }
 
     private static List<ElementalSheeperEntity> bosses(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         ElementalSheeperEntity lightning = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 15, 1, 8);
         lightning.tick();
         return List.of(
@@ -69,12 +71,12 @@ final class ElementalGameTests {
     }
 
     private static void configuration(GameTestContext context) {
-        context.set(SheeperConfig.LAVA_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_SIZE, 2.0D);
-        context.set(SheeperConfig.WATER_SIZE, 3.0D);
-        context.set(SheeperConfig.LAVA_MAX_HEALTH, 200.0D);
-        context.set(SheeperConfig.LIGHTNING_MAX_HEALTH, 120.0D);
-        context.set(SheeperConfig.WATER_MAX_HEALTH, 150.0D);
+        context.set(LavaSheeperConfig.LAVA_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 2.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 3.0D);
+        context.set(LavaSheeperConfig.LAVA_MAX_HEALTH, 200.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MAX_HEALTH, 120.0D);
+        context.set(WaterSheeperConfig.WATER_MAX_HEALTH, 150.0D);
         List<ElementalSheeperEntity> bosses = bosses(context);
         float[] sizes = { 1.0F, 2.0F, 3.0F };
         float[] health = { 200.0F, 120.0F, 150.0F };
@@ -86,10 +88,10 @@ final class ElementalGameTests {
             checkHealth(context, boss, health[index], health[index] * 0.75F);
         }
         // Exercise both shrinking and growing maxima while one element stays unchanged.
-        context.set(SheeperConfig.LAVA_SIZE, 2.5D);
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.5D);
-        context.set(SheeperConfig.LAVA_MAX_HEALTH, 80.0D);
-        context.set(SheeperConfig.LIGHTNING_MAX_HEALTH, 240.0D);
+        context.set(LavaSheeperConfig.LAVA_SIZE, 2.5D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.5D);
+        context.set(LavaSheeperConfig.LAVA_MAX_HEALTH, 80.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MAX_HEALTH, 240.0D);
         context.at(3, () -> {
             checkSize(context, bosses.get(0), 2.5F);
             checkSize(context, bosses.get(1), 1.5F);

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.entity.LightningAreaDamage;
@@ -72,7 +73,7 @@ public final class LightningStormData extends SavedData {
     }
 
     public boolean hasStorms() {
-        return SheeperConfig.LIGHTNING_STORM_ENABLED.get() && !storms.isEmpty();
+        return LightningSheeperConfig.LIGHTNING_STORM_ENABLED.get() && !storms.isEmpty();
     }
 
     public float intensity(ServerLevel level, BlockPos pos) {
@@ -106,13 +107,13 @@ public final class LightningStormData extends SavedData {
                     }
                     storm.nextDecoration = now + 2 + level.random.nextInt(5);
                 }
-            } else if (SheeperConfig.LIGHTNING_STORM_EDGE_ENABLED.get()) {
+            } else if (LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED.get()) {
                 tickEdges(level, storm, now);
             } else {
                 storm.warnings.clear();
             }
-            if (SheeperConfig.LIGHTNING_STORM_ENABLED.get() && now >= storm.nextRumble) {
-                float volume = SheeperConfig.LIGHTNING_STORM_RUMBLE_VOLUME.get().floatValue();
+            if (LightningSheeperConfig.LIGHTNING_STORM_ENABLED.get() && now >= storm.nextRumble) {
+                float volume = LightningSheeperConfig.LIGHTNING_STORM_RUMBLE_VOLUME.get().floatValue();
                 for (var player : level.players()) {
                     if (volume > 0 && storm.arena.contains(player.getX(), player.getZ())) {
                         player.playNotifySound(SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER,
@@ -140,10 +141,11 @@ public final class LightningStormData extends SavedData {
                     var players = level.players().stream().filter(player -> storm.arena.contains(player.getX(),
                             player.getZ())
                             && Math.abs(player.getY()
-                                    - storm.arena.center().getY()) <= SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get())
+                                    - storm.arena.center()
+                                            .getY()) <= LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get())
                             .toList();
                     LightningAreaDamage.hurtAmbientPlayers(level, players, warning.pos(), 1.0D, 3.0D,
-                            SheeperConfig.LIGHTNING_STORM_EDGE_DAMAGE.get().floatValue());
+                            LightningSheeperConfig.LIGHTNING_STORM_EDGE_DAMAGE.get().floatValue());
                 }
                 iterator.remove();
             } else if (now % 2 == 0) {
@@ -159,7 +161,7 @@ public final class LightningStormData extends SavedData {
         if (level.random.nextDouble() < storm.strikeChance) {
             Vec3 pos = edge(level, storm);
             if (pos != null) {
-                int warning = SheeperConfig.secondsToTicks(SheeperConfig.LIGHTNING_STORM_EDGE_WARNING.get());
+                int warning = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_STORM_EDGE_WARNING.get());
                 storm.warnings.add(new Warning(pos, now + warning));
                 LightningStrikeEffect.showWarning(level, pos, 1.0D);
             }
@@ -175,13 +177,13 @@ public final class LightningStormData extends SavedData {
     }
 
     private static Vec3 surface(ServerLevel level, double x, double z, double y) {
-        int height = Mth.ceil(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get());
+        int height = Mth.ceil(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get());
         double ground = LightningRingSurface.find(level, x, z, y, Mth.floor(y) - height, Mth.ceil(y) + height);
         return Double.isFinite(ground) ? new Vec3(x, ground, z) : null;
     }
 
     private void sync(ServerLevel level) {
-        List<LightningWeatherPacket.Arena> arenas = SheeperConfig.LIGHTNING_STORM_ENABLED.get()
+        List<LightningWeatherPacket.Arena> arenas = LightningSheeperConfig.LIGHTNING_STORM_ENABLED.get()
                 ? storms.values().stream().map(storm -> storm.arena).toList()
                 : List.of();
         LightningWeatherPacket packet = new LightningWeatherPacket(level.dimension().location(), arenas);

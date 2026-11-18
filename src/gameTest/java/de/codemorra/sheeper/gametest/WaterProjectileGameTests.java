@@ -2,6 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
@@ -38,11 +39,11 @@ final class WaterProjectileGameTests {
         context.set(SheeperConfig.WATER_PROJECTILE_WEIGHT, 1.0D);
         context.set(SheeperConfig.WATER_SALVO_WEIGHT, 0.0D);
         context.set(SheeperConfig.WATER_FOUNTAIN_WEIGHT, 0.0D);
-        context.set(SheeperConfig.WATER_SIZE, 1.0D);
+        context.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
         context.set(SheeperConfig.WATER_MOVEMENT_RADIUS, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_STRENGTH, 0.0D);
         context.set(SheeperConfig.WATER_SPAWN_PUSH_UPWARD_STRENGTH, 0.0D);
-        context.set(SheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
+        context.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, (1) * 20);
         return context.readyForCombat(context.spawn(ModEntities.WATER_SHEEPER.get(), 8, 2, 8));
     }
 
@@ -54,7 +55,7 @@ final class WaterProjectileGameTests {
     private static void flight(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
         TestPlayer target = context.player(16, 2, 8);
-        context.set(SheeperConfig.WATER_PROJECTILE_LIFETIME, (10) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_LIFETIME, (10) / 20.0D);
         WaterProjectile shot = fire(context, boss, target);
         Vec3 origin = shot.position();
         Vec3 velocity = shot.getDeltaMovement();
@@ -121,8 +122,8 @@ final class WaterProjectileGameTests {
         WaterProjectile shot = context.spawn(ModEntities.WATER_PROJECTILE.get(), 5, 2, 14);
         shot.setOwner(boss);
         shot.setDeltaMovement(new Vec3(3.0D, 0.0D, 0.0D));
-        context.set(SheeperConfig.WATER_PROJECTILE_DAMAGE, 3.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_KNOCKBACK, 0.25D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DAMAGE, 3.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_KNOCKBACK, 0.25D);
         shot.tick();
         shot.tick();
         context.expect(shot.isRemoved(), "Other living entities must also stop a shot");
@@ -160,9 +161,9 @@ final class WaterProjectileGameTests {
 
     private static void shots(GameTestContext context) {
         WaterSheeperEntity boss = boss(context);
-        context.set(SheeperConfig.WATER_PROJECTILE_INTERVAL, (4) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MIN, (8) / 20.0D);
-        context.set(SheeperConfig.WATER_PROJECTILE_DURATION_MAX, (8) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, (4) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, (8) / 20.0D);
+        context.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, (8) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MIN, (2) / 20.0D);
         context.set(SheeperConfig.WATER_ATTACK_PAUSE_MAX, (2) / 20.0D);
         TestPlayer first = context.player(16, 2, 8);

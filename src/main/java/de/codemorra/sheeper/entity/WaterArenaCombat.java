@@ -6,6 +6,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -109,7 +110,7 @@ final class WaterArenaCombat {
         }
         // Creative attacks can injure the boss before any combat participant enters.
         encounterActive = true;
-        int grace = SheeperConfig.secondsToTicks(SheeperConfig.WATER_EMPTY_ARENA_GRACE.get());
+        int grace = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_EMPTY_ARENA_GRACE.get());
         emptyTicks = Math.min(emptyTicks + 1, grace);
         if (emptyTicks < grace) {
             return;
@@ -119,7 +120,7 @@ final class WaterArenaCombat {
         }
         if (regenerationTicks == 0) {
             boss.heal((float) (boss.getMaxHealth()
-                    * SheeperConfig.WATER_EMPTY_ARENA_REGENERATION.get() / 100.0D));
+                    * WaterSheeperConfig.WATER_EMPTY_ARENA_REGENERATION.get() / 100.0D));
             regenerationTicks = 20;
         }
         if (boss.getHealth() >= boss.getMaxHealth()) {
@@ -151,7 +152,7 @@ final class WaterArenaCombat {
     void load(CompoundTag tag) {
         encounterActive = tag.getBoolean("EncounterActive") || boss.getHealth() < boss.getMaxHealth();
         emptyTicks = Mth.clamp(tag.getInt("EmptyTicks"), 0,
-                SheeperConfig.secondsToTicks(SheeperConfig.WATER_EMPTY_ARENA_GRACE.get()));
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_EMPTY_ARENA_GRACE.get()));
         regenerationTicks = Mth.clamp(tag.getInt("RegenerationTicks"), 0, 20);
     }
 }

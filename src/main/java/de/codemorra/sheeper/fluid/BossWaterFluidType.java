@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 import com.mojang.blaze3d.shaders.FogShape;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Vector3f;
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.FogRenderer;
@@ -77,7 +77,8 @@ public final class BossWaterFluidType extends FluidType {
                 }
                 RenderSystem.setShaderFogStart(0);
                 RenderSystem
-                        .setShaderFogEnd(Math.min(renderDistance, SheeperConfig.WATER_FOG_DISTANCE.get().floatValue()));
+                        .setShaderFogEnd(
+                                Math.min(renderDistance, WaterSheeperConfig.WATER_FOG_DISTANCE.get().floatValue()));
                 RenderSystem.setShaderFogShape(FogShape.SPHERE);
             }
 

@@ -2,7 +2,7 @@ package de.codemorra.sheeper.gametest;
 
 import java.util.List;
 
-import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -33,16 +33,16 @@ final class LightningTeleportGameTests {
     }
 
     private static LightningSheeperEntity boss(GameTestContext context) {
-        context.set(SheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(SheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 4.0D);
-        context.set(SheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
-        context.set(SheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MIN, 0.2D);
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MAX, 0.2D);
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_WARNING, 0.15D);
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MIN, 0.2D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MAX, 0.2D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_WARNING, 0.15D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE, 4.0D);
         LightningSheeperEntity boss = context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);
         // Settle onto the scene's floor without advancing the movement timer.
         boss.setNoAi(true);
@@ -117,7 +117,7 @@ final class LightningTeleportGameTests {
         context.expect(warnings(observer).isEmpty(), "Resuming AI must preserve the remaining interval");
         boss.tick();
         announcedDestination(context, observer);
-        context.set(SheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
         tick(boss, 5);
         atPosition(context, boss, target, "Disabling movement must cancel an already announced teleport");
         context.pass();
@@ -127,13 +127,13 @@ final class LightningTeleportGameTests {
         LightningSheeperEntity boss = boss(context);
         TestPlayer player = observer(context);
         player.setGameMode(GameType.CREATIVE);
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE, 128.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE, 128.0D);
         Vec3 origin = boss.position();
         tick(boss, 20);
         atPosition(context, boss, origin, "The boss must stay put when every destination violates player distance");
         context.expect(warnings(player).isEmpty(), "Unsafe destinations must not be announced");
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE, 4.0D);
-        context.set(SheeperConfig.LIGHTNING_TELEPORT_WARNING, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_WARNING, 0.0D);
         boolean moved = false;
         for (int index = 0; index < 20 && !moved; index++) {
             boss.tick();
