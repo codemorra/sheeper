@@ -7,6 +7,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -15,19 +16,22 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Remembers submerged arena entry until a lateral exit and enforces a one-way
- * water ceiling. Vertical movement alone cannot end an existing participation.
+ * Remembers submerged arena entry until a lateral exit and enforces vertical
+ * water bounds. Players may enter from above but cannot leave vertically.
  */
 final class WaterArenaPlayers {
     private static final double SURFACE_MARGIN = 0.15D;
     private final WaterSheeperEntity boss;
     private final Map<UUID, Vec3> players = new HashMap<>();
 
-    /** @param boss owner providing the captured surface and horizontal boundary */
+    /**
+     * @param boss owner providing captured water bounds and the horizontal boundary
+     */
     WaterArenaPlayers(WaterSheeperEntity boss) {
         this.boss = boss;
     }
@@ -57,9 +61,9 @@ final class WaterArenaPlayers {
 
     /**
      * Runs after entity movement so client-controlled swimming cannot leave the
-     * captured surface. Horizontal velocity and view direction are preserved.
+     * captured water bounds. Horizontal velocity and view direction are preserved.
      */
-    void enforceCeiling() {
+    void enforceVerticalBounds() {
         ServerLevel level = (ServerLevel) boss.level;
         players.keySet().removeIf(id -> {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
@@ -70,51 +74,90 @@ final class WaterArenaPlayers {
             if (!contains(player)) {
                 continue;
             }
+            double minimumY = boss.getArenaWaterMinimumY() + SURFACE_MARGIN;
             double maximumY = boss.getArenaWaterSurfaceY() - SURFACE_MARGIN - player.getBbHeight();
-            if (player.getY() > maximumY) {
-                Vec3 destination = correctionPosition(player, maximumY);
+            boolean below = player.getY() < minimumY;
+            showLowerBoundary(player, minimumY);
+            if (below || player.getY() > maximumY) {
+                Vec3 destination = correctionPosition(player, minimumY, maximumY, below);
                 if (destination != null) {
                     player.stopRiding();
                     player.connection.teleport(destination.x, destination.y, destination.z,
                             player.getYRot(), player.getXRot());
                 }
-                stopRising(player);
+                stopVerticalExit(player, below);
             } else {
                 if (isClear(player, player.position())) {
                     players.put(player.getUUID(), player.position());
                 }
                 if (player.getDeltaMovement().y > 0
                         && player.getY() + player.getDeltaMovement().y > maximumY) {
-                    stopRising(player);
+                    stopVerticalExit(player, false);
+                } else if (player.getDeltaMovement().y < 0
+                        && player.getY() + player.getDeltaMovement().y < minimumY) {
+                    stopVerticalExit(player, true);
                 }
             }
         }
     }
 
     /**
-     * Finds room below a new obstruction before falling back to the last safe
-     * column.
+     * Shows only the nearby lower plane to its approaching participant. Density
+     * increases within three blocks; the rest of the arena stays unmarked.
+     */
+    private void showLowerBoundary(ServerPlayer player, double minimumY) {
+        ServerLevel level = (ServerLevel) boss.level;
+        double distance = Math.max(0, player.getY() - minimumY);
+        if (distance > 3 || level.getGameTime() % 8 != 0) {
+            return;
+        }
+        int extent = distance < 1 ? 6 : distance < 2 ? 4 : 2;
+        double spacing = 6.0D / extent;
+        for (int x = -extent; x <= extent; x++) {
+            for (int z = -extent; z <= extent; z++) {
+                if (x * x + z * z > extent * extent) {
+                    continue;
+                }
+                double px = player.getX() + x * spacing;
+                double pz = player.getZ() + z * spacing;
+                BlockPos cell = new BlockPos(px, minimumY, pz);
+                if (boss.isArenaWaterCell(cell) && WaterArenaData.isLoaded(level, cell)
+                        && level.getFluidState(cell).is(FluidTags.WATER)
+                        && level.getBlockState(cell).getCollisionShape(level, cell).isEmpty()) {
+                    level.sendParticles(player, ModParticles.WATER_ARENA_FLOOR.get(), false,
+                            px, minimumY, pz, 0, 0, 0, 0, 0);
+                }
+            }
+        }
+    }
+
+    /**
+     * Searches inward from the crossed boundary before falling back to the last
+     * safe column. Both searches stay within the captured vertical volume.
      */
     @Nullable
-    private Vec3 correctionPosition(ServerPlayer player, double maximumY) {
+    private Vec3 correctionPosition(ServerPlayer player, double minimumY, double maximumY, boolean below) {
         Vec3 previous = players.get(player.getUUID());
         for (Vec3 column : new Vec3[] { player.position(), previous }) {
-            double top = Math.min(column.y, maximumY);
-            for (double y = top; y >= boss.getArenaWaterMinimumY(); y -= 0.5D) {
+            double start = Mth.clamp(column.y, minimumY, maximumY);
+            double step = below ? 0.5D : -0.5D;
+            for (double y = start; y >= minimumY && y <= maximumY; y += step) {
                 Vec3 candidate = new Vec3(column.x, y, column.z);
                 if (isClear(player, candidate)) {
                     return candidate;
                 }
             }
         }
-        // A lower tunnel may be outside the captured fill depth but still be the
-        // player's last safe position; vertical movement does not release membership.
         return isClear(player, previous) ? previous : null;
     }
 
-    private void stopRising(ServerPlayer player) {
+    /**
+     * Cancels only velocity directed out of the water and prevents accumulated fall
+     * damage.
+     */
+    private void stopVerticalExit(ServerPlayer player, boolean below) {
         Vec3 velocity = player.getDeltaMovement();
-        player.setDeltaMovement(velocity.x, Math.min(0, velocity.y), velocity.z);
+        player.setDeltaMovement(velocity.x, below ? Math.max(0, velocity.y) : Math.min(0, velocity.y), velocity.z);
         player.fallDistance = 0;
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.hurtMarked = false;
@@ -125,6 +168,7 @@ final class WaterArenaPlayers {
      */
     private boolean isClear(ServerPlayer player, Vec3 destination) {
         if (!boss.isInsideArenaColumn(destination.x, destination.z)
+                || destination.y < boss.getArenaWaterMinimumY() + SURFACE_MARGIN - 1.0E-6D
                 || destination.y + player.getBbHeight() > boss.getArenaWaterSurfaceY() - SURFACE_MARGIN + 1.0E-6D) {
             return false;
         }

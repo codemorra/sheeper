@@ -433,11 +433,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Enforces the one-way surface after all player movement in the server tick.
+     * Enforces vertical water bounds after all player movement in the server tick.
      */
-    public void enforceArenaPlayerCeiling() {
+    public void enforceArenaPlayerBounds() {
         if (!level.isClientSide && isAlive() && isCombatReady()) {
-            arenaPlayers.enforceCeiling();
+            arenaPlayers.enforceVerticalBounds();
         }
     }
 
