@@ -14,6 +14,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.util.Mth;
@@ -253,6 +254,9 @@ final class WaterMaelstromAttack {
         if (phaseTicks % 4 == 0) {
             showVortex();
         }
+        if (phaseTicks % 40 == 1) {
+            playVortexSound();
+        }
         if (phaseTicks >= phaseDuration()) {
             switch (phase) {
                 case ROTATION -> {
@@ -371,6 +375,16 @@ final class WaterMaelstromAttack {
         phase = Phase.ROTATION;
         phaseTicks = 0;
         holdPosition();
+        WaterAttackSounds.arenaCue(boss, boss.getBoundingBox().getCenter(),
+                SoundEvents.CONDUIT_ACTIVATE, 1.2F, 0.65F);
+    }
+
+    /** Increasing volume and pitch distinguish the three suction intensities. */
+    private void playVortexSound() {
+        int intensity = phase == Phase.STRONG_PULL ? 3 : phase == Phase.MEDIUM_PULL ? 2 : 1;
+        WaterAttackSounds.arenaCue(boss, boss.getBoundingBox().getCenter(),
+                SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT,
+                0.4F + intensity * 0.25F, 0.55F + intensity * 0.15F);
     }
 
     private void holdPosition() {
@@ -415,6 +429,8 @@ final class WaterMaelstromAttack {
      */
     private void showImpact() {
         Vec3 center = boss.getBoundingBox().getCenter();
+        WaterAttackSounds.arenaCue(boss, center, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 2.0F, 0.6F);
+        WaterAttackSounds.arenaCue(boss, center, SoundEvents.CONDUIT_ATTACK_TARGET, 1.4F, 0.6F);
         double radius = boss.getBbWidth() * 0.5D + 0.3D;
         for (int layer = 0; layer < 3; layer++) {
             for (int index = 0; index < 24; index++) {

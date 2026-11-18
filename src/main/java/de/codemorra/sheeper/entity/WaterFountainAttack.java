@@ -20,10 +20,13 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Warned, fixed bubble columns from the local floor to the captured arena
@@ -253,11 +256,24 @@ final class WaterFountainAttack {
      */
     private void showWarning(Fountain fountain) {
         showColumn(fountain, true);
+        playColumnSound(fountain, SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, 0.5F, 0.65F);
     }
 
     /** Replaces the sparse warning with a dense, rapidly rising bubble stream. */
     private void showCurrent(Fountain fountain) {
         showColumn(fountain, false);
+        playColumnSound(fountain, SoundEvents.BUBBLE_COLUMN_UPWARDS_INSIDE, 0.8F, 1.1F);
+    }
+
+    /**
+     * Plays at each swimmer's nearest point on the column, covering its full
+     * height.
+     */
+    private void playColumnSound(Fountain fountain, SoundEvent sound, float volume, float pitch) {
+        AABB bounds = area(fountain);
+        Vec3 center = bounds.getCenter();
+        WaterAttackSounds.segment(boss, new Vec3(center.x, bounds.minY, center.z),
+                new Vec3(center.x, bounds.maxY, center.z), sound, volume, pitch);
     }
 
     /**

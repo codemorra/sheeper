@@ -17,6 +17,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
@@ -108,6 +110,8 @@ final class WaterProximityPush {
     private void showPushBubbles() {
         Vec3 origin = boss.getBoundingBox().getCenter();
         ServerLevel level = (ServerLevel) boss.level;
+        level.playSound(null, origin.x, origin.y, origin.z,
+                SoundEvents.PLAYER_SPLASH_HIGH_SPEED, SoundSource.HOSTILE, 0.8F, 0.8F);
         double radius = boss.getBbWidth() * 0.5D + 0.25D;
         double halfHeight = boss.getBbHeight() * 0.5D;
         for (int layer = 0; layer < 4; layer++) {

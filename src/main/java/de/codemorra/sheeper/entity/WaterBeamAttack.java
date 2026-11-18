@@ -15,6 +15,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.Vec3;
@@ -34,6 +35,7 @@ final class WaterBeamAttack {
     private int remainingAttackTicks;
     private int sightLossTicks;
     private double beamLength;
+    private int impactSoundTicks;
 
     /**
      * @param boss owner providing the mouth origin and synchronized collision
@@ -52,10 +54,13 @@ final class WaterBeamAttack {
         remainingAttackTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
         sightLossTicks = 0;
         beamLength = 0.0D;
+        impactSoundTicks = 0;
         damageCooldowns.clear();
         aimPosition = null;
         boss.setBeamOffset(Vec3.ZERO);
         boss.setBeamEyeIntensity(0.0F);
+        Vec3 mouth = boss.getBeamOrigin();
+        WaterAttackSounds.arenaCue(boss, mouth, SoundEvents.CONDUIT_ACTIVATE, 0.7F, 1.3F);
     }
 
     /**
@@ -114,6 +119,14 @@ final class WaterBeamAttack {
         Vec3 end = boss.level.clip(new ClipContext(start, tip,
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, boss)).getLocation();
         boss.setBeamOffset(end.subtract(start));
+        // Continuous flight audio follows the synchronized segment on each client;
+        // only the distinct terrain-hit cue needs a server-side pulse.
+        if (impactSoundTicks-- <= 0) {
+            if (end.distanceToSqr(tip) > 0.001D) {
+                WaterAttackSounds.segment(boss, end, end, SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, 0.7F, 0.8F);
+            }
+            impactSoundTicks = 39;
+        }
         for (ServerPlayer player : boss.getCombatParticipants()) {
             var bounds = player.getBoundingBox().inflate(WaterSheeperEntity.BEAM_RADIUS);
             if (!bounds.contains(start) && bounds.clip(start, end).isEmpty()) {
@@ -207,6 +220,7 @@ final class WaterBeamAttack {
      *            damage
      */
     void load(CompoundTag tag) {
+        impactSoundTicks = 0;
         preparationDuration = Math.max(1, Math.min(1200, tag.getInt("PreparationDuration")));
         preparationTicks = Math.max(0, Math.min(preparationDuration, tag.getInt("PreparationTicks")));
         remainingAttackTicks = Math.max(0, Math.min(1200, tag.getInt("RemainingAttackTicks")));
