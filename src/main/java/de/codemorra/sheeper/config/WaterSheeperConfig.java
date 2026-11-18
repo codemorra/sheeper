@@ -125,13 +125,14 @@ public final class WaterSheeperConfig {
 
     /** Water boss proximity push (elemental.water.proximityPush). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_RADIUS = BUILDER
-            .comment("Distance from the boss within which each player accumulates time toward a proximity push.",
+            .comment("Distance within which players can trigger and are hit by the shared proximity push.",
                     "Leaving resets the timer. NoAI pauses timers; 0 disables pushes.")
             .defineInRange("elemental.water.proximityPush.radius", 5.5, 0.0, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DELAY = BUILDER
             .comment(
-                    "Continuous proximity seconds before each push; the same delay applies independently to every player.")
+                    "Continuous proximity seconds for any player to trigger a push against everyone in range.",
+                    "A push resets all nearby players' timers.")
             .defineInRange("elemental.water.proximityPush.delaySeconds", 2.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DAMAGE = BUILDER
