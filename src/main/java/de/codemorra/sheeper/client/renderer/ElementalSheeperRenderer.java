@@ -2,6 +2,7 @@ package de.codemorra.sheeper.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Vector3f;
 import de.codemorra.sheeper.client.renderer.layer.ElementalFleeceLayer;
 import de.codemorra.sheeper.client.renderer.layer.WaterBeamEyesLayer;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
@@ -62,6 +63,18 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         float size = ((ElementalSheeperEntity) sheep).getSizeMultiplier();
         poses.scale(size, size, size);
         shadowRadius = 0.7F * size;
+    }
+
+    /**
+     * Spins the complete water boss model without letting head AI counteract the
+     * vortex.
+     */
+    @Override
+    protected void setupRotations(Sheep sheep, PoseStack poses, float age, float yaw, float partialTick) {
+        super.setupRotations(sheep, poses, age, yaw, partialTick);
+        if (sheep instanceof WaterSheeperEntity boss) {
+            poses.mulPose(Vector3f.YP.rotationDegrees(boss.getMaelstromRotation(partialTick)));
+        }
     }
 
     /**

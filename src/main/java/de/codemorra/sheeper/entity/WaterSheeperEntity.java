@@ -63,6 +63,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Float> DATA_MAELSTROM_ROTATION = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
 
     @Nullable
     private BlockPos arenaCenter;
@@ -86,6 +88,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final WaterArenaPlayers arenaPlayers = new WaterArenaPlayers(this);
     private final WaterSpecialAttacks specialAttacks = new WaterSpecialAttacks(this);
     private float previousBeamEyeIntensity;
+    private float previousMaelstromRotation;
     private WaterOrbitGoal orbitGoal;
     private WaterIdleSwimGoal idleGoal;
 
@@ -103,6 +106,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+        entityData.define(DATA_MAELSTROM_ROTATION, 0.0F);
         entityData.define(DATA_BEAM_EYES, 0.0F);
         entityData.define(DATA_BEAM_X, 0.0F);
         entityData.define(DATA_BEAM_Y, 0.0F);
@@ -124,6 +128,31 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      */
     public boolean isPerformingBeam() {
         return specialAttacks.isBeamActive();
+    }
+
+    /**
+     * @return whether Maelstrom currently owns movement and combat damage immunity
+     */
+    public boolean isPerformingMaelstrom() {
+        return specialAttacks.isMaelstromActive();
+    }
+
+    /**
+     * @return interpolated visual rotation, independent of navigation and head
+     *         tracking
+     */
+    public float getMaelstromRotation(float partialTick) {
+        float rotation = entityData.get(DATA_MAELSTROM_ROTATION);
+        // Clearing the effect must not interpolate backward through completed turns.
+        return rotation == 0 ? 0 : Mth.lerp(partialTick, previousMaelstromRotation, rotation);
+    }
+
+    /**
+     * Synchronizes unwrapped rotation so crossing a full turn cannot reverse
+     * interpolation.
+     */
+    void setMaelstromRotation(float degrees) {
+        entityData.set(DATA_MAELSTROM_ROTATION, degrees);
     }
 
     /** @return mouth-height beam origin, scaled with the boss's body */
@@ -342,7 +371,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        if (type == MoverType.SELF && !level.isClientSide && (!isCombatReady() || isNoAi() || isPerformingBeam())) {
+        if (type == MoverType.SELF && !level.isClientSide
+                && (!isCombatReady() || isNoAi() || specialAttacks.locksMovement())) {
             movement = isInArenaWater() ? Vec3.ZERO : new Vec3(0.0D, movement.y, 0.0D);
         }
         if (!level.isClientSide && isAlive() && (type == MoverType.SELF || isCombatReady())) {
@@ -450,6 +480,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // its current route every tick. Goal priorities handle combat transitions.
         if (target != null) {
             specialAttacks.tryStart(target, defaultAttack);
+            if (isPerformingMaelstrom()) {
+                return;
+            }
             if (isPerformingBeam()) {
                 stopMovement();
                 Vec3 aim = specialAttacks.getAimPosition();
@@ -477,7 +510,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
         return super.isInvulnerableTo(source)
-                || source != DamageSource.OUT_OF_WORLD && !arenaCombat.allowsDamage(source);
+                || source != DamageSource.OUT_OF_WORLD
+                        && (isPerformingMaelstrom() || !arenaCombat.allowsDamage(source));
     }
 
     /**
@@ -579,6 +613,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void tick() {
         previousBeamEyeIntensity = entityData.get(DATA_BEAM_EYES);
+        previousMaelstromRotation = entityData.get(DATA_MAELSTROM_ROTATION);
         if (!level.isClientSide) {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();

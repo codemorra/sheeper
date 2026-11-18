@@ -17,6 +17,7 @@ final class WaterSpecialAttacks {
     private final WaterSheeperEntity boss;
     private final WaterBeamAttack beam;
     private final WaterFountainAttack fountains;
+    private final WaterMaelstromAttack maelstrom;
     private boolean beamActive;
     private boolean fountainActive;
     private int beamCooldown;
@@ -24,6 +25,7 @@ final class WaterSpecialAttacks {
     private int fountainTicks;
     private int recoveryTicks;
     private int defaultOnlyTicks;
+    private int maelstromCooldown = -1;
 
     /**
      * @param boss owner whose default attack and movement are coordinated with
@@ -33,11 +35,12 @@ final class WaterSpecialAttacks {
         this.boss = boss;
         beam = new WaterBeamAttack(boss);
         fountains = new WaterFountainAttack(boss);
+        maelstrom = new WaterMaelstromAttack(boss);
     }
 
     /**
      * Advances timers before default target selection. An empty arena aborts an
-     * active beam and freezes cooldowns until participants return or the fight
+     * active specials and freezes cooldowns until participants return or the fight
      * resets.
      *
      * @param participants  currently eligible arena players
@@ -49,6 +52,9 @@ final class WaterSpecialAttacks {
                     1.0F / SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_EYE_FADE.get())));
         }
         if (participants.isEmpty()) {
+            if (maelstrom.isActive()) {
+                finishMaelstrom();
+            }
             if (beamActive) {
                 finishBeam();
             }
@@ -56,6 +62,13 @@ final class WaterSpecialAttacks {
                 finishFountains();
             }
             return;
+        }
+        if (maelstromCooldown < 0) {
+            // Unlike other specials, Maelstrom must first earn its cooldown at
+            // encounter entry. Brief arena exits pause, rather than restart, it.
+            maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+        } else if (maelstromCooldown > 0) {
+            maelstromCooldown--;
         }
         if (beamCooldown > 0) {
             beamCooldown--;
@@ -82,21 +95,34 @@ final class WaterSpecialAttacks {
      *                      elapsed
      */
     void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack) {
-        if (beamActive || fountainActive || recoveryTicks > 0 || defaultOnlyTicks > 0 || !defaultAttack.isFiring()) {
+        if (beamActive || fountainActive || maelstrom.isActive()
+                || recoveryTicks > 0 || defaultOnlyTicks > 0 || !defaultAttack.isFiring()) {
             return;
         }
-        boolean beamReady = beamCooldown == 0 && !defaultAttack.isClosingOnTarget() && boss.hasLineOfSight(target);
+        boolean beamReady = beamCooldown == 0
+                && !defaultAttack.isClosingOnTarget() && boss.hasLineOfSight(target);
         boolean fountainReady = fountainCooldown == 0;
-        if (beamReady && (!fountainReady || boss.getRandom().nextBoolean())) {
+        boolean maelstromReady = maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
+                || defaultAttack.getMeleeTicks() >= SheeperConfig
+                        .secondsToTicks(SheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));
+        int choices = (beamReady ? 1 : 0) + (fountainReady ? 1 : 0) + (maelstromReady ? 1 : 0);
+        if (choices == 0) {
+            return;
+        }
+        int choice = boss.getRandom().nextInt(choices);
+        if (beamReady && choice-- == 0) {
             beam.start();
             beamActive = true;
-        } else if (fountainReady) {
+        } else if (fountainReady && choice-- == 0) {
             fountains.start();
             fountainActive = true;
             int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MIN.get());
             int maximum = Math.max(minimum,
                     SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_DURATION_MAX.get()));
             fountainTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
+        } else if (maelstromReady && !maelstrom.start()) {
+            // Failed center searches must not repeat their pathfinding every tick.
+            maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
         }
     }
 
@@ -105,6 +131,9 @@ final class WaterSpecialAttacks {
      * regular firing active; pending warnings stay at their announced positions.
      */
     void tickAttack() {
+        if (maelstrom.isActive() && !maelstrom.tick()) {
+            finishMaelstrom();
+        }
         if (beamActive && (!(boss.getTarget() instanceof ServerPlayer target) || !beam.tick(target))) {
             finishBeam();
         }
@@ -122,9 +151,22 @@ final class WaterSpecialAttacks {
         return beamActive;
     }
 
+    /** @return whether Maelstrom owns navigation and grants preparation immunity */
+    boolean isMaelstromActive() {
+        return maelstrom.isActive();
+    }
+
+    /**
+     * @return whether ordinary movement must be suppressed during a stationary
+     *         special
+     */
+    boolean locksMovement() {
+        return beamActive || maelstrom.isStationary();
+    }
+
     /** @return whether projectile firing and its target-switch timer must pause */
     boolean suppressesDefault() {
-        return beamActive || recoveryTicks > 0;
+        return beamActive || maelstrom.isActive() || recoveryTicks > 0;
     }
 
     /**
@@ -138,6 +180,16 @@ final class WaterSpecialAttacks {
         beamActive = false;
         beam.stop();
         beamCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_COOLDOWN.get());
+        beginRecovery();
+    }
+
+    private void finishMaelstrom() {
+        maelstrom.stop();
+        maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+        beginRecovery();
+    }
+
+    private void beginRecovery() {
         recoveryTicks = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_RECOVERY.get());
         int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MIN.get());
         int maximum = Math.max(minimum,
@@ -155,7 +207,9 @@ final class WaterSpecialAttacks {
         fountainCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_COOLDOWN.get());
     }
 
-    /** Makes all implemented special cooldowns ready after full arena recovery. */
+    /**
+     * Resets specials after full recovery, including Maelstrom's initial cooldown.
+     */
     void reset() {
         beamActive = false;
         beamCooldown = 0;
@@ -165,6 +219,8 @@ final class WaterSpecialAttacks {
         fountains.reset();
         recoveryTicks = 0;
         defaultOnlyTicks = 0;
+        maelstrom.stop();
+        maelstromCooldown = -1;
         beam.stop();
         boss.setBeamEyeIntensity(0);
     }
@@ -181,10 +237,15 @@ final class WaterSpecialAttacks {
         tag.putInt("RecoveryTicks", recoveryTicks);
         tag.putInt("DefaultOnlyTicks", defaultOnlyTicks);
         tag.put("Beam", beam.save());
+        tag.putInt("MaelstromCooldown", maelstromCooldown);
+        tag.put("Maelstrom", maelstrom.save());
         return tag;
     }
 
-    /** @param tag saved special state; absent data starts with ready cooldowns */
+    /**
+     * @param tag saved special state; absent Maelstrom data retains its initial
+     *            cooldown
+     */
     void load(CompoundTag tag) {
         reset();
         beamActive = tag.getBoolean("BeamActive");
@@ -198,5 +259,16 @@ final class WaterSpecialAttacks {
         // The announcement window may have ended while a column still carries a player.
         fountainActive = !beamActive && tag.getBoolean("FountainActive")
                 && (fountainTicks > 0 || fountains.hasActiveEffects());
+        maelstromCooldown = tag.contains("MaelstromCooldown")
+                ? Mth.clamp(tag.getInt("MaelstromCooldown"), -1, 6000)
+                : -1;
+        maelstrom.load(tag.getCompound("Maelstrom"));
+        if (maelstrom.isActive()) {
+            // Malformed or old state must never resume two specials together.
+            beamActive = false;
+            beam.stop();
+            fountainActive = false;
+            fountains.reset();
+        }
     }
 }
