@@ -51,9 +51,6 @@ import net.minecraftforge.fluids.FluidType;
  * A separate special scheduler owns beam timing and stationary movement locks.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
-    // Temporary underwater test stage: projectiles and beam are enabled;
-    // fountains and proximity/spawn knockback await their separate in-game checks.
-    private static final boolean BEAM_TEST_MODE = true;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -192,6 +189,32 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      */
     public boolean isInArenaWater() {
         return isInWaterOrBubble() || isInFluidType(ModFluids.BOSS_WATER_TYPE.get());
+    }
+
+    /**
+     * @return captured water surface Y used by full-height fountain columns and
+     *         transport
+     */
+    double getArenaWaterSurfaceY() {
+        return arenaVolume == null ? getArenaCenter().getY() + SheeperConfig.WATER_ARENA_WATER_HEIGHT.get()
+                : arenaVolume.maximumY() + 1.0D;
+    }
+
+    /**
+     * @return lowest captured water cell at which a fountain may search for
+     *         supporting ground
+     */
+    int getArenaWaterMinimumY() {
+        return arenaVolume == null ? getArenaCenter().getY() - SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get()
+                : arenaVolume.minimumY();
+    }
+
+    /**
+     * Checks captured volume geometry independently of the boss's smaller swimming
+     * area.
+     */
+    boolean isArenaWaterCell(BlockPos pos) {
+        return arenaVolume != null && arenaVolume.contains(pos);
     }
 
     /**
@@ -410,7 +433,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (target == null) {
             stopMovement();
         } else {
-            specialAttacks.tryStart(target, defaultAttack, !BEAM_TEST_MODE);
+            specialAttacks.tryStart(target, defaultAttack);
             if (isPerformingBeam()) {
                 stopMovement();
                 Vec3 aim = specialAttacks.getAimPosition();
@@ -467,10 +490,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private void tickWaterWave(boolean preparing) {
-        if (BEAM_TEST_MODE) {
-            waterWaveDelays.clear();
-            return;
-        }
         double radius = SheeperConfig.WATER_SPAWN_WAVE_RADIUS.get();
         if (radius == 0.0D || SheeperConfig.WATER_SPAWN_WAVE_HEIGHT.get() == 0.0D
                 && SheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH.get() == 0.0D) {
@@ -579,11 +598,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 }
             }
             getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(SheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
-            if (BEAM_TEST_MODE) {
-                // Preserve beam cooldown/recovery while removing fountain hazards
-                // restored from a save made during an earlier test stage.
-                specialAttacks.disableFountains();
-            }
             updateMovementTarget();
         }
         super.tick();
@@ -594,12 +608,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 specialAttacks.tickAttack();
                 if (!specialAttacks.suppressesDefault()) {
                     defaultAttack.tickProjectiles();
-                    if (!BEAM_TEST_MODE) {
-                        proximityPush.tick(getCombatParticipants());
-                    }
+                    proximityPush.tick(getCombatParticipants());
                 }
             }
-            specialAttacks.tickEffects();
         }
         if (level.isClientSide && isAlive() && !isInvisible() && tickCount % 2 == 0) {
             spawnBeamParticles();

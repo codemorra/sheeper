@@ -77,18 +77,16 @@ final class WaterSpecialAttacks {
      * beam entry only; fountains may accompany normal combat at any distance.
      * Once started, approaching the boss cannot cancel a beam.
      *
-     * @param target         current shared target
-     * @param defaultAttack  default cycle whose initial entry pause must have
-     *                       elapsed
-     * @param allowFountains whether fountains are enabled for the current
-     *                       underwater test stage
+     * @param target        current shared target
+     * @param defaultAttack default cycle whose initial entry pause must have
+     *                      elapsed
      */
-    void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack, boolean allowFountains) {
+    void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack) {
         if (beamActive || fountainActive || recoveryTicks > 0 || defaultOnlyTicks > 0 || !defaultAttack.isFiring()) {
             return;
         }
         boolean beamReady = beamCooldown == 0 && !defaultAttack.isClosingOnTarget() && boss.hasLineOfSight(target);
-        boolean fountainReady = allowFountains && fountainCooldown == 0;
+        boolean fountainReady = fountainCooldown == 0;
         if (beamReady && (!fountainReady || boss.getRandom().nextBoolean())) {
             beam.start();
             beamActive = true;
@@ -112,17 +110,11 @@ final class WaterSpecialAttacks {
         }
         if (fountainActive) {
             fountains.tick(boss.getCombatParticipants(), fountainTicks);
-            if (--fountainTicks <= 0) {
+            fountainTicks = Math.max(0, fountainTicks - 1);
+            if (fountainTicks == 0 && !fountains.hasActiveEffects()) {
                 finishFountains();
             }
         }
-    }
-
-    /**
-     * Advances cosmetic rain independently of AI, including its short phase tail.
-     */
-    void tickEffects() {
-        fountains.tickRain(fountainActive);
     }
 
     /** @return whether movement is locked for beam warning or firing */
@@ -161,16 +153,6 @@ final class WaterSpecialAttacks {
         fountainTicks = 0;
         fountains.finish();
         fountainCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_COOLDOWN.get());
-    }
-
-    /**
-     * Disables pending fountain hazards without resetting beam progress, cooldown
-     * or recovery.
-     */
-    void disableFountains() {
-        fountainActive = false;
-        fountainTicks = 0;
-        fountains.reset();
     }
 
     /** Makes all implemented special cooldowns ready after full arena recovery. */
@@ -212,7 +194,9 @@ final class WaterSpecialAttacks {
         beam.load(tag.getCompound("Beam"));
         fountainCooldown = Mth.clamp(tag.getInt("FountainCooldown"), 0, 2400);
         fountainTicks = Mth.clamp(tag.getInt("FountainTicks"), 0, 12000);
-        fountainActive = !beamActive && tag.getBoolean("FountainActive") && fountainTicks > 0;
         fountains.load(tag.getCompound("Fountains"));
+        // The announcement window may have ended while a column still carries a player.
+        fountainActive = !beamActive && tag.getBoolean("FountainActive")
+                && (fountainTicks > 0 || fountains.hasActiveEffects());
     }
 }

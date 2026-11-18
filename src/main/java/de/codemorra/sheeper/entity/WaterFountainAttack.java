@@ -2,104 +2,96 @@ package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
-import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.ForgeMod;
 
 /**
- * Server-owned, independently timed hazards and cosmetic arena rain.
- * Each warning captures a fixed surface position; later player movement cannot
- * move an announced fountain or postpone its eruption until a hit succeeds.
+ * Warned, fixed bubble columns from the local floor to the captured arena
+ * ceiling.
+ * Each column hits a player once; an independent transport completes the ascent
+ * even if its originating column expires. No blocks or rain are created.
  */
 final class WaterFountainAttack {
+    private static final int SAVE_VERSION = 2;
     private final WaterSheeperEntity boss;
+    private final WaterFountainTransport transports;
     private final Map<UUID, Integer> playerDelays = new HashMap<>();
-    private final List<Warning> warnings = new ArrayList<>();
+    private final List<Fountain> fountains = new ArrayList<>();
     private int arenaDelay;
-    private int rainDelay = -1;
-    private int rainTicks;
-    private boolean erupted;
-    private double rainParticleRemainder;
 
-    private static final class Warning {
+    private static final class Fountain {
         private final BlockPos pos;
         private final int size;
+        private final double ceiling;
         @Nullable
         private final UUID playerId;
-        private int ticks;
+        private final Set<UUID> hitPlayers = new HashSet<>();
+        private int warningTicks;
+        private int activeTicks;
 
-        private Warning(BlockPos pos, int size, int ticks, @Nullable UUID playerId) {
+        private Fountain(BlockPos pos, int size, double ceiling, @Nullable UUID playerId,
+                int warningTicks, int activeTicks) {
             this.pos = pos;
             this.size = size;
-            this.ticks = ticks;
+            this.ceiling = ceiling;
             this.playerId = playerId;
+            this.warningTicks = warningTicks;
+            this.activeTicks = activeTicks;
         }
     }
 
     /**
-     * @param boss owner whose discovered water surfaces define valid fountain
-     *             locations
+     * @param boss owner providing captured volume bounds and current arena
+     *             participants
      */
     WaterFountainAttack(WaterSheeperEntity boss) {
         this.boss = boss;
+        transports = new WaterFountainTransport(boss);
     }
 
     /**
-     * Starts independent announcement timers for players and random arena
-     * positions.
+     * Starts independent player and arena timers without carrying over old hazards.
      */
     void start() {
-        playerDelays.clear();
-        warnings.clear();
+        reset();
         arenaDelay = initialDelay();
-        erupted = false;
     }
 
     /**
-     * Cancels pending warnings and keeps only the cosmetic rain tail after an
-     * eruption.
+     * Cancels columns and releases remaining transport when combat is interrupted.
      */
     void finish() {
-        warnings.clear();
-        playerDelays.clear();
-        // The tail is independent of combat participants and NoAI.
-        if (erupted) {
-            rainDelay = 0;
-            rainTicks = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_RAIN_AFTER.get());
-        }
+        reset();
     }
 
-    /** Clears hazards and rain when the boss dies or the encounter fully resets. */
+    /**
+     * Clears pending damage, one-hit records and upward movement after death or
+     * full recovery.
+     */
     void reset() {
-        warnings.clear();
+        fountains.clear();
         playerDelays.clear();
+        transports.clear();
         arenaDelay = 0;
-        rainDelay = -1;
-        rainTicks = 0;
-        erupted = false;
-        rainParticleRemainder = 0;
     }
 
     private int initialDelay() {
@@ -108,68 +100,68 @@ final class WaterFountainAttack {
     }
 
     private int nextDelay() {
-        int min = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get());
-        int max = Math.max(min, SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX.get()));
-        return min + boss.getRandom().nextInt(max - min + 1);
+        int minimum = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN.get());
+        int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX.get()));
+        return minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
     /**
-     * Resolves existing snapshots and periodically captures new positions beneath
-     * eligible players, independent of the boss's projectile target.
+     * Advances fixed warnings, active columns and player transports. Once the
+     * announcement window ends, existing columns and transports finish normally.
      *
-     * @param players        current arena participants eligible for launch and
-     *                       direct damage
-     * @param remainingTicks phase time used to avoid warnings that cannot finish
+     * @param players        current arena participants eligible for fountain
+     *                       contact
+     * @param remainingTicks remaining announcement time; zero only drains existing
+     *                       effects
      */
     void tick(List<ServerPlayer> players, int remainingTicks) {
-        // Resolve existing warnings before adding new ones: every warning gets
-        // its full configured duration, including the tick it is first visible.
-        var iterator = warnings.iterator();
+        var iterator = fountains.iterator();
         while (iterator.hasNext()) {
-            Warning warning = iterator.next();
-            if (!suitable(warning.pos, warning.size)) {
+            Fountain fountain = iterator.next();
+            if (!suitable(fountain.pos, fountain.size)) {
                 iterator.remove();
-            } else if (--warning.ticks <= 0) {
-                erupt(warning, players);
+                continue;
+            }
+            if (fountain.warningTicks > 0) {
+                fountain.warningTicks--;
+                if (fountain.warningTicks == 0) {
+                    showCurrent(fountain);
+                } else {
+                    continue;
+                }
+            }
+            hitPlayers(fountain, players);
+            if (--fountain.activeTicks <= 0) {
                 iterator.remove();
-            } else if (warning.ticks % 2 == 0) {
-                showWarning(warning);
             }
         }
-        // Do not announce hazards that would be cancelled by the phase ending.
+        transports.tick(players);
         if (remainingTicks <= SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get())) {
             return;
         }
-        playerDelays.keySet().removeIf(id -> players.stream().noneMatch(p -> p.getUUID().equals(id)));
+        playerDelays.keySet().removeIf(id -> players.stream().noneMatch(player -> player.getUUID().equals(id)));
         for (ServerPlayer player : players) {
-            // Keep one fixed warning per player. Its next interval starts only
-            // after this warning resolves, so new snapshots cannot form a chase.
-            if (warnings.stream().anyMatch(warning -> player.getUUID().equals(warning.playerId))) {
+            // Only one pending snapshot per player; moving cannot drag an existing warning.
+            if (fountains.stream().anyMatch(fountain -> fountain.warningTicks > 0
+                    && player.getUUID().equals(fountain.playerId))) {
                 continue;
             }
-            int delay = playerDelays.computeIfAbsent(player.getUUID(), id -> initialDelay()) - 1;
+            int delay = playerDelays.computeIfAbsent(player.getUUID(), ignored -> initialDelay()) - 1;
             if (delay <= 0) {
-                BlockPos pos = boss.getArenaSurfacePositions().stream()
-                        .filter(cell -> cell.getX() == player.blockPosition().getX()
-                                && cell.getZ() == player.blockPosition().getZ()
-                                && player.getY() >= cell.getY()
-                                && player.getY() <= cell.getY() + 1 + SheeperConfig.WATER_FOUNTAIN_HIT_HEIGHT.get())
-                        .max(java.util.Comparator.comparingInt(BlockPos::getY)).orElse(null);
-                if (pos != null) {
-                    announce(pos, player.getUUID());
+                BlockPos floor = findFloor(player.blockPosition());
+                if (floor != null) {
+                    announce(floor, player.getUUID());
                 }
                 delay = nextDelay();
             }
             playerDelays.put(player.getUUID(), delay);
         }
         if (--arenaDelay <= 0) {
-            // Sample distinct centers uniformly without copying the whole arena.
             List<BlockPos> selected = new ArrayList<>();
             int limit = SheeperConfig.WATER_FOUNTAIN_ARENA_COUNT.get();
             int count = 0;
             for (BlockPos pos : boss.getArenaSurfacePositions()) {
-                if (!suitable(pos, SheeperConfig.WATER_FOUNTAIN_SIZE.get())
-                        || warnings.stream().anyMatch(w -> w.pos.equals(pos))) {
+                if (!suitable(pos, SheeperConfig.WATER_FOUNTAIN_SIZE.get()) || occupied(pos)) {
                     continue;
                 }
                 int slot = boss.getRandom().nextInt(++count);
@@ -179,49 +171,55 @@ final class WaterFountainAttack {
                     selected.set(slot, pos);
                 }
             }
-            selected.forEach(this::announce);
+            selected.forEach(pos -> announce(pos, null));
             arenaDelay = nextDelay();
         }
     }
 
     /**
-     * Announces an independent random arena hazard without reserving a player's
-     * timer.
+     * Finds the real floor beneath a swimming player without tunneling through
+     * solid roofs.
      */
-    private void announce(BlockPos pos) {
-        announce(pos, null);
+    @Nullable
+    private BlockPos findFloor(BlockPos playerPos) {
+        int top = Math.min(playerPos.getY(), (int) boss.getArenaWaterSurfaceY() - 1);
+        for (int y = top; y >= boss.getArenaWaterMinimumY(); y--) {
+            BlockPos pos = new BlockPos(playerPos.getX(), y, playerPos.getZ());
+            if (!isOpenWater(pos)) {
+                return null;
+            }
+            if (WaterArenaSearch.isSurface(boss.level, pos)) {
+                return pos;
+            }
+        }
+        return null;
     }
 
-    /**
-     * Captures a water cell once and reserves a player's next announcement until
-     * this warning resolves. Ownership affects timing, not who the eruption can
-     * hit.
-     *
-     * @param pos      fixed water cell at announcement time
-     * @param playerId player whose announcement timer is paused, or null for arena
-     *                 hazards
-     */
+    private boolean occupied(BlockPos pos) {
+        return fountains.stream().anyMatch(fountain -> fountain.pos.equals(pos));
+    }
+
     private void announce(BlockPos pos, @Nullable UUID playerId) {
         int size = SheeperConfig.WATER_FOUNTAIN_SIZE.get();
-        if (suitable(pos, size) && warnings.stream().noneMatch(w -> w.pos.equals(pos))) {
-            Warning warning = new Warning(pos, size,
-                    SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get()), playerId);
-            warnings.add(warning);
-            showWarning(warning);
+        if (!suitable(pos, size) || occupied(pos)) {
+            return;
         }
+        Fountain fountain = new Fountain(pos, size, boss.getArenaWaterSurfaceY(), playerId,
+                SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_WARNING.get()),
+                SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_ACTIVE.get()));
+        fountains.add(fountain);
+        showWarning(fountain);
     }
 
     private boolean suitable(BlockPos center, int size) {
+        if (!isOpenWater(center) || !WaterArenaSearch.isSurface(boss.level, center)) {
+            return false;
+        }
         int offset = size / 2;
         for (int x = 0; x < size; x++) {
             for (int z = 0; z < size; z++) {
                 BlockPos pos = center.offset(x - offset, 0, z - offset);
-                if (!boss.getArenaSurfacePositions().contains(pos)
-                        || !WaterArenaData.isLoaded((ServerLevel) boss.level, pos)
-                        || !(boss.level.getBlockState(pos).is(ModBlocks.BOSS_WATER.get())
-                                || boss.level.getBlockState(pos).getBlock() instanceof LiquidBlock)
-                        || !boss.level.getFluidState(pos).is(FluidTags.WATER)
-                        || !WaterArenaSearch.isSurface(boss.level, pos)) {
+                if (!boss.isArenaWaterCell(pos) || !WaterArenaData.isLoaded((ServerLevel) boss.level, pos)) {
                     return false;
                 }
             }
@@ -229,72 +227,103 @@ final class WaterFountainAttack {
         return true;
     }
 
-    private AABB area(Warning warning) {
-        BlockPos min = warning.pos.offset(-warning.size / 2, 0, -warning.size / 2);
-        return new AABB(min.getX(), min.getY(), min.getZ(), min.getX() + warning.size,
-                min.getY() + 1 + SheeperConfig.WATER_FOUNTAIN_HIT_HEIGHT.get(), min.getZ() + warning.size);
+    private boolean isOpenWater(BlockPos pos) {
+        return boss.isArenaWaterCell(pos) && WaterArenaData.isLoaded((ServerLevel) boss.level, pos)
+                && boss.level.getFluidState(pos).is(FluidTags.WATER)
+                && boss.level.getBlockState(pos).getCollisionShape(boss.level, pos).isEmpty();
     }
 
-    private void showWarning(Warning warning) {
-        AABB area = area(warning);
-        for (int x = 0; x < warning.size; x++) {
-            for (int z = 0; z < warning.size; z++) {
-                ((ServerLevel) boss.level).sendParticles(ParticleTypes.FISHING,
-                        area.minX + x + 0.5D, warning.pos.getY() + 0.95D, area.minZ + z + 0.5D,
-                        4, 0.2D, 0.02D, 0.2D, 0.0D);
+    private AABB area(Fountain fountain) {
+        BlockPos minimum = fountain.pos.offset(-fountain.size / 2, 0, -fountain.size / 2);
+        return new AABB(minimum.getX(), minimum.getY(), minimum.getZ(), minimum.getX() + fountain.size,
+                fountain.ceiling, minimum.getZ() + fountain.size);
+    }
+
+    /**
+     * Starts sparse bubbles across the entire height of the fixed warning column.
+     */
+    private void showWarning(Fountain fountain) {
+        showColumn(fountain, true);
+    }
+
+    /** Replaces the sparse warning with a dense, rapidly rising bubble stream. */
+    private void showCurrent(Fountain fountain) {
+        showColumn(fountain, false);
+    }
+
+    /**
+     * Sends one local emitter per cell. Motion fields carry height, speed and
+     * lifetime; zero speed selects the sparse warning instead of the eruption.
+     */
+    private void showColumn(Fountain fountain, boolean warning) {
+        AABB area = area(fountain);
+        for (int x = 0; x < fountain.size; x++) {
+            for (int z = 0; z < fountain.size; z++) {
+                BlockPos base = new BlockPos(area.minX + x, area.minY, area.minZ + z);
+                double top = base.getY();
+                while (top < fountain.ceiling && isOpenWater(new BlockPos(base.getX(), top, base.getZ()))) {
+                    top++;
+                }
+                double height = Math.min(top, fountain.ceiling) - base.getY();
+                if (height > 0) {
+                    ((ServerLevel) boss.level).sendParticles(ModParticles.WATER_FOUNTAIN.get(),
+                            base.getX() + 0.5D, base.getY() + 0.1D, base.getZ() + 0.5D,
+                            0, height - 0.2D, warning ? 0 : SheeperConfig.WATER_FOUNTAIN_LIFT_SPEED.get() / 20.0D,
+                            warning ? fountain.warningTicks : fountain.activeTicks, 1);
+                }
             }
         }
     }
 
     /**
-     * Launches players still inside the announced area and deals direct damage at
-     * lift-off. Escaped warnings expire normally without following their target.
-     *
-     * @param warning fixed, fully elapsed warning
-     * @param players current arena participants, rechecked for overlap at eruption
+     * Applies damage once per player and column, then hands ongoing ascent to the
+     * transport controller.
      */
-    private void erupt(Warning warning, List<ServerPlayer> players) {
-        if (!erupted) {
-            erupted = true;
-            rainDelay = SheeperConfig.secondsToTicks(SheeperConfig.WATER_FOUNTAIN_RAIN_DELAY.get());
-        }
-        AABB area = area(warning);
-        ((ServerLevel) boss.level).sendParticles(ParticleTypes.SPLASH, area.getCenter().x,
-                warning.pos.getY() + 1, area.getCenter().z, warning.size * warning.size * 12,
-                warning.size * 0.3D, 0.3D, warning.size * 0.3D, 0.4D);
-        double jetSpeed = Math.min(1.2D, Math.sqrt(0.12D * SheeperConfig.WATER_FOUNTAIN_HEIGHT.get()));
-        for (int x = 0; x < warning.size; x++) {
-            for (int z = 0; z < warning.size; z++) {
-                // One packet per cell starts a sustained client-side jet.
-                ((ServerLevel) boss.level).sendParticles(ModParticles.WATER_FOUNTAIN.get(),
-                        area.minX + x + 0.5D, warning.pos.getY() + 1.01D, area.minZ + z + 0.5D,
-                        0, 0, jetSpeed, 0, 1);
-            }
-        }
+    private void hitPlayers(Fountain fountain, List<ServerPlayer> players) {
+        AABB area = area(fountain);
         for (ServerPlayer player : players) {
-            if (!area.intersects(player.getBoundingBox())) {
+            if (fountain.hitPlayers.contains(player.getUUID()) || !area.intersects(player.getBoundingBox())
+                    || !hasWaterPath(fountain, player, area)) {
                 continue;
             }
-            double height = Math.max(0, Math.min(20, SheeperConfig.WATER_FOUNTAIN_HEIGHT.get())
-                    - Math.max(0, player.getY() - warning.pos.getY()));
-            if (height == 0) {
+            fountain.hitPlayers.add(player.getUUID());
+            if (transports.contains(player)) {
                 continue;
             }
-            double gravity = player.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
-            Vec3 movement = player.getDeltaMovement();
             player.hurt(DamageSource.mobAttack(boss), SheeperConfig.WATER_FOUNTAIN_DAMAGE.get().floatValue());
-            if (!player.isAlive()) {
-                continue;
+            if (player.isAlive()) {
+                transports.start(player, fountain.ceiling);
             }
-            // Keep the original horizontal momentum instead of vanilla damage knockback.
-            player.setDeltaMovement(movement.x, launchSpeed(height, gravity), movement.z);
-            player.fallDistance = 0;
-            player.connection.send(new ClientboundSetEntityMotionPacket(player));
-            player.hurtMarked = false;
         }
     }
 
-    /** Solve vanilla's discrete air trajectory; water drag only lowers its apex. */
+    /**
+     * Prevents a lower column damaging a player through a solid platform or roof.
+     */
+    private boolean hasWaterPath(Fountain fountain, ServerPlayer player, AABB area) {
+        int x = Mth.floor(Mth.clamp(player.getX(), area.minX + 0.01D, area.maxX - 0.01D));
+        int z = Mth.floor(Mth.clamp(player.getZ(), area.minZ + 0.01D, area.maxZ - 0.01D));
+        int top = Math.min((int) fountain.ceiling - 1, Mth.floor(player.getY()));
+        for (int y = fountain.pos.getY(); y <= top; y++) {
+            if (!isOpenWater(new BlockPos(x, y, z))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @return whether existing columns or captured victims still keep the phase
+     *         active
+     */
+    boolean hasActiveEffects() {
+        return !fountains.isEmpty() || transports.isActive();
+    }
+
+    /**
+     * Legacy spawn-wave impulse; fountain transport uses continuous lift instead of
+     * an air trajectory.
+     */
     static double launchSpeed(double height, double gravity) {
         double low = 0;
         double high = height;
@@ -315,54 +344,14 @@ final class WaterFountainAttack {
         return low;
     }
 
-    void tickRain(boolean active) {
-        boolean phaseRain = active && erupted;
-        boolean tailRain = rainTicks > 0;
-        if (phaseRain && rainDelay > 0) {
-            rainDelay--;
-            phaseRain = false;
-        }
-        if (tailRain) {
-            rainTicks--;
-        }
-        if (!phaseRain && !tailRain) {
-            return;
-        }
-        if (!SheeperConfig.WATER_FOUNTAIN_RAIN_ENABLED.get() || boss.level.isRaining()) {
-            return;
-        }
-        List<BlockPos> surfaces = new ArrayList<>(boss.getArenaSurfacePositions());
-        if (surfaces.isEmpty()) {
-            return;
-        }
-        ServerLevel level = (ServerLevel) boss.level;
-        rainParticleRemainder += SheeperConfig.WATER_FOUNTAIN_RAIN_PARTICLES_PER_SECOND.get() / 20.0D;
-        int particleCount = (int) rainParticleRemainder;
-        rainParticleRemainder -= particleCount;
-        for (int i = 0; i < particleCount; i++) {
-            BlockPos pos = surfaces.get(boss.getRandom().nextInt(surfaces.size()));
-            if (!WaterArenaData.isLoaded(level, pos)) {
-                continue;
-            }
-            Vec3 bottom = Vec3.atBottomCenterOf(pos).add(0, 1.01D, 0);
-            Vec3 top = bottom.add(0, 5 + boss.getRandom().nextDouble() * 4, 0);
-            // Artificial rain also works indoors, with drops starting below the
-            // first ceiling instead of falling through it.
-            double ceiling = level.clip(new ClipContext(bottom, top, ClipContext.Block.COLLIDER,
-                    ClipContext.Fluid.NONE, boss)).getLocation().y;
-            if (ceiling - bottom.y > 0.2D) {
-                level.sendParticles(ModParticles.ARENA_RAIN.get(), bottom.x,
-                        ceiling - 0.1D, bottom.z, 1, 0, 0, 0, 0);
-            }
-        }
-    }
-
+    /**
+     * @return complete warning/current hit history and transport progress for
+     *         reloads
+     */
     CompoundTag save() {
         CompoundTag tag = new CompoundTag();
+        tag.putInt("Version", SAVE_VERSION);
         tag.putInt("ArenaDelay", arenaDelay);
-        tag.putInt("RainDelay", rainDelay);
-        tag.putInt("RainTicks", rainTicks);
-        tag.putBoolean("Erupted", erupted);
         ListTag delays = new ListTag();
         playerDelays.forEach((id, ticks) -> {
             CompoundTag entry = new CompoundTag();
@@ -371,39 +360,63 @@ final class WaterFountainAttack {
             delays.add(entry);
         });
         tag.put("Players", delays);
-        ListTag pending = new ListTag();
-        warnings.forEach(warning -> {
+        ListTag currents = new ListTag();
+        for (Fountain fountain : fountains) {
             CompoundTag entry = new CompoundTag();
-            entry.putLong("Pos", warning.pos.asLong());
-            entry.putInt("Size", warning.size);
-            entry.putInt("Ticks", warning.ticks);
-            if (warning.playerId != null) {
-                entry.putUUID("Player", warning.playerId);
+            entry.putLong("Pos", fountain.pos.asLong());
+            entry.putInt("Size", fountain.size);
+            entry.putDouble("Ceiling", fountain.ceiling);
+            entry.putInt("WarningTicks", fountain.warningTicks);
+            entry.putInt("ActiveTicks", fountain.activeTicks);
+            if (fountain.playerId != null) {
+                entry.putUUID("Player", fountain.playerId);
             }
-            pending.add(entry);
-        });
-        tag.put("Warnings", pending);
+            ListTag hits = new ListTag();
+            fountain.hitPlayers.forEach(id -> {
+                CompoundTag hit = new CompoundTag();
+                hit.putUUID("Player", id);
+                hits.add(hit);
+            });
+            entry.put("Hits", hits);
+            currents.add(entry);
+        }
+        tag.put("Currents", currents);
+        tag.put("Transports", transports.save());
         return tag;
     }
 
+    /** @param tag saved columns; incompatible old launch/rain state is discarded */
     void load(CompoundTag tag) {
-        arenaDelay = Math.max(0, tag.getInt("ArenaDelay"));
-        rainDelay = Math.max(0, tag.getInt("RainDelay"));
-        rainTicks = Math.max(0, tag.getInt("RainTicks"));
-        erupted = tag.getBoolean("Erupted");
-        playerDelays.clear();
+        reset();
+        if (tag.getInt("Version") != SAVE_VERSION) {
+            return;
+        }
+        arenaDelay = Mth.clamp(tag.getInt("ArenaDelay"), 0, 200);
         for (Tag value : tag.getList("Players", Tag.TAG_COMPOUND)) {
             CompoundTag entry = (CompoundTag) value;
             if (entry.hasUUID("Player")) {
-                playerDelays.put(entry.getUUID("Player"), Math.max(0, entry.getInt("Ticks")));
+                playerDelays.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Ticks"), 0, 200));
             }
         }
-        warnings.clear();
-        for (Tag value : tag.getList("Warnings", Tag.TAG_COMPOUND)) {
+        for (Tag value : tag.getList("Currents", Tag.TAG_COMPOUND)) {
             CompoundTag entry = (CompoundTag) value;
-            warnings.add(new Warning(BlockPos.of(entry.getLong("Pos")),
-                    Math.max(1, Math.min(9, entry.getInt("Size"))), Math.max(1, entry.getInt("Ticks")),
-                    entry.hasUUID("Player") ? entry.getUUID("Player") : null));
+            double ceiling = entry.getDouble("Ceiling");
+            BlockPos pos = BlockPos.of(entry.getLong("Pos"));
+            if (!Double.isFinite(ceiling) || ceiling <= pos.getY() || ceiling - pos.getY() > 128) {
+                continue;
+            }
+            Fountain fountain = new Fountain(pos, Mth.clamp(entry.getInt("Size"), 1, 9), ceiling,
+                    entry.hasUUID("Player") ? entry.getUUID("Player") : null,
+                    Mth.clamp(entry.getInt("WarningTicks"), 0, 100),
+                    Mth.clamp(entry.getInt("ActiveTicks"), 1, 160));
+            for (Tag hitValue : entry.getList("Hits", Tag.TAG_COMPOUND)) {
+                CompoundTag hit = (CompoundTag) hitValue;
+                if (hit.hasUUID("Player")) {
+                    fountain.hitPlayers.add(hit.getUUID("Player"));
+                }
+            }
+            fountains.add(fountain);
         }
+        transports.load(tag.getList("Transports", Tag.TAG_COMPOUND));
     }
 }

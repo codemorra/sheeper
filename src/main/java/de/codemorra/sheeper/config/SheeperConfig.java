@@ -619,15 +619,16 @@ public class SheeperConfig {
             .defineInRange("elemental.water.fountain.cooldownSeconds", 20.0, 1.0, 120.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DAMAGE = BUILDER
-            .comment("Direct damage in health points when a fountain launches a player; 2 = one heart.")
+            .comment("One-time damage per player and fountain column in health points; 2 = one heart.")
             .defineInRange("elemental.water.fountain.damage", 2.0, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
-            .comment("Minimum fountain phase duration. Sampled once at phase start.")
+            .comment(
+                    "Minimum fountain announcement duration. Active columns and transports finish before the cooldown starts.")
             .defineInRange("elemental.water.fountain.durationMinSeconds", 20.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MAX = BUILDER
-            .comment("Maximum fountain phase duration; capped below by durationMinSeconds.")
+            .comment("Maximum fountain announcement duration; capped below by durationMinSeconds.")
             .defineInRange("elemental.water.fountain.durationMaxSeconds", 30.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MIN = BUILDER
@@ -644,37 +645,20 @@ public class SheeperConfig {
             .defineInRange("elemental.water.fountain.arenaCount", 3, 1, 16);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WARNING = BUILDER
-            .comment("Fishing-particle warning duration in seconds before a fixed fountain erupts.")
+            .comment("Bubble warning seconds before a fixed floor-to-ceiling fountain erupts.")
             .defineInRange("elemental.water.fountain.warningSeconds", 1.5, 0.05, 5.0);
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_SIZE = BUILDER
             .comment("Width and depth of a fountain in blocks.")
             .defineInRange("elemental.water.fountain.size", 3, 1, 9);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_HEIGHT = BUILDER
-            .comment("Maximum launch height above the water cell, capped at 20 blocks.")
-            .defineInRange("elemental.water.fountain.height", 10.0, 0.0, 20.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_ACTIVE = BUILDER
+            .comment("Seconds a fully erupted bubble column can hit players. Each player is hit once per column.")
+            .defineInRange("elemental.water.fountain.activeSeconds", 3.0, 0.5, 8.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_HIT_HEIGHT = BUILDER
-            .comment("Height of the hit area above the water surface.")
-            .defineInRange("elemental.water.fountain.hitHeight", 2.0, 0.1, 10.0);
-
-    /** Cosmetic arena rain (elemental.water.fountain.rain). */
-    public static final ForgeConfigSpec.BooleanValue WATER_FOUNTAIN_RAIN_ENABLED = BUILDER
-            .comment("Enable cosmetic arena rain without changing world weather.")
-            .define("elemental.water.fountain.rain.enabled", true);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_RAIN_DELAY = BUILDER
-            .comment("Delay in seconds after the first eruption before arena rain starts.")
-            .defineInRange("elemental.water.fountain.rain.delaySeconds", 0.5, 0.0, 60.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_RAIN_AFTER = BUILDER
-            .comment("Additional rain seconds after the fountain phase ends.")
-            .defineInRange("elemental.water.fountain.rain.afterSeconds", 5.0, 0.0, 60.0);
-
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_RAIN_PARTICLES_PER_SECOND = BUILDER
-            .comment("Maximum local raindrops per second and arena.")
-            .defineInRange("elemental.water.fountain.rain.particlesPerSecond", 480, 0, 5120);
+    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_LIFT_SPEED = BUILDER
+            .comment("Controlled ascent speed in blocks per second toward the captured arena ceiling.")
+            .defineInRange("elemental.water.fountain.liftSpeedBlocksPerSecond", 6.0, 2.0, 12.0);
 
     /** Cosmetic combat boundary (elemental.water.boundary). */
     public static final ForgeConfigSpec.BooleanValue WATER_BOUNDARY_ENABLED = BUILDER
