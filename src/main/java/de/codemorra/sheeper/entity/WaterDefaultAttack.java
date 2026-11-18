@@ -11,6 +11,8 @@ import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -165,6 +167,9 @@ final class WaterDefaultAttack {
             projectile.setDeltaMovement(direction.normalize()
                     .scale(WaterSheeperConfig.WATER_PROJECTILE_SPEED_PER_SECOND.get() / 20.0D));
             if (boss.level.addFreshEntity(projectile)) {
+                boss.level.playSound(null, projectile.getX(), projectile.getY(), projectile.getZ(),
+                        SoundEvents.DOLPHIN_SPLASH, SoundSource.HOSTILE, 0.4F,
+                        1.4F + boss.getRandom().nextFloat() * 0.2F);
                 shotTicks = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL.get());
             }
         }

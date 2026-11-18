@@ -13,6 +13,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
@@ -68,6 +69,9 @@ final class WaterMaelstromWave {
             radius = Math.min(maximumRadius, radius + WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D);
             if (visualTicks++ % 2 == 0 || radius == maximumRadius) {
                 showFront(players);
+            }
+            if (visualTicks % 10 == 1) {
+                playFrontSound(players);
             }
             var arrivals = pending.entrySet().iterator();
             while (arrivals.hasNext()) {
@@ -156,6 +160,24 @@ final class WaterMaelstromWave {
             ((ServerLevel) boss.level).sendParticles(player, ModParticles.MAELSTROM_WAVE.get(), true,
                     origin.x, bottom, origin.z, 0, radius, height,
                     WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D, 1);
+        }
+    }
+
+    /**
+     * Places quiet, spaced pulses on the nearest part of the expanding wave
+     * cylinder.
+     */
+    private void playFrontSound(List<ServerPlayer> players) {
+        for (ServerPlayer player : players) {
+            Vec3 listener = player.getEyePosition();
+            Vec3 radial = new Vec3(listener.x - origin.x, 0, listener.z - origin.z);
+            if (radial.lengthSqr() < 1.0E-8D) {
+                radial = new Vec3(1, 0, 0);
+            }
+            Vec3 point = origin.add(radial.normalize().scale(radius));
+            double height = Mth.clamp(listener.y, boss.getArenaWaterMinimumY(), boss.getArenaWaterSurfaceY());
+            WaterAttackSounds.nearby(player, new Vec3(point.x, height, point.z),
+                    SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, 0.65F, 0.65F);
         }
     }
 

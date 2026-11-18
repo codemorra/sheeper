@@ -8,6 +8,8 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -93,6 +95,8 @@ public class WaterProjectile extends Projectile {
         Vec3 impact = hit.getLocation().subtract(getDeltaMovement().normalize().scale(0.12D));
         ((ServerLevel) level).sendParticles(ParticleTypes.BUBBLE,
                 impact.x, impact.y, impact.z, 12, 0.1D, 0.1D, 0.1D, 0.25D);
+        level.playSound(null, impact.x, impact.y, impact.z,
+                SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, SoundSource.HOSTILE, 0.8F, 1.1F);
         discard();
     }
 
