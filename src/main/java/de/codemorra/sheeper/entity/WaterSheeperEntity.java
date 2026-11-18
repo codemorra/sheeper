@@ -105,6 +105,15 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(WaterSheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
     }
 
+    /**
+     * Includes the encounter's player-count bonus, retaining solo health during
+     * base construction.
+     */
+    @Override
+    protected double getConfiguredMaxHealth() {
+        return arenaCombat == null ? super.getConfiguredMaxHealth() : arenaCombat.getScaledMaxHealth();
+    }
+
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();

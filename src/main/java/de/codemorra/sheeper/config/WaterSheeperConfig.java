@@ -11,8 +11,16 @@ public final class WaterSheeperConfig {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Water elemental boss and combat bounds (elemental.water). */
-    public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = ElementalConfigValues
-            .elementalHealth(BUILDER, "water", 200.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = BUILDER
+            .comment("Solo maximum health of the water Sheeper in health points (2 = one heart).",
+                    "Multiplayer scaling adds health up to 1024; changes preserve the remaining health percentage.")
+            .defineInRange("elemental.water.maxHealth", 300.0, 1.0, 1024.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_HEALTH_PER_ADDITIONAL_PLAYER = BUILDER
+            .comment(
+                    "Additional percentage of solo maximum health per extra simultaneous arena player; 0 disables scaling.",
+                    "Players qualify after 3 continuous seconds. The highest count lasts until full empty-arena recovery.")
+            .defineInRange("elemental.water.healthScaling.additionalPlayerPercent", 50.0, 0.0, 100.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_SIZE = ElementalConfigValues.elementalSize(BUILDER, "water");
 
