@@ -599,7 +599,8 @@ public class SheeperConfig {
             .defineInRange("elemental.water.beam.trackingResponseSeconds", 0.5, 0.05, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_DAMAGE_PER_SECOND = BUILDER
-            .comment("Beam damage in health points on first contact, then once per second of contact.")
+            .comment(
+                    "Beam damage in health points on first contact, then at least one second after the last accepted beam hit.")
             .defineInRange("elemental.water.beam.damagePerSecond", 2.0, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_SIGHT_TIMEOUT = BUILDER

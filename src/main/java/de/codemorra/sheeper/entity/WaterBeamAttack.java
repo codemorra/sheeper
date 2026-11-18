@@ -25,7 +25,7 @@ import net.minecraft.world.phys.Vec3;
  */
 final class WaterBeamAttack {
     private final WaterSheeperEntity boss;
-    private final Map<UUID, Integer> contactTicks = new HashMap<>();
+    private final Map<UUID, Integer> damageCooldowns = new HashMap<>();
     @Nullable
     private Vec3 aimPosition;
     private int preparationTicks;
@@ -51,7 +51,7 @@ final class WaterBeamAttack {
         remainingAttackTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
         sightLossTicks = 0;
         beamLength = 0.0D;
-        contactTicks.clear();
+        damageCooldowns.clear();
         aimPosition = null;
         boss.setBeamOffset(Vec3.ZERO);
         boss.setBeamEyeIntensity(0.0F);
@@ -76,6 +76,9 @@ final class WaterBeamAttack {
         if (remainingAttackTicks == 0) {
             return false;
         }
+        // Cooldowns advance even while a player is outside the beam or arena.
+        damageCooldowns.replaceAll((id, ticks) -> ticks - 1);
+        damageCooldowns.values().removeIf(ticks -> ticks <= 0);
         boolean visible = boss.hasLineOfSight(target);
         sightLossTicks = visible ? 0 : sightLossTicks + 1;
         if (sightLossTicks >= SheeperConfig.secondsToTicks(SheeperConfig.WATER_BEAM_SIGHT_TIMEOUT.get())) {
@@ -115,15 +118,13 @@ final class WaterBeamAttack {
             if (!bounds.contains(start) && bounds.clip(start, end).isEmpty()) {
                 continue;
             }
-            // Hit on first contact, then preserve the contact interval across exits and
-            // reloads.
-            int ticks = contactTicks.getOrDefault(player.getUUID(), 19) + 1;
-            if (ticks >= 20) {
-                player.hurt(DamageSource.mobAttack(boss),
-                        SheeperConfig.WATER_BEAM_DAMAGE_PER_SECOND.get().floatValue());
-                ticks = 0;
+            // First contact is immediate. Only accepted damage starts the next
+            // one-second interval; invulnerability must not consume that interval.
+            if (!damageCooldowns.containsKey(player.getUUID())
+                    && player.hurt(DamageSource.mobAttack(boss),
+                            SheeperConfig.WATER_BEAM_DAMAGE_PER_SECOND.get().floatValue())) {
+                damageCooldowns.put(player.getUUID(), 20);
             }
-            contactTicks.put(player.getUUID(), ticks);
         }
         return --remainingAttackTicks > 0;
     }
@@ -170,12 +171,12 @@ final class WaterBeamAttack {
     void stop() {
         boss.setBeamOffset(Vec3.ZERO);
         remainingAttackTicks = 0;
-        contactTicks.clear();
+        damageCooldowns.clear();
     }
 
     /**
-     * @return beam extension, tracking and per-player contact progress for
-     *         persistence
+     * @return beam extension, tracking and remaining per-player damage cooldowns;
+     *         unloaded time does not advance the attack
      */
     CompoundTag save() {
         CompoundTag tag = new CompoundTag();
@@ -190,13 +191,13 @@ final class WaterBeamAttack {
             tag.putDouble("AimZ", aimPosition.z);
         }
         ListTag contacts = new ListTag();
-        contactTicks.forEach((id, ticks) -> {
+        damageCooldowns.forEach((id, ticks) -> {
             CompoundTag entry = new CompoundTag();
             entry.putUUID("Player", id);
             entry.putInt("Ticks", ticks);
             contacts.add(entry);
         });
-        tag.put("ContactTicks", contacts);
+        tag.put("DamageCooldowns", contacts);
         return tag;
     }
 
@@ -219,11 +220,18 @@ final class WaterBeamAttack {
                 aimPosition = savedAim;
             }
         }
-        contactTicks.clear();
-        for (Tag value : tag.getList("ContactTicks", Tag.TAG_COMPOUND)) {
+        damageCooldowns.clear();
+        boolean legacyContacts = !tag.contains("DamageCooldowns", Tag.TAG_LIST);
+        // Old saves stored elapsed contact time rather than the remaining delay.
+        // Convert it once so loading cannot grant an extra immediate hit.
+        for (Tag value : tag.getList(legacyContacts ? "ContactTicks" : "DamageCooldowns", Tag.TAG_COMPOUND)) {
             CompoundTag entry = (CompoundTag) value;
             if (entry.hasUUID("Player")) {
-                contactTicks.put(entry.getUUID("Player"), Math.max(0, Math.min(19, entry.getInt("Ticks"))));
+                int remaining = legacyContacts ? 20 - Math.max(0, Math.min(19, entry.getInt("Ticks")))
+                        : Math.max(0, Math.min(20, entry.getInt("Ticks")));
+                if (remaining > 0) {
+                    damageCooldowns.put(entry.getUUID("Player"), remaining);
+                }
             }
         }
     }
