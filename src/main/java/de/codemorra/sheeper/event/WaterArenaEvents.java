@@ -20,6 +20,13 @@ public final class WaterArenaEvents {
     @SubscribeEvent
     public static void onLevelTick(TickEvent.LevelTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.level instanceof ServerLevel level) {
+            // Player movement is client-driven; apply the one-way ceiling after
+            // every entity has moved, including fountain and knockback impulses.
+            for (var entity : level.getAllEntities()) {
+                if (entity instanceof WaterSheeperEntity boss) {
+                    boss.enforceArenaPlayerCeiling();
+                }
+            }
             WaterArenaData.tick(level, SheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
         }
     }

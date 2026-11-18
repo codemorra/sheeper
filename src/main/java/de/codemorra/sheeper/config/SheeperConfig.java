@@ -29,8 +29,8 @@ public class SheeperConfig {
             .defineInRange("elemental.lightning.movementRadius", 10.0, 0.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_HEIGHT_RANGE = BUILDER
-            .comment("Maximum player feet height difference above or below the saved arena origin.",
-                    "Only living survival/adventure players participate in combat.")
+            .comment("Vertical viewer range for arena boundary particles around the saved origin.",
+                    "Does not limit combat participation after entering the flooded arena.")
             .defineInRange("elemental.lightning.combatHeightRange", 15.0, 0.0, 128.0);
 
     /** Lightning arena preparation (elemental.lightning.arena). */

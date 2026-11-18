@@ -82,6 +82,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final WaterDefaultAttack defaultAttack = new WaterDefaultAttack(this);
     private final WaterProximityPush proximityPush = new WaterProximityPush(this);
     private final WaterArenaCombat arenaCombat = new WaterArenaCombat(this);
+    private final WaterArenaPlayers arenaPlayers = new WaterArenaPlayers(this);
     private final WaterArenaBoundary arenaBoundary = new WaterArenaBoundary(this);
     private final WaterSpecialAttacks specialAttacks = new WaterSpecialAttacks(this);
     private float previousBeamEyeIntensity;
@@ -373,15 +374,26 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return dx * dx + dz * dz;
     }
 
-    private boolean isEligiblePlayer(ServerPlayer player, double radius, double heightRange) {
-        return isActivePlayer(player) && isWithinArenaBounds(player, radius, heightRange);
+    /** Checks horizontal membership independently of height or game mode. */
+    boolean isInsideArenaColumn(ServerPlayer player) {
+        return player.level == level && isInsideArenaColumn(player.getX(), player.getZ());
     }
 
-    /** Checks spatial bounds independently of game mode or combat participation. */
-    private boolean isWithinArenaBounds(ServerPlayer player, double radius, double heightRange) {
-        return player.level == level
-                && horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
-                && Math.abs(player.getY() - getArenaCenter().getY()) <= heightRange;
+    /**
+     * Checks a correction destination against the same circle used for
+     * participation.
+     */
+    boolean isInsideArenaColumn(double x, double z) {
+        return horizontalDistanceSquared(x, z) <= getCombatRadius() * getCombatRadius();
+    }
+
+    /**
+     * Enforces the one-way surface after all player movement in the server tick.
+     */
+    public void enforceArenaPlayerCeiling() {
+        if (!level.isClientSide && isAlive() && isCombatReady()) {
+            arenaPlayers.enforceCeiling();
+        }
     }
 
     /**
@@ -394,7 +406,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      */
     boolean canPlayerDamage(ServerPlayer player) {
         return isAlive() && player.isAlive() && !player.isRemoved() && !player.isSpectator()
-                && isWithinArenaBounds(player, getCombatRadius(), SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get());
+                && (player.isCreative() ? isInsideArenaColumn(player)
+                        && player.getEyeY() < getArenaWaterSurfaceY() : arenaPlayers.contains(player));
     }
 
     private boolean isActivePlayer(ServerPlayer player) {
@@ -403,15 +416,15 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Current server-side participants, independent of flooding progress or sight.
+     * Current server-side participants after submerged entry, independent of
+     * subsequent height changes or sight.
      */
     public List<ServerPlayer> getCombatParticipants() {
         if (!(level instanceof ServerLevel server) || !isAlive()) {
             return List.of();
         }
         return server.players().stream()
-                .filter(player -> isEligiblePlayer(player, getCombatRadius(),
-                        SheeperConfig.WATER_COMBAT_HEIGHT_RANGE.get()))
+                .filter(arenaPlayers::contains)
                 .toList();
     }
 
@@ -691,6 +704,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.put("WaterDefaultAttack", defaultAttack.save());
         tag.put("WaterProximityPush", proximityPush.save());
         tag.put("WaterArenaCombat", arenaCombat.save());
+        tag.put("WaterArenaPlayers", arenaPlayers.save());
         tag.put("WaterSpecialAttacks", specialAttacks.save());
         ListTag contacts = new ListTag();
         waterWaveContacts.forEach(id -> {
@@ -734,6 +748,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         defaultAttack.load(tag.getCompound("WaterDefaultAttack"));
         proximityPush.load(tag.getList("WaterProximityPush", Tag.TAG_COMPOUND));
         arenaCombat.load(tag.getCompound("WaterArenaCombat"));
+        arenaPlayers.load(tag.getList("WaterArenaPlayers", Tag.TAG_COMPOUND));
         specialAttacks.load(tag.getCompound("WaterSpecialAttacks"));
         setTarget(null);
         // Existing bosses without an origin establish one at their loaded position.
