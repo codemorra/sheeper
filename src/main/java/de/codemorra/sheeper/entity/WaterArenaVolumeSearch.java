@@ -15,7 +15,8 @@ import net.minecraft.world.phys.shapes.Shapes;
 /**
  * Discovers connected floodable cells inside a captured cylindrical volume.
  * Works incrementally without loading chunks or changing terrain during search.
- * Separate surface discovery remains available to the existing ground movement.
+ * Separate surface discovery remains available to terrain-bound visual effects
+ * and fountains.
  */
 final class WaterArenaVolumeSearch {
     private final ServerLevel level;
