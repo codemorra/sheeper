@@ -213,7 +213,7 @@ public class ElementalSheeperEntity extends Sheep {
             bossEvent.setName(getDisplayName());
             bossEvent.setProgress(Mth.clamp(getHealth() / getMaxHealth(), 0.0F, 1.0F));
             bossEvent.setVisible(isAlive());
-        } else if (isAlive() && !isInvisible() && (tickCount + getId()) % 6 == 0) {
+        } else if (element != Element.WATER && isAlive() && !isInvisible() && (tickCount + getId()) % 6 == 0) {
             spawnElementParticle();
         }
     }

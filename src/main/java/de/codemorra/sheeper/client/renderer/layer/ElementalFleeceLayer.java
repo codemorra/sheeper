@@ -12,7 +12,7 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
-import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.client.renderer.entity.layers.SheepFurLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
@@ -20,24 +20,29 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.inventory.InventoryMenu;
 
-/** Animated elemental surfaces layered over the ordinary sheep fleece. */
-public class ElementalFleeceLayer extends RenderLayer<Sheep, SheepModel<Sheep>> {
+/** Elemental fleece colors and animated surfaces for lava and lightning. */
+public class ElementalFleeceLayer extends SheepFurLayer {
     private static final ResourceLocation MAGMA = ResourceLocation.fromNamespaceAndPath("minecraft", "block/magma");
-    private static final ResourceLocation WATER = ResourceLocation.fromNamespaceAndPath("minecraft",
-            "block/water_flow");
+    private static final ResourceLocation FLEECE = ResourceLocation.fromNamespaceAndPath("minecraft",
+            "textures/entity/sheep/sheep_fur.png");
     private static final ResourceLocation LIGHTNING = ResourceLocation.fromNamespaceAndPath("minecraft",
             "textures/entity/creeper/creeper_armor.png");
 
     private final SheepFurModel<Sheep> fleece;
 
     public ElementalFleeceLayer(RenderLayerParent<Sheep, SheepModel<Sheep>> parent, EntityModelSet models) {
-        super(parent);
+        super(parent, models);
         fleece = new SheepFurModel<>(models.bakeLayer(ModelLayers.SHEEP_FUR));
     }
 
     @Override
     public void render(PoseStack poses, MultiBufferSource buffers, int light, Sheep sheep,
             float limbSwing, float limbSwingAmount, float partialTick, float age, float yaw, float pitch) {
+        // Preserve vanilla fleece and glowing outlines for the other elements.
+        if (!(sheep instanceof ElementalSheeperEntity boss) || boss.getElement() != ElementalSheeperEntity.Element.WATER
+                || sheep.isInvisible()) {
+            super.render(poses, buffers, light, sheep, limbSwing, limbSwingAmount, partialTick, age, yaw, pitch);
+        }
         if (sheep.isInvisible() || !(sheep instanceof ElementalSheeperEntity boss)) {
             return;
         }
@@ -63,10 +68,8 @@ public class ElementalFleeceLayer extends RenderLayer<Sheep, SheepModel<Sheep>> 
                         OverlayTexture.NO_OVERLAY, pulse * 0.7F, pulse * 0.85F, pulse, 1.0F);
             }
             case WATER -> {
-                float shimmer = 0.58F + 0.08F * Mth.sin(age * 0.08F);
-                float flow = age * 0.002F % 1.0F;
-                fleece.renderToBuffer(poses, blockSurface(buffers, WATER, surfaceOffset, flow), light,
-                        OverlayTexture.NO_OVERLAY, 0.3F, 0.8F, 1.0F, shimmer);
+                fleece.renderToBuffer(poses, buffers.getBuffer(RenderType.entityCutoutNoCull(FLEECE)), light,
+                        OverlayTexture.NO_OVERLAY, 0.28F, 0.48F, 0.64F, 1.0F);
             }
         }
     }

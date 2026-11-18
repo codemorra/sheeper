@@ -12,6 +12,7 @@ import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.SheepRenderer;
+import net.minecraft.client.renderer.entity.layers.SheepFurLayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.phys.AABB;
@@ -24,6 +25,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
     public ElementalSheeperRenderer(EntityRendererProvider.Context context) {
         super(context);
         model = new ElementalBodyModel(context.bakeLayer(ModelLayers.SHEEP));
+        layers.removeIf(SheepFurLayer.class::isInstance);
         addLayer(new ElementalFleeceLayer(this, context.getModelSet()));
         addLayer(new WaterBeamEyesLayer(this, context.getModelSet()));
     }
@@ -104,9 +106,9 @@ public class ElementalSheeperRenderer extends SheepRenderer {
                     blue = 0.7F;
                 }
                 case WATER -> {
-                    red = 0.4F;
-                    green = 0.8F;
-                    blue = 0.85F;
+                    red = 0.34F;
+                    green = 0.64F;
+                    blue = 0.78F;
                 }
             }
         }
