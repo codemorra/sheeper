@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,8 +22,8 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Independent configurable close-range timers for every nearby arena player,
- * including those behind the boss. Leaving the boss's reach resets the timer.
+ * Each nearby player's timer can trigger a discharge against everyone in reach,
+ * including those behind the boss. Leaving reach clears that player's progress.
  */
 final class WaterProximityPush {
     private final WaterSheeperEntity boss;
@@ -51,6 +52,7 @@ final class WaterProximityPush {
             return;
         }
         Set<UUID> nearby = new HashSet<>();
+        List<ServerPlayer> affected = new ArrayList<>();
         boolean discharged = false;
         int delay = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get());
         for (ServerPlayer player : participants) {
@@ -59,16 +61,21 @@ final class WaterProximityPush {
             }
             UUID id = player.getUUID();
             nearby.add(id);
+            affected.add(player);
             int remaining = remainingTicks.computeIfAbsent(id, ignored -> delay) - 1;
             if (remaining <= 0) {
-                push(player, horizontal, upward, damage);
                 discharged = true;
-                remaining = delay;
             }
             remainingTicks.put(id, remaining);
         }
         remainingTicks.keySet().retainAll(nearby);
         if (discharged) {
+            // Resolve the complete group before applying damage or motion so the
+            // participant order cannot change who is caught by this discharge.
+            remainingTicks.replaceAll((id, ticks) -> delay);
+            for (ServerPlayer player : affected) {
+                push(player, horizontal, upward, damage);
+            }
             showPushBubbles();
         }
     }
@@ -95,8 +102,8 @@ final class WaterProximityPush {
     }
 
     /**
-     * Surrounds the entire boss with an outward bubble burst. Simultaneous
-     * per-player discharges share one effect to keep particle traffic bounded.
+     * Surrounds the entire boss with one outward bubble burst per discharge,
+     * regardless of how many players are caught in it.
      */
     private void showPushBubbles() {
         Vec3 origin = boss.getBoundingBox().getCenter();
