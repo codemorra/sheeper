@@ -51,9 +51,9 @@ import net.minecraftforge.fluids.FluidType;
  * A separate special scheduler owns beam timing and stationary movement locks.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
-    // Temporary switch for the underwater prototype; remove before committing
-    // combat changes.
-    private static final boolean MOVEMENT_TEST_MODE = true;
+    // Temporary underwater test stage: default projectiles only; specials and
+    // proximity/spawn knockback stay disabled until their separate in-game checks.
+    private static final boolean PROJECTILE_TEST_MODE = true;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -410,7 +410,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (target == null) {
             stopMovement();
         } else {
-            if (!MOVEMENT_TEST_MODE) {
+            if (!PROJECTILE_TEST_MODE) {
                 specialAttacks.tryStart(target, defaultAttack);
             }
             if (isPerformingBeam()) {
@@ -469,7 +469,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private void tickWaterWave(boolean preparing) {
-        if (MOVEMENT_TEST_MODE) {
+        if (PROJECTILE_TEST_MODE) {
             waterWaveDelays.clear();
             return;
         }
@@ -581,9 +581,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 }
             }
             getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(SheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
-            if (MOVEMENT_TEST_MODE) {
-                // Clear attacks restored from saves before they can lock movement or deal
-                // damage.
+            if (PROJECTILE_TEST_MODE) {
+                // Clear saved specials so this test stage cannot lock movement or
+                // trigger an attack that has not yet been enabled for underwater testing.
                 specialAttacks.reset();
             }
             updateMovementTarget();
@@ -593,10 +593,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             arenaBoundary.tick();
             if (!isNoAi()) {
                 arenaCombat.tick(getCombatParticipants());
-                if (!MOVEMENT_TEST_MODE) {
+                if (!PROJECTILE_TEST_MODE) {
                     specialAttacks.tickAttack();
-                    if (!specialAttacks.suppressesDefault()) {
-                        defaultAttack.tickProjectiles();
+                }
+                if (!specialAttacks.suppressesDefault()) {
+                    defaultAttack.tickProjectiles();
+                    if (!PROJECTILE_TEST_MODE) {
                         proximityPush.tick(getCombatParticipants());
                     }
                 }
