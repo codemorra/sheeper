@@ -37,7 +37,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 #### Water Sheeper encounter
 
-- **Flooded arena:** The Water Sheeper floods nearby terrain before combat begins. Its water spreads outward and recedes after defeat, preserving existing natural water.
+- **Flooded arena:** The Water Sheeper fills a bounded volume of connected open space before combat begins. Boss water allows breathing and recedes after defeat, preserving existing natural water.
 - **Arena boundary:** Water spray marks the combat boundary and becomes more visible nearby.
 - **Water beam:** A stationary, warned stream with gradual tracking and fixed reach replaces projectile support briefly, followed by a recovery window.
 - **Fountains:** Fixed warning areas erupt beneath players during a dedicated phase, dealing damage on launch while ordinary combat continues.

@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.world;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -12,6 +13,7 @@ import java.util.UUID;
 import java.util.Comparator;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.SheeperConfig;
 
 import de.codemorra.sheeper.registry.ModBlocks;
@@ -41,6 +43,22 @@ public final class WaterArenaData extends SavedData {
     private final Map<BlockPos, Set<UUID>> owners = new HashMap<>();
     private final Queue<UUID> cleanup = new ArrayDeque<>();
 
+    /**
+     * Captured block-cell bounds shared by volume discovery, placement and native
+     * water flow.
+     */
+    public record VolumeBounds(BlockPos center, double radius, int minimumY, int maximumY) {
+        /**
+         * @return whether a water cell belongs to this arena's horizontal circle and
+         *         vertical extent
+         */
+        public boolean contains(BlockPos pos) {
+            double dx = (double) pos.getX() - center.getX();
+            double dz = (double) pos.getZ() - center.getZ();
+            return pos.getY() >= minimumY && pos.getY() <= maximumY && dx * dx + dz * dz <= radius * radius;
+        }
+    }
+
     private static final class Arena {
         private final Set<BlockPos> positions = new LinkedHashSet<>();
         private final Map<BlockPos, Integer> distances = new HashMap<>();
@@ -49,6 +67,8 @@ public final class WaterArenaData extends SavedData {
         private boolean legacyVanilla;
         private boolean generated;
         private boolean cleaning;
+        @Nullable
+        private VolumeBounds volume;
     }
 
     public static WaterArenaData get(ServerLevel level) {
@@ -66,6 +86,31 @@ public final class WaterArenaData extends SavedData {
     public boolean isGenerated(UUID boss) {
         Arena arena = arenas.get(boss);
         return arena != null && arena.generated;
+    }
+
+    /**
+     * Captures a common water level once. Existing shallow arenas are marked for
+     * refilling while retaining their owned water and normal cleanup behavior.
+     *
+     * @param level  world supplying valid build-height limits
+     * @param boss   arena owner
+     * @param center fixed encounter origin
+     * @param radius horizontal combat radius in blocks
+     * @param depth  lower search extent below the origin
+     * @param height common water surface height above the origin
+     * @return persistent volume bounds used after subsequent reloads as well
+     */
+    public VolumeBounds prepareVolume(ServerLevel level, UUID boss, BlockPos center, double radius, int depth,
+            int height) {
+        Arena arena = arenas.computeIfAbsent(boss, ignored -> new Arena());
+        if (arena.volume == null) {
+            arena.volume = new VolumeBounds(center.immutable(), radius,
+                    Math.max(level.getMinBuildHeight(), center.getY() - depth),
+                    Math.min(level.getMaxBuildHeight() - 1, center.getY() + height - 1));
+            arena.generated = false;
+            setDirty();
+        }
+        return arena.volume;
     }
 
     /** Whether a cell belongs to this encounter, including flowing descendants. */
@@ -92,7 +137,8 @@ public final class WaterArenaData extends SavedData {
             return false;
         }
         Arena arena = arenas.get(boss);
-        if (arena != null && (arena.cleaning || arena.generated)) {
+        if (arena != null
+                && (arena.cleaning || arena.generated || arena.volume != null && !arena.volume.contains(pos))) {
             return false;
         }
         BlockState state = level.getBlockState(pos);
@@ -152,31 +198,54 @@ public final class WaterArenaData extends SavedData {
         Map<UUID, Integer> active = new HashMap<>();
         for (UUID owner : owners.getOrDefault(pos, Set.of())) {
             Arena arena = arenas.get(owner);
-            if (arena != null && !arena.cleaning) {
+            if (arena != null && !arena.cleaning && (arena.volume == null || arena.volume.contains(pos))) {
                 active.put(owner, arena.distances.getOrDefault(pos, 0));
             }
         }
         return active;
     }
 
-    private boolean addOwners(BlockPos pos, Map<UUID, Integer> inherited) {
-        if (inherited.isEmpty()) {
-            return false;
-        }
-        BlockPos cell = pos.immutable();
-        Set<UUID> cellOwners = owners.computeIfAbsent(cell, ignored -> new HashSet<>());
-        inherited.forEach((owner, distance) -> {
+    /**
+     * Removes old flowing descendants outside newly captured volume bounds.
+     * Overlapping owners and unrelated water retain their existing protection.
+     *
+     * @param level loaded world receiving a normal fluid tick
+     * @param pos   water cell whose old arena ownership is being validated
+     */
+    public void pruneOutsideVolume(ServerLevel level, BlockPos pos) {
+        for (UUID owner : new ArrayList<>(owners.getOrDefault(pos, Set.of()))) {
             Arena arena = arenas.get(owner);
-            if (arena.positions.add(cell)) {
-                cellOwners.add(owner);
+            if (arena != null && !arena.cleaning && arena.volume != null && !arena.volume.contains(pos)) {
+                removeOwnedCell(level, owner, arena, pos);
             }
+        }
+    }
+
+    private boolean addOwners(BlockPos pos, Map<UUID, Integer> inherited) {
+        BlockPos cell = pos.immutable();
+        boolean accepted = false;
+        for (var entry : inherited.entrySet()) {
+            UUID owner = entry.getKey();
+            int distance = entry.getValue();
+            Arena arena = arenas.get(owner);
+            // A permitted parent does not imply that its destination is inside
+            // the volume. Reject before registering ownership or placing fluid.
+            if (arena == null || arena.cleaning || arena.volume != null && !arena.volume.contains(cell)) {
+                continue;
+            }
+            accepted = true;
+            boolean added = arena.positions.add(cell);
+            added |= owners.computeIfAbsent(cell, ignored -> new HashSet<>()).add(owner);
             Integer previous = arena.distances.get(cell);
             if (previous == null || distance < previous) {
                 arena.distances.put(cell, distance);
+                added = true;
+            }
+            if (added) {
                 setDirty();
             }
-        });
-        return true;
+        }
+        return accepted;
     }
 
     /** Drops derived ownership when native flow dries a cell naturally. */
@@ -299,6 +368,14 @@ public final class WaterArenaData extends SavedData {
             arena.generated = entry.getBoolean("Generated");
             arena.cleaning = entry.getBoolean("Cleaning");
             arena.nextDrainWaveTick = entry.getLong("NextDrainWaveTick");
+            CompoundTag volume = entry.getCompound("Volume");
+            double radius = volume.getDouble("Radius");
+            if (volume.contains("Center", Tag.TAG_LONG) && Double.isFinite(radius) && radius >= 1 && radius <= 128
+                    && volume.getInt("MinimumY") <= volume.getInt("MaximumY")
+                    && (long) volume.getInt("MaximumY") - volume.getInt("MinimumY") <= 128) {
+                arena.volume = new VolumeBounds(BlockPos.of(volume.getLong("Center")), radius,
+                        volume.getInt("MinimumY"), volume.getInt("MaximumY"));
+            }
             long[] positions = entry.getLongArray("Positions");
             int[] distances = entry.getIntArray("Distances");
             for (int cell = 0; cell < positions.length; cell++) {
@@ -331,6 +408,14 @@ public final class WaterArenaData extends SavedData {
             entry.putIntArray("Distances",
                     arena.positions.stream().mapToInt(pos -> arena.distances.getOrDefault(pos, 0)).toArray());
             entry.putLong("NextDrainWaveTick", arena.nextDrainWaveTick);
+            if (arena.volume != null) {
+                CompoundTag volume = new CompoundTag();
+                volume.putLong("Center", arena.volume.center().asLong());
+                volume.putDouble("Radius", arena.volume.radius());
+                volume.putInt("MinimumY", arena.volume.minimumY());
+                volume.putInt("MaximumY", arena.volume.maximumY());
+                entry.put("Volume", volume);
+            }
             saved.add(entry);
         });
         tag.put("Arenas", saved);

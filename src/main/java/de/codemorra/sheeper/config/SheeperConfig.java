@@ -688,7 +688,17 @@ public class SheeperConfig {
             .comment("Distance to a boundary sample at which additional water droplets appear.")
             .defineInRange("elemental.water.boundary.warningDistance", 8.0, 1.0, 16.0);
 
+    /** Visibility inside boss water (elemental.water.visuals). */
+    public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
+            .comment("Underwater fog distance in boss water, capped by the client's render distance.")
+            .defineInRange("elemental.water.visuals.fogDistance", 32.0, 16.0, 96.0);
+
     /** Water arena discovery, flooding and cleanup (elemental.water.arena). */
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_WATER_HEIGHT = BUILDER
+            .comment("Water surface height in blocks above the saved arena origin.",
+                    "Captured per arena; connected open cells below this common surface are flooded.")
+            .defineInRange("elemental.water.arena.waterHeight", 12, 4, 24);
+
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
             .comment("Maximum surface-cell height difference above or below the saved spawn position.",
                     "Captured when surface discovery starts.")
@@ -700,19 +710,19 @@ public class SheeperConfig {
             .defineInRange("elemental.water.arena.stepHeight", 1, 0, 4);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
-            .comment("Maximum surface candidates examined per water Sheeper per second.",
+            .comment("Maximum volume and ground surface candidates examined per water Sheeper per second.",
                     "Unloaded chunks are deferred without being force-loaded.")
-            .defineInRange("elemental.water.arena.searchCandidatesPerSecond", 10240, 20, 327680);
+            .defineInRange("elemental.water.arena.searchCandidatesPerSecond", 40960, 20, 81920);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_BLOCK_BUDGET_PER_SECOND = BUILDER
             .comment(
                     "Limits block positions processed per second when placing or removing arena water to reduce server load spikes.")
-            .defineInRange("elemental.water.arena.blockUpdatesPerSecond", 10240, 20, 327680);
+            .defineInRange("elemental.water.arena.blockUpdatesPerSecond", 20480, 20, 40960);
 
     public static final ForgeConfigSpec.DoubleValue WATER_ARENA_FLOOD_WAVE_SECONDS = BUILDER
             .comment("Seconds between outward source layers along the connected terrain.",
                     "0 disables layer timing and uses only blockUpdatesPerSecond. Large layers still respect blockUpdatesPerSecond.")
-            .defineInRange("elemental.water.arena.floodWaveIntervalSeconds", 0.05, 0.0, 10.0);
+            .defineInRange("elemental.water.arena.floodWaveIntervalSeconds", 0.0, 0.0, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_WAVE_SECONDS = BUILDER
             .comment("Seconds between cleanup layers, from the outermost descendants back toward the spawn.",
