@@ -101,17 +101,16 @@ final class WaterDefaultAttack {
     }
 
     /**
-     * Uses separate entry and exit distances to avoid rapid mode changes around
-     * the configured entry boundary. Only the selected target can trigger this
-     * mode.
+     * Uses one body-center distance for entering and leaving melee mode. Only
+     * the selected target triggers the approach; proximity defense still checks
+     * every nearby participant independently.
      *
      * @param target current shared movement and attack target
      */
     private void updateCloseRange(ServerPlayer target) {
-        double entry = SheeperConfig.WATER_CLOSE_RANGE_ENTER_DISTANCE.get();
-        double threshold = closingOnTarget ? Math.max(entry, SheeperConfig.WATER_CLOSE_RANGE_EXIT_DISTANCE.get())
-                : entry;
-        closingOnTarget = boss.distanceToSqr(target) <= threshold * threshold;
+        double threshold = SheeperConfig.WATER_CLOSE_RANGE_DISTANCE.get();
+        closingOnTarget = boss.getBoundingBox().getCenter()
+                .distanceToSqr(target.getBoundingBox().getCenter()) <= threshold * threshold;
     }
 
     /**

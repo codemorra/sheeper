@@ -511,14 +511,15 @@ public class SheeperConfig {
             .defineInRange("elemental.water.spawnPush.horizontalStrength", 1.5, 0.0, 3.9);
 
     /** Water boss close-range approach (elemental.water.closeRange). */
-    public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_ENTER_DISTANCE = BUILDER
-            .comment("Target distance in blocks at which projectiles pause and the boss approaches for melee.")
-            .defineInRange("elemental.water.closeRange.enterDistance", 9.0, 0.1, 20.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_DISTANCE = BUILDER
+            .comment("Distance between body centers at which the boss enters melee mode and approaches the target.",
+                    "Projectiles and new beams are suppressed inside; exceeding this same distance resumes ranged combat.")
+            .defineInRange("elemental.water.closeRange.distance", 8.0, 0.1, 20.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_EXIT_DISTANCE = BUILDER
-            .comment("Target distance beyond which circling and projectiles resume; capped below by enterDistance.",
-                    "A larger exit distance prevents rapid switching at the entry boundary.")
-            .defineInRange("elemental.water.closeRange.exitDistance", 10.0, 0.1, 20.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_STOP_DISTANCE = BUILDER
+            .comment("Fixed distance between body centers where the boss stops approaching in melee mode.",
+                    "Independent of boss size, orbitDistance and the proximity push radius; approaching players cause no retreat.")
+            .defineInRange("elemental.water.closeRange.stopDistance", 2.0, 0.1, 10.0);
 
     /** Water boss proximity push (elemental.water.proximityPush). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_RADIUS = BUILDER
@@ -530,6 +531,10 @@ public class SheeperConfig {
             .comment(
                     "Continuous proximity seconds before each push; the same delay applies independently to every player.")
             .defineInRange("elemental.water.proximityPush.delaySeconds", 2.0, 0.05, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DAMAGE = BUILDER
+            .comment("Damage per proximity push in health points; 2 = one heart. 0 disables damage, keeping knockback.")
+            .defineInRange("elemental.water.proximityPush.damage", 2.0, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_STRENGTH = BUILDER
             .comment("Horizontal launch velocity away from the boss for proximity knockback.")
