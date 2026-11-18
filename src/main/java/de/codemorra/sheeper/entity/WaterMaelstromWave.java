@@ -154,7 +154,8 @@ final class WaterMaelstromWave {
         double height = boss.getArenaWaterSurfaceY() - bottom;
         for (ServerPlayer player : players) {
             ((ServerLevel) boss.level).sendParticles(player, ModParticles.MAELSTROM_WAVE.get(), true,
-                    origin.x, bottom, origin.z, 0, radius, height, 0, 1);
+                    origin.x, bottom, origin.z, 0, radius, height,
+                    WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D, 1);
         }
     }
 
