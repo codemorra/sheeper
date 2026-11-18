@@ -19,15 +19,30 @@ import net.minecraft.world.phys.Vec3;
  * swimming height.
  */
 public final class MaelstromWaveParticle extends TextureSheetParticle {
-    private MaelstromWaveParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
+    private MaelstromWaveParticle(ClientLevel level, double x, double y, double z,
+            double motionX, double motionZ, SpriteSet sprites) {
         super(level, x, y, z);
         pickSprite(sprites);
-        lifetime = 6;
-        quadSize = 0.10F + random.nextFloat() * 0.05F;
+        lifetime = 4;
+        quadSize = 0.13F + random.nextFloat() * 0.05F;
         hasPhysics = false;
-        xd = 0;
+        friction = 1;
+        xd = motionX;
         yd = 0.025D;
-        zd = 0;
+        zd = motionZ;
+    }
+
+    /**
+     * Keeps the crest moving with the wave instead of leaving stationary rings
+     * behind.
+     */
+    @Override
+    public void tick() {
+        super.tick();
+        quadSize *= 0.88F;
+        if (!level.getFluidState(new BlockPos(x, y, z)).is(FluidTags.WATER)) {
+            remove();
+        }
     }
 
     @Override
@@ -38,13 +53,15 @@ public final class MaelstromWaveParticle extends TextureSheetParticle {
     private static final class Emitter extends NoRenderParticle {
         private final double radius;
         private final double height;
+        private final double speed;
         private final SpriteSet sprites;
 
         private Emitter(ClientLevel level, double x, double y, double z,
-                double radius, double height, SpriteSet sprites) {
+                double radius, double height, double speed, SpriteSet sprites) {
             super(level, x, y, z);
             this.radius = radius;
             this.height = height;
+            this.speed = speed;
             this.sprites = sprites;
         }
 
@@ -56,7 +73,7 @@ public final class MaelstromWaveParticle extends TextureSheetParticle {
         public void tick() {
             remove();
             Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-            int samples = Mth.clamp(Mth.ceil(Math.PI * 2 * radius / 1.5D), 24, 512);
+            int samples = Mth.clamp(Mth.ceil(Math.PI * 2 * radius), 24, 512);
             double bottom = Math.max(y + 0.2D, camera.y - 4);
             double top = Math.min(y + height - 0.2D, camera.y + 4);
             for (int index = 0; index < samples; index++) {
@@ -66,10 +83,10 @@ public final class MaelstromWaveParticle extends TextureSheetParticle {
                 if ((px - camera.x) * (px - camera.x) + (pz - camera.z) * (pz - camera.z) > 24 * 24) {
                     continue;
                 }
-                for (double py = bottom; py <= top; py += 1.5D) {
+                for (double py = bottom; py <= top; py += 1.0D) {
                     if (level.getFluidState(new BlockPos(px, py, pz)).is(FluidTags.WATER)) {
                         Minecraft.getInstance().particleEngine.add(new MaelstromWaveParticle(level,
-                                px, py, pz, sprites));
+                                px, py, pz, Math.cos(angle) * speed, Math.sin(angle) * speed, sprites));
                     }
                 }
             }
@@ -85,17 +102,17 @@ public final class MaelstromWaveParticle extends TextureSheetParticle {
         }
 
         /**
-         * Packet motion fields carry ring radius and flooded height rather than
-         * particle velocity.
+         * Packet motion fields carry ring radius, flooded height and outward
+         * speed per tick; nearby crest particles follow that speed locally.
          */
         @Override
         public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z,
-                double radius, double height, double unused) {
+                double radius, double height, double speed) {
             if (!Double.isFinite(radius) || !Double.isFinite(height) || radius < 0 || radius > 256
-                    || height <= 0 || height > 128) {
+                    || height <= 0 || height > 128 || !Double.isFinite(speed) || speed < 0 || speed > 3) {
                 return null;
             }
-            return new Emitter(level, x, y, z, radius, height, sprites);
+            return new Emitter(level, x, y, z, radius, height, speed, sprites);
         }
     }
 }

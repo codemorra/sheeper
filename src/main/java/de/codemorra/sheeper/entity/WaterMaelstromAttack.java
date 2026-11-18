@@ -295,6 +295,7 @@ final class WaterMaelstromAttack {
         if (distance <= step + 0.01D || Math.abs(movement) < step - 0.001D || ++phaseTicks >= 200) {
             // Immunity and suction end immediately at impact; recovery holds the
             // boss still while the independent wave carries and damages players.
+            showImpact();
             wave.start(boss.position());
             phase = Phase.RECOVERY;
             phaseTicks = 0;
@@ -381,28 +382,62 @@ final class WaterMaelstromAttack {
     }
 
     /**
-     * Small rotating bubble arcs introduce the vortex without creating water
-     * blocks.
+     * Inward-moving spiral arms grow denser and wider with the suction phases.
+     * Particle motion is cosmetic and never changes the player's pull strength.
      */
     private void showVortex() {
         int intensity = phase == Phase.STRONG_PULL ? 3 : phase == Phase.MEDIUM_PULL ? 2 : 1;
-        int layers = isPulling() ? 3 : 1;
+        int arms = isPulling() ? 3 : 1;
+        int samples = 8 + intensity * 4;
+        Vec3 center = boss.getBoundingBox().getCenter();
+        double innerRadius = boss.getBbWidth() * 0.5D + 0.4D;
+        double reach = isPulling() ? 2 + intensity * 1.5D : 1;
         double angle = rotationDegrees * Math.PI / 180;
-        for (int layer = 0; layer < layers; layer++) {
-            double radius = boss.getBbWidth() * 0.5D + 0.5D + layer * intensity;
-            for (int index = 0; index < 8 * intensity; index++) {
-                double theta = angle + index * Math.PI * 2 / (8 * intensity) + layer * 0.5D;
-                Vec3 point = boss.getBoundingBox().getCenter().add(Math.cos(theta) * radius,
-                        Math.sin(theta * 2) * boss.getBbHeight() * 0.25D - layer * 0.3D,
-                        Math.sin(theta) * radius);
-                BlockPos cell = new BlockPos(point);
-                if (boss.isArenaWaterCell(cell)
-                        && WaterArenaData.isLoaded((ServerLevel) boss.level, cell)
-                        && boss.level.getFluidState(cell).is(FluidTags.WATER)) {
-                    ((ServerLevel) boss.level).sendParticles(ParticleTypes.BUBBLE_COLUMN_UP,
-                            point.x, point.y, point.z, 1, 0.05D, 0.05D, 0.05D, 0.02D);
-                }
+        for (int arm = 0; arm < arms; arm++) {
+            for (int index = 0; index < samples; index++) {
+                double progress = (double) index / (samples - 1);
+                double radius = innerRadius + progress * reach;
+                double theta = angle + arm * Math.PI * 2 / arms + progress * Math.PI * 1.5D;
+                double x = Math.cos(theta);
+                double z = Math.sin(theta);
+                Vec3 point = center.add(x * radius, (progress - 0.5D) * boss.getBbHeight(), z * radius);
+                double inward = isPulling() ? 0.8D + intensity * 0.4D : 0;
+                double tangent = 0.5D + intensity * 0.3D;
+                sendBubble(point, new Vec3(-x * inward - z * tangent, 0.1D,
+                        -z * inward + x * tangent));
             }
+        }
+    }
+
+    /**
+     * Releases a brief, dense outward burst at the exact start of the pressure
+     * wave.
+     */
+    private void showImpact() {
+        Vec3 center = boss.getBoundingBox().getCenter();
+        double radius = boss.getBbWidth() * 0.5D + 0.3D;
+        for (int layer = 0; layer < 3; layer++) {
+            for (int index = 0; index < 24; index++) {
+                double angle = (index + layer * 0.5D) * Math.PI * 2 / 24;
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                Vec3 point = center.add(x * radius, (layer - 1) * boss.getBbHeight() * 0.35D, z * radius);
+                sendBubble(point, new Vec3(x * 3, 0.4D, z * 3));
+            }
+        }
+    }
+
+    /**
+     * Emits directed bubbles only in loaded arena water, keeping terrain untouched.
+     */
+    private void sendBubble(Vec3 point, Vec3 motion) {
+        BlockPos cell = new BlockPos(point);
+        if (boss.isArenaWaterCell(cell)
+                && WaterArenaData.isLoaded((ServerLevel) boss.level, cell)
+                && boss.level.getFluidState(cell).is(FluidTags.WATER)) {
+            // Zero count preserves the velocity; positive counts randomize it.
+            ((ServerLevel) boss.level).sendParticles(ParticleTypes.BUBBLE,
+                    point.x, point.y, point.z, 0, motion.x, motion.y, motion.z, 1);
         }
     }
 
