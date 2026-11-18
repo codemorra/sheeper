@@ -9,11 +9,13 @@ import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
@@ -49,6 +51,7 @@ final class WaterProximityPush {
             return;
         }
         Set<UUID> nearby = new HashSet<>();
+        boolean discharged = false;
         int delay = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get());
         for (ServerPlayer player : participants) {
             if (boss.distanceToSqr(player) > radius * radius) {
@@ -59,11 +62,15 @@ final class WaterProximityPush {
             int remaining = remainingTicks.computeIfAbsent(id, ignored -> delay) - 1;
             if (remaining <= 0) {
                 push(player, horizontal, upward, damage);
+                discharged = true;
                 remaining = delay;
             }
             remainingTicks.put(id, remaining);
         }
         remainingTicks.keySet().retainAll(nearby);
+        if (discharged) {
+            showPushBubbles();
+        }
     }
 
     /**
@@ -85,6 +92,31 @@ final class WaterProximityPush {
         player.setDeltaMovement(velocity.x, upward, velocity.z);
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.hurtMarked = false;
+    }
+
+    /**
+     * Surrounds the entire boss with an outward bubble burst. Simultaneous
+     * per-player discharges share one effect to keep particle traffic bounded.
+     */
+    private void showPushBubbles() {
+        Vec3 origin = boss.getBoundingBox().getCenter();
+        ServerLevel level = (ServerLevel) boss.level;
+        double radius = boss.getBbWidth() * 0.5D + 0.25D;
+        double halfHeight = boss.getBbHeight() * 0.5D;
+        for (int layer = 0; layer < 4; layer++) {
+            double y = origin.y + (layer / 3.0D - 0.5D) * halfHeight * 2;
+            for (int index = 0; index < 24; index++) {
+                double angle = (index + layer * 0.5D) * Math.PI * 2 / 24;
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                // Zero count preserves the outward velocity instead of randomizing it.
+                level.sendParticles(ParticleTypes.BUBBLE,
+                        origin.x + x * radius, y, origin.z + z * radius,
+                        0, x * 1.5D, 0.15D, z * 1.5D, 1.0D);
+            }
+        }
+        level.sendParticles(ParticleTypes.BUBBLE, origin.x, origin.y, origin.z,
+                48, radius * 0.7D, halfHeight * 0.7D, radius * 0.7D, 0.35D);
     }
 
     /** Clears all per-player progress when the encounter fully resets. */

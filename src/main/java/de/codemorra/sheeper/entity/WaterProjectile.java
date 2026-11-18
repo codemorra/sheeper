@@ -62,11 +62,25 @@ public class WaterProjectile extends Projectile {
                 return;
             }
         } else {
-            level.addParticle(ParticleTypes.SPLASH, getX(), getY(), getZ(), 0.0D, 0.0D, 0.0D);
+            spawnBubbleTrail();
         }
         // No gravity, water drag, or target updates: dodging never changes the shot.
         setPos(position().add(getDeltaMovement()));
         flightTicks++;
+    }
+
+    /**
+     * Samples the travelled segment so fast shots retain a continuous, bounded
+     * trail.
+     */
+    private void spawnBubbleTrail() {
+        Vec3 motion = getDeltaMovement();
+        int samples = Math.max(1, Math.min(8, (int) Math.ceil(motion.length() / 0.25D)));
+        for (int index = 0; index < samples; index++) {
+            Vec3 point = position().subtract(motion.scale((double) index / samples));
+            level.addParticle(ParticleTypes.BUBBLE, point.x, point.y, point.z,
+                    motion.x * 0.15D, motion.y * 0.15D, motion.z * 0.15D);
+        }
     }
 
     @Override
@@ -75,8 +89,10 @@ public class WaterProjectile extends Projectile {
             return;
         }
         super.onHit(hit);
-        ((ServerLevel) level).sendParticles(ParticleTypes.SPLASH,
-                getX(), getY(), getZ(), 8, 0.15D, 0.15D, 0.15D, 0.0D);
+        // Keep block-hit bubbles on the incoming water side of the collision face.
+        Vec3 impact = hit.getLocation().subtract(getDeltaMovement().normalize().scale(0.12D));
+        ((ServerLevel) level).sendParticles(ParticleTypes.BUBBLE,
+                impact.x, impact.y, impact.z, 12, 0.1D, 0.1D, 0.1D, 0.25D);
         discard();
     }
 

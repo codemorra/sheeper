@@ -40,8 +40,10 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import net.minecraftforge.common.ForgeMod;
@@ -671,16 +673,46 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
     }
 
-    /** Adds sparse client-side spray around the synchronized water tube. */
+    /** Adds bounded, forward-moving bubbles along the synchronized water tube. */
     private void spawnBeamParticles() {
         Vec3 offset = getBeamOffset();
+        if (offset.lengthSqr() < 1.0E-8D) {
+            return;
+        }
+        Vec3 motion = offset.normalize().scale(1.5D);
         int count = Math.min(24, (int) Math.ceil(offset.length() / 2));
         for (int index = 0; index < count; index++) {
             Vec3 point = getBeamOrigin().add(offset.scale((index + random.nextDouble()) / count));
-            level.addParticle(ParticleTypes.SPLASH,
-                    point.x + random.nextGaussian() * BEAM_RADIUS,
-                    point.y + random.nextGaussian() * BEAM_RADIUS,
-                    point.z + random.nextGaussian() * BEAM_RADIUS, 0, 0.03D, 0);
+            level.addParticle(ParticleTypes.BUBBLE,
+                    point.x + random.nextGaussian() * BEAM_RADIUS * 0.6D,
+                    point.y + random.nextGaussian() * BEAM_RADIUS * 0.6D,
+                    point.z + random.nextGaussian() * BEAM_RADIUS * 0.6D, motion.x, motion.y, motion.z);
+        }
+        if (tickCount % 4 == 0) {
+            spawnBeamImpactBubbles(offset);
+        }
+    }
+
+    /**
+     * Shows an impact only when the synchronized tip actually touches solid
+     * terrain.
+     */
+    private void spawnBeamImpactBubbles(Vec3 offset) {
+        Vec3 tip = getBeamOrigin().add(offset);
+        Vec3 step = offset.normalize().scale(0.2D);
+        var hit = level.clip(new ClipContext(tip.subtract(step), tip.add(step),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        if (hit.getType() != HitResult.Type.BLOCK) {
+            return;
+        }
+        Vec3 outward = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
+        Vec3 point = hit.getLocation().add(outward.scale(0.12D));
+        for (int index = 0; index < 6; index++) {
+            level.addParticle(ParticleTypes.BUBBLE,
+                    point.x + random.nextGaussian() * 0.05D,
+                    point.y + random.nextGaussian() * 0.05D,
+                    point.z + random.nextGaussian() * 0.05D,
+                    outward.x * 0.6D, outward.y * 0.6D, outward.z * 0.6D);
         }
     }
 
