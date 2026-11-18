@@ -11,6 +11,9 @@ import de.codemorra.sheeper.entity.ElementalSheeperEntity;
 import de.codemorra.sheeper.registry.ModItems;
 import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.LavaSheeperConfig;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperClientConfig;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.registry.ModParticles;
@@ -51,6 +54,10 @@ public class SheeperMod {
         ModSounds.register(context.getModEventBus());
         context.getModEventBus().addListener(this::registerEntityAttributes);
         context.getModEventBus().addListener(this::commonSetup);
+        context.registerConfig(ModConfig.Type.COMMON, LavaSheeperConfig.SPEC, LavaSheeperConfig.FILE_NAME);
+        context.registerConfig(ModConfig.Type.COMMON, LightningSheeperConfig.SPEC, LightningSheeperConfig.FILE_NAME);
+        context.registerConfig(ModConfig.Type.COMMON, WaterSheeperConfig.SPEC, WaterSheeperConfig.FILE_NAME);
+        // Keep the existing file as Forge's primary common entry for integrations.
         context.registerConfig(ModConfig.Type.COMMON, SheeperConfig.SPEC);
         context.registerConfig(ModConfig.Type.CLIENT, SheeperClientConfig.SPEC);
         LOGGER.info("SheeperMod initialized");

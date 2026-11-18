@@ -7,7 +7,7 @@ import net.minecraftforge.common.ForgeConfigSpec;
  * Distances are measured in blocks and angles in degrees.
  */
 public class SheeperConfig {
-    public static final ForgeConfigSpec.Builder BUILDER = CommonConfigBuilder.BUILDER;
+    public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Adult Sheeper detection, observation and self-explosions (sheeper). */
     public static final ForgeConfigSpec.DoubleValue DETECTION_RADIUS = BUILDER
@@ -203,7 +203,7 @@ public class SheeperConfig {
                     "0 disables the additional upward impulse. Ordinary fall damage still applies.")
             .defineInRange("carpet.upwardPush", 0.8, 0.0, 2.0);
 
-    public static final ForgeConfigSpec SPEC = CommonConfigBuilder.build();
+    public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     /** Converts seconds to whole game ticks, rounding up; zero remains zero. */
     public static int secondsToTicks(double seconds) {
