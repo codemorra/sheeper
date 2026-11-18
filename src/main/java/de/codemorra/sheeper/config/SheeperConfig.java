@@ -419,11 +419,6 @@ public class SheeperConfig {
                     "Surface discovery captures this radius when it starts; combat uses the current value.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_HEIGHT_RANGE = BUILDER
-            .comment("Maximum player feet height difference above or below the saved arena origin.",
-                    "Only living survival/adventure players participate in combat.")
-            .defineInRange("elemental.water.combatHeightRange", 15.0, 0.0, 128.0);
-
     /** Empty-arena grace and recovery (elemental.water.arenaRecovery). */
     public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = BUILDER
             .comment("Seconds without arena participants before regeneration begins.",
@@ -674,23 +669,6 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_LIFT_SPEED = BUILDER
             .comment("Controlled ascent speed in blocks per second toward the captured arena ceiling.")
             .defineInRange("elemental.water.fountain.liftSpeedBlocksPerSecond", 6.0, 2.0, 12.0);
-
-    /** Cosmetic combat boundary (elemental.water.boundary). */
-    public static final ForgeConfigSpec.BooleanValue WATER_BOUNDARY_ENABLED = BUILDER
-            .comment("Show water spray along the water boss's combat boundary.")
-            .define("elemental.water.boundary.enabled", true);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SPACING = BUILDER
-            .comment("Approximate blocks between boundary samples; at most 512 samples per arena.")
-            .defineInRange("elemental.water.boundary.spacing", 2.0, 0.5, 4.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_INTERVAL = BUILDER
-            .comment("Seconds between boundary particle pulses.")
-            .defineInRange("elemental.water.boundary.intervalSeconds", 0.5, 0.1, 2.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_WARNING_DISTANCE = BUILDER
-            .comment("Distance to a boundary sample at which additional water droplets appear.")
-            .defineInRange("elemental.water.boundary.warningDistance", 8.0, 1.0, 16.0);
 
     /** Visibility inside boss water (elemental.water.visuals). */
     public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
