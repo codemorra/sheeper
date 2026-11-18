@@ -144,6 +144,7 @@ final class WaterSpecialAttacks {
                 finishFountains();
             }
         }
+        maelstrom.tickEffects();
     }
 
     /** @return whether movement is locked for beam warning or firing */
@@ -151,9 +152,16 @@ final class WaterSpecialAttacks {
         return beamActive;
     }
 
-    /** @return whether Maelstrom owns navigation and grants preparation immunity */
+    /**
+     * @return whether Maelstrom owns navigation, including its vulnerable recovery
+     */
     boolean isMaelstromActive() {
         return maelstrom.isActive();
+    }
+
+    /** @return whether Maelstrom still grants immunity before its impact */
+    boolean isMaelstromImmune() {
+        return maelstrom.isImmune();
     }
 
     /**
@@ -184,9 +192,15 @@ final class WaterSpecialAttacks {
     }
 
     private void finishMaelstrom() {
-        maelstrom.stop();
+        boolean impacted = maelstrom.hasImpacted();
+        maelstrom.finish();
         maelstromCooldown = SheeperConfig.secondsToTicks(SheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
         beginRecovery();
+        if (impacted) {
+            // The attack already held its vulnerable recovery at the impact.
+            // Resume default target selection on the next timer update.
+            recoveryTicks = 1;
+        }
     }
 
     private void beginRecovery() {

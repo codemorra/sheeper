@@ -131,7 +131,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * @return whether Maelstrom currently owns movement and combat damage immunity
+     * @return whether Maelstrom currently owns movement and attack scheduling
      */
     public boolean isPerformingMaelstrom() {
         return specialAttacks.isMaelstromActive();
@@ -511,7 +511,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public boolean isInvulnerableTo(DamageSource source) {
         return super.isInvulnerableTo(source)
                 || source != DamageSource.OUT_OF_WORLD
-                        && (isPerformingMaelstrom() || !arenaCombat.allowsDamage(source));
+                        && (specialAttacks.isMaelstromImmune() || !arenaCombat.allowsDamage(source));
     }
 
     /**

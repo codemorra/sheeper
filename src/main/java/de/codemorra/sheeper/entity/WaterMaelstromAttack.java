@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -17,21 +18,23 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 
 /**
- * Owns Maelstrom's immune approach, rotation, ascent and staged suction.
- * The impact and outgoing wave are added in the next milestone.
+ * Owns Maelstrom's preparation, staged suction, collision-aware slam and
+ * vulnerable recovery. Outgoing wave effects continue independently afterward.
  */
 final class WaterMaelstromAttack {
     private static final double PREPARATION_RADIUS = 6.0D;
     private static final double PREPARATION_HEIGHT_RANGE = 2.0D;
 
     private enum Phase {
-        IDLE, APPROACH, ROTATION, ASCENT, MEDIUM_PULL, STRONG_PULL
+        IDLE, APPROACH, ROTATION, ASCENT, MEDIUM_PULL, STRONG_PULL, DESCENT, RECOVERY
     }
 
     private final WaterSheeperEntity boss;
     private final WaterMaelstromSuction suction = new WaterMaelstromSuction();
+    private final WaterMaelstromWave wave;
     private Phase phase = Phase.IDLE;
     @Nullable
     private Vec3 destination;
@@ -45,6 +48,7 @@ final class WaterMaelstromAttack {
     /** @param boss owner whose existing swimming navigation handles the approach */
     WaterMaelstromAttack(WaterSheeperEntity boss) {
         this.boss = boss;
+        wave = new WaterMaelstromWave(boss);
     }
 
     /**
@@ -197,7 +201,7 @@ final class WaterMaelstromAttack {
         if (!Double.isFinite(minimumPreparationY)) {
             findPreparationPositions();
         }
-        if (!isPreparationPosition(destination)
+        if ((phase == Phase.APPROACH || phase == Phase.ROTATION) && !isPreparationPosition(destination)
                 && (phase != Phase.APPROACH || !chooseApproach())) {
             return false;
         }
@@ -226,6 +230,13 @@ final class WaterMaelstromAttack {
                 return true;
             }
         }
+        if (phase == Phase.DESCENT) {
+            return descend();
+        }
+        if (phase == Phase.RECOVERY) {
+            holdPosition();
+            return ++phaseTicks < SheeperConfig.secondsToTicks(SheeperConfig.WATER_SPECIAL_RECOVERY.get());
+        }
         holdPosition();
         phaseTicks++;
         if (phase == Phase.ASCENT) {
@@ -251,14 +262,62 @@ final class WaterMaelstromAttack {
                 }
                 case ASCENT -> phase = Phase.MEDIUM_PULL;
                 case MEDIUM_PULL -> phase = Phase.STRONG_PULL;
+                case STRONG_PULL -> {
+                    phase = Phase.DESCENT;
+                    suction.clear();
+                    rotationDegrees = 0;
+                    boss.setMaelstromRotation(0);
+                }
                 default -> {
-                    // The final milestone will continue into the downward impact.
                     return false;
                 }
             }
             phaseTicks = 0;
         }
         return true;
+    }
+
+    /**
+     * Drops through normal collision until ground or the captured lower bound is
+     * reached.
+     */
+    private boolean descend() {
+        holdPosition();
+        double bottom = Math.max(boss.getArenaWaterMinimumY(), minimumPreparationY);
+        double distance = Math.max(0, boss.getY() - bottom);
+        double step = Math.min(distance, SheeperConfig.WATER_MAELSTROM_SLAM_SPEED.get() / 20.0D);
+        double movement = Shapes.collide(Direction.Axis.Y, boss.getBoundingBox(),
+                boss.level.getBlockCollisions(boss, boss.getBoundingBox().expandTowards(0, -step, 0)), -step);
+        if (movement < 0) {
+            boss.move(MoverType.SELF, new Vec3(0, movement, 0));
+        }
+        if (distance <= step + 0.01D || Math.abs(movement) < step - 0.001D || ++phaseTicks >= 200) {
+            // Immunity and suction end immediately at impact; recovery holds the
+            // boss still while the independent wave carries and damages players.
+            wave.start(boss.position());
+            phase = Phase.RECOVERY;
+            phaseTicks = 0;
+            holdPosition();
+        }
+        return true;
+    }
+
+    /**
+     * Advances outgoing wave effects after the active attack has entered or
+     * finished recovery.
+     */
+    void tickEffects() {
+        wave.tick(boss.getCombatParticipants());
+    }
+
+    /** @return whether impact already granted the vulnerable recovery window */
+    boolean hasImpacted() {
+        return phase == Phase.RECOVERY;
+    }
+
+    /** @return whether the current phase grants immunity, ending at impact */
+    boolean isImmune() {
+        return isActive() && phase != Phase.RECOVERY;
     }
 
     private int phaseDuration() {
@@ -356,7 +415,8 @@ final class WaterMaelstromAttack {
 
     /** @return whether the current phase must remain stationary */
     boolean isStationary() {
-        return phase == Phase.ROTATION || phase == Phase.MEDIUM_PULL || phase == Phase.STRONG_PULL;
+        return phase == Phase.ROTATION || phase == Phase.MEDIUM_PULL || phase == Phase.STRONG_PULL
+                || phase == Phase.RECOVERY;
     }
 
     /**
@@ -364,6 +424,15 @@ final class WaterMaelstromAttack {
      * rotation.
      */
     void stop() {
+        finish();
+        wave.clear();
+    }
+
+    /**
+     * Releases the active boss phase while allowing already released waves to
+     * complete.
+     */
+    void finish() {
         if (isActive()) {
             holdPosition();
         }
@@ -384,6 +453,7 @@ final class WaterMaelstromAttack {
      */
     CompoundTag save() {
         CompoundTag tag = new CompoundTag();
+        tag.put("Wave", wave.save());
         tag.putInt("Phase", phase.ordinal());
         tag.putInt("Ticks", phaseTicks);
         tag.putFloat("RotationDegrees", rotationDegrees);
@@ -406,6 +476,7 @@ final class WaterMaelstromAttack {
      */
     void load(CompoundTag tag) {
         stop();
+        wave.load(tag.getCompound("Wave"));
         int savedPhase = tag.getInt("Phase");
         Vec3 point = new Vec3(tag.getDouble("X"), tag.getDouble("Y"), tag.getDouble("Z"));
         if (savedPhase <= 0 || savedPhase >= Phase.values().length

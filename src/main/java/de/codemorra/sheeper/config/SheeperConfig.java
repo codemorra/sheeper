@@ -678,6 +678,33 @@ public class SheeperConfig {
                     "Faster existing motion is not slowed; vertical and tangential motion remain unchanged.")
             .defineInRange("elemental.water.maelstrom.pullSpeedLimitBlocksPerSecond", 5.0, 0.1, 10.0);
 
+    /** Maelstrom impact, outgoing wave and protected outer ring. */
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_SLAM_SPEED = BUILDER
+            .comment("Downward slam speed in blocks per second; solid terrain stops the descent.")
+            .defineInRange("elemental.water.maelstrom.slamSpeedBlocksPerSecond", 24.0, 4.0, 64.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_WAVE_SPEED = BUILDER
+            .comment("Outward pressure-wave speed in blocks per second across the flooded arena.")
+            .defineInRange("elemental.water.maelstrom.waveSpeedBlocksPerSecond", 20.0, 5.0, 60.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_TRANSPORT_SPEED = BUILDER
+            .comment("Player transport speed toward the arena edge in blocks per second, preserving swimming height.")
+            .defineInRange("elemental.water.maelstrom.transportSpeedBlocksPerSecond", 20.0, 2.0, 40.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_DAMAGE = BUILDER
+            .comment("Normal mob damage per second from wave contact until the wave ends; 2 = one heart.",
+                    "Each hit scales with damageIntervalSeconds; armor and shields apply normally.")
+            .defineInRange("elemental.water.maelstrom.damagePerSecond", 2.0, 0.0, 20.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_DAMAGE_INTERVAL = BUILDER
+            .comment("Seconds between wave damage pulses; minimum respects ordinary Minecraft damage immunity.")
+            .defineInRange("elemental.water.maelstrom.damageIntervalSeconds", 0.5, 0.5, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_SAFE_OUTER_WIDTH = BUILDER
+            .comment("Width of the outer arena ring protected from wave damage and forced transport, in blocks.",
+                    "Checked against current player position; reaching the ring releases affected players. 0 disables it.")
+            .defineInRange("elemental.water.maelstrom.safeOuterWidth", 8.0, 0.0, 32.0);
+
     /** Shared recovery after stationary specials (elemental.water.special). */
     public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_RECOVERY = BUILDER
             .comment("Seconds without attacks after a stationary special; movement resumes immediately.")
