@@ -14,6 +14,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -41,7 +42,8 @@ final class WaterProximityPush {
         double radius = SheeperConfig.WATER_PROXIMITY_PUSH_RADIUS.get();
         double horizontal = SheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH.get();
         double upward = SheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
-        if (radius == 0 || horizontal == 0 && upward == 0) {
+        double damage = SheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get();
+        if (radius == 0 || horizontal == 0 && upward == 0 && damage == 0) {
             remainingTicks.clear();
             return;
         }
@@ -55,7 +57,7 @@ final class WaterProximityPush {
             nearby.add(id);
             int remaining = remainingTicks.computeIfAbsent(id, ignored -> delay) - 1;
             if (remaining <= 0) {
-                push(player, horizontal, upward);
+                push(player, horizontal, upward, damage);
                 remaining = delay;
             }
             remainingTicks.put(id, remaining);
@@ -63,8 +65,17 @@ final class WaterProximityPush {
         remainingTicks.keySet().retainAll(nearby);
     }
 
-    /** Applies an outward launch and immediately synchronizes player movement. */
-    private void push(ServerPlayer player, double horizontal, double upward) {
+    /**
+     * Applies one damage hit per discharge, then synchronizes the configured
+     * launch. Damage immunity does not suppress the existing defensive knockback.
+     */
+    private void push(ServerPlayer player, double horizontal, double upward, double damage) {
+        if (damage > 0) {
+            player.hurt(DamageSource.mobAttack(boss), (float) damage);
+        }
+        if (!player.isAlive()) {
+            return;
+        }
         Vec3 away = new Vec3(player.getX() - boss.getX(), 0, player.getZ() - boss.getZ());
         if (away.lengthSqr() < 1.0E-8D) {
             away = new Vec3(1, 0, 0);

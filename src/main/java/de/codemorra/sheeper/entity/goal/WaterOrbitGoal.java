@@ -86,7 +86,7 @@ public final class WaterOrbitGoal extends Goal {
         if (closingOnTarget) {
             sprintEndTick = 0;
             if (boss.getBoundingBox().getCenter().distanceToSqr(
-                    player.getBoundingBox().getCenter()) <= closeRangeDistance(player) * closeRangeDistance(player)) {
+                    player.getBoundingBox().getCenter()) <= closeRangeDistance() * closeRangeDistance()) {
                 // Leave room for melee attacks instead of continuing through the player.
                 updateCircle(player, changed);
                 stopSwimming();
@@ -184,7 +184,7 @@ public final class WaterOrbitGoal extends Goal {
         if (closingOnTarget) {
             Vec3 playerCenter = player.getBoundingBox().getCenter();
             Vec3 spacing = boss.getBoundingBox().getCenter().subtract(playerCenter).normalize()
-                    .scale(closeRangeDistance(player));
+                    .scale(closeRangeDistance());
             return boss.clampSwimmingPosition(playerCenter.add(spacing).add(0, -boss.getBbHeight() * 0.5D, 0));
         }
         double height = player.getBoundingBox().getCenter().y - boss.getBbHeight() * 0.5D
@@ -275,8 +275,8 @@ public final class WaterOrbitGoal extends Goal {
             return false;
         }
         if (closingOnTarget && point.add(0, boss.getBbHeight() * 0.5D, 0)
-                .distanceToSqr(player.getBoundingBox().getCenter()) < closeRangeDistance(player)
-                        * closeRangeDistance(player)) {
+                .distanceToSqr(player.getBoundingBox().getCenter()) < closeRangeDistance()
+                        * closeRangeDistance()) {
             return false;
         }
         Vec3 away = horizontal(boss.position().subtract(player.position()));
@@ -292,14 +292,13 @@ public final class WaterOrbitGoal extends Goal {
     }
 
     /**
-     * Leaves a small gap between both bodies so approaching does not become a
-     * continuous collision push. The minimum keeps small bosses within melee reach.
+     * Uses the configured melee stopping distance without adding body-size
+     * offsets. Players can close the remaining gap without making the boss retreat.
      *
-     * @param player target whose width contributes to the stopping distance
-     * @return horizontal center-to-center stopping distance in blocks
+     * @return three-dimensional center-to-center stopping distance in blocks
      */
-    private double closeRangeDistance(ServerPlayer player) {
-        return Math.max(1.5D, (boss.getBbWidth() + player.getBbWidth()) * 0.5D + 0.5D);
+    private double closeRangeDistance() {
+        return SheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE.get();
     }
 
     /**
