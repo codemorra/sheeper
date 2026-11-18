@@ -14,12 +14,14 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.WaterOrbitGoal;
 import de.codemorra.sheeper.entity.navigation.WaterArenaNavigation;
+import de.codemorra.sheeper.entity.navigation.WaterSwimMoveControl;
 import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.registry.ModFluids;
 import de.codemorra.sheeper.world.WaterArenaData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -70,6 +72,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private WaterArenaSearch arenaSearch;
     @Nullable
     private WaterArenaVolumeSearch volumeSearch;
+    @Nullable
+    private WaterArenaData.VolumeBounds arenaVolume;
     private boolean volumeInitialized;
     @Nullable
     private Queue<BlockPos> waterPlacement;
@@ -88,6 +92,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     public WaterSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.WATER);
+        moveControl = new WaterSwimMoveControl(this);
         getNavigation().setCanFloat(true);
         // This boss lives in water; ordinary sheep water avoidance must not apply.
         setPathfindingMalus(BlockPathTypes.WATER, 0.0F);
@@ -140,12 +145,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Stops navigation and horizontal drift without interrupting vertical physics.
+     * Stops swimming at the current depth while retaining ordinary falling physics
+     * outside water.
      */
-    private void stopHorizontalMovement() {
+    private void stopMovement() {
         getNavigation().stop();
         Vec3 velocity = getDeltaMovement();
-        setDeltaMovement(0.0D, velocity.y, 0.0D);
+        setDeltaMovement(0.0D, isInArenaWater() ? 0 : velocity.y, 0.0D);
+        setYya(0);
         setXxa(0.0F);
         setZza(0.0F);
     }
@@ -168,9 +175,90 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return SheeperConfig.WATER_COMBAT_RADIUS.get();
     }
 
-    /** Keeps the configured movement area within the encounter area. */
+    /**
+     * Derives the movement radius from body size and the configured clearance to
+     * the arena edge.
+     */
     public double getMovementRadius() {
-        return Math.min(SheeperConfig.WATER_MOVEMENT_RADIUS.get(), getCombatRadius());
+        double waterRadius = arenaVolume == null ? getCombatRadius()
+                : Math.min(getCombatRadius(), arenaVolume.radius());
+        double bodyMargin = getBbWidth() * Math.sqrt(0.5D) + 0.25D;
+        return Math.max(0, waterRadius - bodyMargin - SheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE.get());
+    }
+
+    /**
+     * @return whether the boss currently uses ordinary or custom arena-water
+     *         physics
+     */
+    public boolean isInArenaWater() {
+        return isInWaterOrBubble() || isInFluidType(ModFluids.BOSS_WATER_TYPE.get());
+    }
+
+    /**
+     * Maintains neutral buoyancy in water without changing the persistent gravity
+     * flag. On land, gravity and fall behavior remain vanilla.
+     */
+    @Override
+    public Vec3 getFluidFallingAdjustedMovement(double gravity, boolean falling, Vec3 movement) {
+        return isInArenaWater() ? movement : super.getFluidFallingAdjustedMovement(gravity, falling, movement);
+    }
+
+    /**
+     * Projects a requested feet position into the swim volume, accounting for the
+     * boss's height and the inset needed at the top water surface.
+     *
+     * @param point desired world-space feet position
+     * @return position inside the captured horizontal and vertical swim limits
+     */
+    public Vec3 clampSwimmingPosition(Vec3 point) {
+        double centerX = getArenaCenter().getX() + 0.5D;
+        double centerZ = getArenaCenter().getZ() + 0.5D;
+        Vec3 horizontal = new Vec3(point.x - centerX, 0, point.z - centerZ);
+        double radius = getMovementRadius();
+        if (horizontal.lengthSqr() > radius * radius) {
+            horizontal = horizontal.normalize().scale(radius);
+        }
+        double minimum = arenaVolume == null ? getArenaCenter().getY() : arenaVolume.minimumY();
+        double maximum = arenaVolume == null ? minimum
+                : Math.max(minimum, arenaVolume.maximumY() + 1 - getBbHeight() - 0.15D);
+        return new Vec3(centerX + horizontal.x, Mth.clamp(point.y, minimum, maximum), centerZ + horizontal.z);
+    }
+
+    /**
+     * Checks a submerged waypoint against loaded water cells and block collision
+     * for the whole scaled body. Used by both waypoint selection and swim nodes.
+     *
+     * @param point proposed world-space feet position
+     * @return whether the boss fits completely inside water and the arena at this
+     *         position
+     */
+    public boolean canSwimAt(Vec3 point) {
+        if (arenaVolume == null || !(level instanceof ServerLevel server)) {
+            return false;
+        }
+        // Increasing edge clearance must not strand a boss already near the old
+        // boundary. Nodes outside the new movement area may lead it back inward.
+        double allowedRadiusSquared = Math.max(getMovementRadius() * getMovementRadius(),
+                horizontalDistanceSquared(getX(), getZ()));
+        if (Math.abs(point.y - clampSwimmingPosition(point).y) > 1.0E-4D
+                || horizontalDistanceSquared(point.x, point.z) > allowedRadiusSquared + 1.0E-6D) {
+            return false;
+        }
+        AABB body = getBoundingBox().move(point.subtract(position())).deflate(0.01D);
+        for (BlockPos cell : BlockPos.betweenClosed(new BlockPos(body.minX, body.minY, body.minZ),
+                new BlockPos(body.maxX, body.maxY, body.maxZ))) {
+            if (!WaterArenaData.isLoaded(server, cell)) {
+                return false;
+            }
+            var fluid = level.getFluidState(cell);
+            // Only the head cell needs a surface-height check. Stacked ordinary
+            // and boss water can report different heights at their shared seam.
+            if (!fluid.is(FluidTags.WATER) || body.maxY <= cell.getY() + 1
+                    && cell.getY() + fluid.getHeight(level, cell) < body.maxY - 0.01D) {
+                return false;
+            }
+        }
+        return !level.getBlockCollisions(this, body).iterator().hasNext();
     }
 
     /**
@@ -228,9 +316,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void move(MoverType type, Vec3 movement) {
         if (type == MoverType.SELF && !level.isClientSide && (!isCombatReady() || isNoAi() || isPerformingBeam())) {
-            movement = new Vec3(0.0D, movement.y, 0.0D);
+            movement = isInArenaWater() ? Vec3.ZERO : new Vec3(0.0D, movement.y, 0.0D);
         }
-        if (type == MoverType.SELF && !level.isClientSide && !isNoAi() && isAlive()) {
+        if (!level.isClientSide && isAlive() && (type == MoverType.SELF || isCombatReady())) {
             double dx = getX() - getArenaCenter().getX() - 0.5D;
             double dz = getZ() - getArenaCenter().getZ() - 0.5D;
             // Leave a numerical margin when converting back to world coordinates.
@@ -244,6 +332,13 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             double limitZ = Math.sqrt(Math.max(0.0D, radiusSquared - Math.max(dx * dx, nextX * nextX)));
             double nextZ = Mth.clamp(dz + movement.z, -limitZ, limitZ);
             movement = new Vec3(nextX - dx, movement.y, nextZ - dz);
+            if (arenaVolume != null && isCombatReady()) {
+                double minimumY = Math.min(getY(), arenaVolume.minimumY());
+                double top = Math.max(arenaVolume.minimumY(), arenaVolume.maximumY() + 1 - getBbHeight() - 0.15D);
+                double maximumY = Math.max(getY(), top);
+                movement = new Vec3(movement.x, Mth.clamp(getY() + movement.y, minimumY, maximumY) - getY(),
+                        movement.z);
+            }
         }
         super.move(type, movement);
     }
@@ -305,7 +400,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private void updateMovementTarget() {
         if (!isAlive() || !isCombatReady() || isNoAi()) {
             setTarget(null);
-            stopHorizontalMovement();
+            stopMovement();
             return;
         }
         List<ServerPlayer> participants = getCombatParticipants();
@@ -313,13 +408,13 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         ServerPlayer target = defaultAttack.tickTarget(participants, !specialAttacks.suppressesDefault());
         setTarget(target);
         if (target == null) {
-            stopHorizontalMovement();
+            stopMovement();
         } else {
             if (!MOVEMENT_TEST_MODE) {
                 specialAttacks.tryStart(target, defaultAttack);
             }
             if (isPerformingBeam()) {
-                stopHorizontalMovement();
+                stopMovement();
                 Vec3 aim = specialAttacks.getAimPosition();
                 getLookControl().setLookAt(aim.x, aim.y, aim.z, 90.0F, 45.0F);
                 return;
@@ -460,6 +555,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                     WaterArenaData.VolumeBounds bounds = data.prepareVolume(
                             (ServerLevel) level, getUUID(), getArenaCenter(), getCombatRadius(),
                             SheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), SheeperConfig.WATER_ARENA_WATER_HEIGHT.get());
+                    arenaVolume = bounds;
                     if (!data.isGenerated(getUUID())) {
                         volumeSearch = new WaterArenaVolumeSearch((ServerLevel) level, bounds);
                     }
@@ -481,7 +577,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 tickWaterWave(preparing);
                 entityData.set(DATA_COMBAT_READY, isCombatReady());
                 if (!isCombatReady()) {
-                    stopHorizontalMovement();
+                    stopMovement();
                 }
             }
             getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(SheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
@@ -575,7 +671,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (dead && level instanceof ServerLevel server) {
             setTarget(null);
             specialAttacks.reset();
-            stopHorizontalMovement();
+            stopMovement();
             WaterArenaData.get(server).release(getUUID());
         }
     }
@@ -642,6 +738,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // Derived surface data is rediscovered from the saved origin after loading.
         arenaSearch = null;
         volumeSearch = null;
+        arenaVolume = null;
         volumeInitialized = false;
         waterPlacement = null;
         placementWave = -1;

@@ -4,13 +4,11 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.StreamSupport;
 
 import de.codemorra.sheeper.config.SheeperConfig;
-import de.codemorra.sheeper.entity.WaterArenaSearch;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
-import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -19,7 +17,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Approaches and circles the selected player through short, collision-aware
- * waypoints. The entity owns target selection; this goal only plans movement.
+ * water waypoints. The entity owns target selection; this goal only plans
+ * movement.
  * Player approaches reduce the orbit radius so the boss does not retreat to
  * restore its preferred distance. In close-range mode it approaches directly
  * and stops short of the player's body instead of circling.
@@ -39,7 +38,7 @@ public final class WaterOrbitGoal extends Goal {
     /**
      * Creates a movement goal without taking control of the boss's head rotation.
      *
-     * @param boss owner whose target and discovered arena surfaces guide movement
+     * @param boss owner whose target and captured water volume guide movement
      */
     public WaterOrbitGoal(WaterSheeperEntity boss) {
         this.boss = boss;
@@ -77,7 +76,7 @@ public final class WaterOrbitGoal extends Goal {
         if (!(boss.getTarget() instanceof ServerPlayer player) || !player.isAlive() || player.isRemoved()) {
             // Goal continuation checks do not necessarily run before every AI
             // tick. Arena exits can already have cleared the shared target.
-            stopHorizontalMovement();
+            stopSwimming();
             return;
         }
         long now = boss.level.getGameTime();
@@ -86,11 +85,11 @@ public final class WaterOrbitGoal extends Goal {
         closingOnTarget = boss.isClosingOnTarget();
         if (closingOnTarget) {
             sprintEndTick = 0;
-            if (horizontal(boss.position().subtract(player.position())).lengthSqr() <= closeRangeDistance(player)
-                    * closeRangeDistance(player)) {
+            if (boss.getBoundingBox().getCenter().distanceToSqr(
+                    player.getBoundingBox().getCenter()) <= closeRangeDistance(player) * closeRangeDistance(player)) {
                 // Leave room for melee attacks instead of continuing through the player.
                 updateCircle(player, changed);
-                stopHorizontalMovement();
+                stopSwimming();
                 return;
             }
         }
@@ -101,8 +100,9 @@ public final class WaterOrbitGoal extends Goal {
         boolean approached = previousPlayerPosition != null
                 && player.position().distanceToSqr(previousPlayerPosition) > 0.25D
                 && horizontal(player.position().subtract(boss.position())).length() < circleRadius - 0.5D;
-        boolean targetMoved = closingOnTarget && previousPlayerPosition != null
-                && player.position().distanceToSqr(previousPlayerPosition) > 0.25D;
+        boolean targetMoved = previousPlayerPosition != null
+                && player.position().distanceToSqr(previousPlayerPosition) > 0.25D
+                && (closingOnTarget || Math.abs(player.getY() - previousPlayerPosition.y) > 0.5D);
         if (changed || modeChanged || directionChanged || approached || targetMoved || now >= nextPlanTick) {
             updateCircle(player, changed || modeChanged);
             scheduleNextPlan(now);
@@ -115,7 +115,7 @@ public final class WaterOrbitGoal extends Goal {
             } else if (changed || modeChanged || approached || targetMoved) {
                 // A previous route must not turn into an escape route when the player closes
                 // in.
-                stopHorizontalMovement();
+                stopSwimming();
             }
         }
         boss.getNavigation().setSpeedModifier(speed(now));
@@ -168,49 +168,58 @@ public final class WaterOrbitGoal extends Goal {
     }
 
     /**
-     * Chooses an orbit or close-range reference point, or an inward destination if
-     * displaced.
-     * The reference point still needs a reachable surface and a valid path.
+     * Chooses a spatial approach or an orbit point at the player's swimming height.
+     * Requested points are clamped before searching nearby submerged body
+     * positions.
      *
-     * @param player center of the current orbit
-     * @return desired world position before surface and collision checks
+     * @param player center of the current orbit and height reference
+     * @return desired feet position inside the captured water volume
      */
     private Vec3 desiredPosition(ServerPlayer player) {
         if (!boss.isWithinMovementArea(boss.getX(), boss.getZ())) {
-            return Vec3.atBottomCenterOf(boss.getArenaCenter());
+            return boss.clampSwimmingPosition(new Vec3(boss.getArenaCenter().getX() + 0.5D,
+                    boss.getY(), boss.getArenaCenter().getZ() + 0.5D));
         }
         Vec3 away = horizontal(boss.position().subtract(player.position()));
         if (closingOnTarget) {
-            return new Vec3(player.getX(), boss.getY(), player.getZ())
-                    .add(away.normalize().scale(closeRangeDistance(player)));
+            Vec3 playerCenter = player.getBoundingBox().getCenter();
+            Vec3 spacing = boss.getBoundingBox().getCenter().subtract(playerCenter).normalize()
+                    .scale(closeRangeDistance(player));
+            return boss.clampSwimmingPosition(playerCenter.add(spacing).add(0, -boss.getBbHeight() * 0.5D, 0));
         }
+        double height = player.getBoundingBox().getCenter().y - boss.getBbHeight() * 0.5D
+                + SheeperConfig.WATER_MOVEMENT_HEIGHT_OFFSET.get();
         if (away.lengthSqr() < 4.0D) {
-            // Avoid an unstable angle when overlapping the player; move sideways first.
             Vec3 basis = away.lengthSqr() < 1.0E-7D ? new Vec3(1, 0, 0) : away.normalize();
             circleRadius = Math.max(circleRadius, Math.min(2, SheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()));
-            return boss.position().add(-basis.z * direction * 3, 0, basis.x * direction * 3);
+            return boss.clampSwimmingPosition(new Vec3(boss.getX() - basis.z * direction * 3,
+                    height, boss.getZ() + basis.x * direction * 3));
         }
         double angle = Math.atan2(away.z, away.x) + direction * Math.toRadians(40);
-        return new Vec3(player.getX() + Math.cos(angle) * circleRadius, boss.getY(),
-                player.getZ() + Math.sin(angle) * circleRadius);
+        return boss.clampSwimmingPosition(new Vec3(player.getX() + Math.cos(angle) * circleRadius,
+                height, player.getZ() + Math.sin(angle) * circleRadius));
     }
 
     /**
-     * Searches nearby arena surfaces toward the desired position. While circling,
-     * tries the opposite direction if no route advances; close-range approaches
-     * keep moving toward the player instead.
+     * Requests short three-dimensional paths around the next desired swim point.
+     * Nearby alternatives let water navigation route above or beside obstacles
+     * without scanning or requiring the arena's floor cells.
      *
-     * @param player target used to select the orbit and prevent retreat
-     * @return an arena-safe route that makes progress, or {@code null} if blocked
+     * @param player target used for approach spacing and the no-retreat restriction
+     * @return a progressing underwater path, or null if all local routes are
+     *         blocked
      */
     private Path choosePath(ServerPlayer player) {
-        // An arena waypoint can be far outside a sheep's path search range. Keep
-        // each leg short instead of repeatedly requesting an unreachable final
-        // position.
         double leg = Math.max(1, Math.min(6, boss.getAttributeValue(Attributes.FOLLOW_RANGE) * 0.5D));
         for (int attempt = 0; attempt < (closingOnTarget ? 1 : 2); attempt++) {
             Vec3 desired = desiredPosition(player);
-            List<BlockPos> candidates = boss.getArenaSurfacePositions().stream()
+            Vec3 travel = desired.subtract(boss.position());
+            Vec3 next = travel.length() > leg ? boss.position().add(travel.normalize().scale(leg)) : desired;
+            double offset = (int) (boss.getBbWidth() + 1.0F) * 0.5D;
+            BlockPos node = new BlockPos(next.x - offset, next.y, next.z - offset);
+            List<BlockPos> candidates = StreamSupport.stream(BlockPos.betweenClosed(
+                    node.offset(-2, -3, -2), node.offset(2, 3, 2)).spliterator(), false)
+                    .map(BlockPos::immutable)
                     .filter(pos -> usableDestination(pos, player, leg))
                     .sorted(Comparator.comparingDouble(pos -> navigationPoint(pos).distanceToSqr(desired)))
                     .limit(12).toList();
@@ -221,7 +230,7 @@ public final class WaterOrbitGoal extends Goal {
                     continue;
                 }
                 Vec3 end = path.getEntityPosAtNode(boss, path.getNodeCount() - 1);
-                if (end.subtract(boss.position()).horizontalDistanceSqr() < 1.0D
+                if (end.distanceToSqr(boss.position()) < 0.25D
                         || end.distanceToSqr(desired) >= boss.position().distanceToSqr(desired)) {
                     continue;
                 }
@@ -233,7 +242,6 @@ public final class WaterOrbitGoal extends Goal {
                 }
             }
             if (partial != null) {
-                // A safe partial route can advance toward a passage around an obstacle.
                 return partial;
             }
             if (!closingOnTarget) {
@@ -244,34 +252,36 @@ public final class WaterOrbitGoal extends Goal {
     }
 
     /**
-     * Filters nearby surfaces before pathfinding, including space for the full
-     * scaled boss and the restriction against moving away from a nearby player.
+     * Filters local water waypoints for the whole body and keeps approaches from
+     * crossing into the player or retreating from an approaching target.
      *
-     * @param pos    candidate arena surface
+     * @param pos    candidate swim node, aligned like Path.getEntityPosAtNode
      * @param player current movement target
-     * @param leg    maximum horizontal route destination distance in blocks
-     * @return whether the candidate can be considered for navigation
+     * @param leg    maximum three-dimensional waypoint distance in blocks
+     * @return whether the destination may be considered for water navigation
      */
     private boolean usableDestination(BlockPos pos, ServerPlayer player, double leg) {
         Vec3 point = navigationPoint(pos);
-        Vec3 travel = horizontal(point.subtract(boss.position()));
-        double minimum = Math.min(1.5D, boss.getMovementRadius() / 2);
+        Vec3 travel = point.subtract(boss.position());
+        double minimum = Math.min(0.5D, boss.getMovementRadius() / 2);
         if (travel.lengthSqr() < minimum * minimum || travel.lengthSqr() > leg * leg
-                || !boss.isWithinMovementArea(point.x, point.z)) {
+                || !boss.canSwimAt(point)) {
+            return false;
+        }
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        if (!boss.isWithinMovementArea(point.x, point.z)
+                && point.subtract(center)
+                        .horizontalDistanceSqr() >= boss.position().subtract(center).horizontalDistanceSqr() - 0.001D) {
+            return false;
+        }
+        if (closingOnTarget && point.add(0, boss.getBbHeight() * 0.5D, 0)
+                .distanceToSqr(player.getBoundingBox().getCenter()) < closeRangeDistance(player)
+                        * closeRangeDistance(player)) {
             return false;
         }
         Vec3 away = horizontal(boss.position().subtract(player.position()));
-        if (closingOnTarget && horizontal(point.subtract(player.position())).lengthSqr() < closeRangeDistance(player)
-                * closeRangeDistance(player)) {
-            return false;
-        }
-        if (away.lengthSqr() > 1.0E-7D
-                && away.length() <= SheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()
-                && travel.dot(away.normalize()) > 0.5D) {
-            return false;
-        }
-        return WaterArenaData.isLoaded((ServerLevel) boss.level, pos) && WaterArenaSearch.isSurface(boss.level, pos)
-                && boss.level.noCollision(boss, boss.getBoundingBox().move(point.subtract(boss.position())));
+        return away.lengthSqr() <= 1.0E-7D || away.length() > SheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()
+                || horizontal(travel).dot(away.normalize()) <= 0.5D;
     }
 
     private Vec3 navigationPoint(BlockPos pos) {
@@ -293,20 +303,20 @@ public final class WaterOrbitGoal extends Goal {
     }
 
     /**
-     * Checks route nodes against the movement circle. A displaced boss may return
-     * from outside, but each outside node must be no farther out than the previous
-     * one.
+     * Revalidates every path node against the submerged arena volume. This also
+     * catches terrain changes after the evaluator cached its node classifications.
      *
-     * @param path proposed navigation route
-     * @return whether all nodes after the occupied start respect the boundary
+     * @param path proposed water route
+     * @return whether every node after the occupied start remains safe to swim
      */
     private boolean pathInsideArena(Path path) {
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         double radiusSquared = boss.getMovementRadius() * boss.getMovementRadius();
         double limit = Math.max(radiusSquared, boss.position().subtract(center).horizontalDistanceSqr());
         for (int index = 1; index < path.getNodeCount(); index++) {
-            double distance = path.getEntityPosAtNode(boss, index).subtract(center).horizontalDistanceSqr();
-            if (distance > limit + 1.0E-7D) {
+            Vec3 point = path.getEntityPosAtNode(boss, index);
+            double distance = point.subtract(center).horizontalDistanceSqr();
+            if (!boss.canSwimAt(point) || distance > limit + 1.0E-6D) {
                 return false;
             }
             limit = Math.max(radiusSquared, distance);
@@ -334,12 +344,14 @@ public final class WaterOrbitGoal extends Goal {
     }
 
     /**
-     * Cancels navigation and residual horizontal motion while preserving gravity.
+     * Cancels navigation and residual swimming motion so close-range stops retain
+     * their depth.
      */
-    private void stopHorizontalMovement() {
+    private void stopSwimming() {
         boss.getNavigation().stop();
         Vec3 velocity = boss.getDeltaMovement();
-        boss.setDeltaMovement(0, velocity.y, 0);
+        boss.setDeltaMovement(0, boss.isInArenaWater() ? 0 : velocity.y, 0);
+        boss.setYya(0);
         boss.setXxa(0);
         boss.setZza(0);
     }
@@ -347,7 +359,7 @@ public final class WaterOrbitGoal extends Goal {
     @Override
     public void stop() {
         sprintEndTick = 0;
-        stopHorizontalMovement();
+        stopSwimming();
     }
 
     /** Clears orbit history and sprint cooldown after full encounter recovery. */

@@ -419,11 +419,6 @@ public class SheeperConfig {
                     "Surface discovery captures this radius when it starts; combat uses the current value.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_RADIUS = BUILDER
-            .comment("Horizontal movement radius around the water Sheeper's saved spawn position.",
-                    "Capped at combatRadius; measured at the boss's feet.")
-            .defineInRange("elemental.water.movementRadius", 30.0, 0.0, 128.0);
-
     public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_HEIGHT_RANGE = BUILDER
             .comment("Maximum player feet height difference above or below the saved arena origin.",
                     "Only living survival/adventure players participate in combat.")
@@ -441,6 +436,11 @@ public class SheeperConfig {
             .defineInRange("elemental.water.arenaRecovery.healthPercentPerSecond", 5.0, 0.1, 25.0);
 
     /** Water boss movement (elemental.water.movement). */
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_EDGE_DISTANCE = BUILDER
+            .comment("Minimum horizontal clearance between the boss body and the flooded arena boundary.",
+                    "The movement radius adapts automatically to arena radius and boss size; 0 keeps body clearance only.")
+            .defineInRange("elemental.water.movement.edgeDistance", 2.0, 0.0, 16.0);
+
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds between local circling waypoints.")
             .defineInRange("elemental.water.movement.intervalMinSeconds", 1.0, 0.05, 600.0);
@@ -461,6 +461,11 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SWIM_SPEED = BUILDER
             .comment("Water boss swim acceleration multiplier; offsets ordinary sheep water slowdown.")
             .defineInRange("elemental.water.movement.swimSpeedMultiplier", 4.0, 0.1, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_HEIGHT_OFFSET = BUILDER
+            .comment("Preferred boss center height above the selected player's center while circling underwater.",
+                    "Clamped to the flooded volume; close-range approaches use body-to-body spacing instead.")
+            .defineInRange("elemental.water.movement.heightOffset", 1.0, -2.0, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_CHANCE = BUILDER
             .comment("Chance of a short sprint when choosing a waypoint and the sprint cooldown has elapsed.")
