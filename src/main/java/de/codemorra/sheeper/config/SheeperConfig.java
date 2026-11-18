@@ -642,6 +642,42 @@ public class SheeperConfig {
             .comment("Initial visual rotation speed in degrees per second.")
             .defineInRange("elemental.water.maelstrom.rotationDegreesPerSecond", 180.0, 30.0, 720.0);
 
+    /** Maelstrom ascent and staged horizontal pull. */
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ASCENT_DURATION = BUILDER
+            .comment("Seconds of slow ascent with weak suction after the initial rotation.")
+            .defineInRange("elemental.water.maelstrom.ascentSeconds", 3.0, 0.1, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ASCENT_HEIGHT = BUILDER
+            .comment("Rise above the preparation position in blocks; water surface and solid ceilings limit ascent.")
+            .defineInRange("elemental.water.maelstrom.ascentHeight", 3.0, 0.0, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_MEDIUM_DURATION = BUILDER
+            .comment("Seconds of medium suction and faster rotation after ascent.")
+            .defineInRange("elemental.water.maelstrom.mediumPullSeconds", 2.0, 0.1, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_STRONG_DURATION = BUILDER
+            .comment("Seconds of strongest suction and fastest rotation before impact.")
+            .defineInRange("elemental.water.maelstrom.strongPullSeconds", 2.0, 0.1, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_WEAK_PULL = BUILDER
+            .comment("Weak inward acceleration in blocks per tick squared during ascent; players can swim away.")
+            .defineInRange("elemental.water.maelstrom.weakPullStrength", 0.01, 0.0, 0.1);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_MEDIUM_PULL = BUILDER
+            .comment("Medium inward acceleration, intended to balance swimming against the current.",
+                    "Capped below by weakPullStrength.")
+            .defineInRange("elemental.water.maelstrom.mediumPullStrength", 0.02, 0.0, 0.1);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_STRONG_PULL = BUILDER
+            .comment("Strong inward acceleration, intended to pull swimmers inward despite opposing input.",
+                    "Capped below by mediumPullStrength.")
+            .defineInRange("elemental.water.maelstrom.strongPullStrength", 0.04, 0.0, 0.1);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_PULL_SPEED_LIMIT = BUILDER
+            .comment("Maximum inward speed the suction may add toward, in blocks per second.",
+                    "Faster existing motion is not slowed; vertical and tangential motion remain unchanged.")
+            .defineInRange("elemental.water.maelstrom.pullSpeedLimitBlocksPerSecond", 5.0, 0.1, 10.0);
+
     /** Shared recovery after stationary specials (elemental.water.special). */
     public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_RECOVERY = BUILDER
             .comment("Seconds without attacks after a stationary special; movement resumes immediately.")
