@@ -128,7 +128,11 @@ public final class WaterArenaSearch {
         return isOpen(level, pos);
     }
 
-    private static boolean isOpen(Level level, BlockPos pos) {
+    /**
+     * Whether water may traverse a cell without cutting through a solid terrain
+     * block.
+     */
+    public static boolean isOpen(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         if (state.getFluidState().is(FluidTags.WATER)) {
             return true;

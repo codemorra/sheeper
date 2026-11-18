@@ -61,6 +61,22 @@ public final class BossWaterBlock extends Block {
         return RenderShape.INVISIBLE;
     }
 
+    /**
+     * Lets daylight reach the arena floor without making the water a light source.
+     */
+    @Override
+    public int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
+        return 0;
+    }
+
+    /**
+     * Avoids cumulative skylight attenuation through the tall boss-water volume.
+     */
+    @Override
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+        return true;
+    }
+
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return Shapes.empty();

@@ -74,7 +74,12 @@ public final class WaterOrbitGoal extends Goal {
 
     @Override
     public void tick() {
-        ServerPlayer player = (ServerPlayer) boss.getTarget();
+        if (!(boss.getTarget() instanceof ServerPlayer player) || !player.isAlive() || player.isRemoved()) {
+            // Goal continuation checks do not necessarily run before every AI
+            // tick. Arena exits can already have cleared the shared target.
+            stopHorizontalMovement();
+            return;
+        }
         long now = boss.level.getGameTime();
         boolean changed = !player.getUUID().equals(targetId);
         boolean modeChanged = closingOnTarget != boss.isClosingOnTarget();

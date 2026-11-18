@@ -30,8 +30,7 @@ public abstract class BossWaterFluid extends WaterFluid {
     /** Uses vanilla water's drop handling when clearing an initial source cell. */
     public boolean placeInitialSource(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (!WaterArenaSearch.isSurface(level, pos)
-                || !state.is(ModBlocks.BOSS_WATER.get()) && !WaterArenaSearch.isSourceCandidate(level, pos)) {
+        if (!state.is(ModBlocks.BOSS_WATER.get()) && !WaterArenaSearch.isSourceCandidate(level, pos)) {
             return false;
         }
         if (!state.isAir() && !state.is(ModBlocks.BOSS_WATER.get())) {
@@ -132,6 +131,7 @@ public abstract class BossWaterFluid extends WaterFluid {
             return;
         }
         WaterArenaData data = WaterArenaData.get(server);
+        data.pruneOutsideVolume(server, pos);
         if (!data.observeFlow(server, pos, state.isSource())) {
             return;
         }
