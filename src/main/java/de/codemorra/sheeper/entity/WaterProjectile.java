@@ -11,9 +11,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.IndirectEntityDamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.Level;
@@ -104,7 +106,7 @@ public class WaterProjectile extends Projectile {
     protected void onHitEntity(EntityHitResult hit) {
         Entity target = hit.getEntity();
         Vec3 previousMotion = target.getDeltaMovement();
-        if (target.hurt(DamageSource.thrown(this, getOwner()),
+        if (target.hurt(damageSource(),
                 WaterSheeperConfig.WATER_PROJECTILE_DAMAGE.get().floatValue())) {
             // Replace vanilla's attacker-relative impulse with the flight direction.
             target.setDeltaMovement(previousMotion.add(getDeltaMovement().normalize()
@@ -115,6 +117,20 @@ public class WaterProjectile extends Projectile {
                 player.hurtMarked = false;
             }
         }
+    }
+
+    /**
+     * Retains thrown-projectile armor, shield and owner attribution while applying
+     * ordinary mob difficulty scaling. Vanilla checks the nonliving projectile
+     * instead of its shooter here; its override also ignores the scaling flag.
+     */
+    private DamageSource damageSource() {
+        return new IndirectEntityDamageSource("thrown", this, getOwner()) {
+            @Override
+            public boolean scalesWithDifficulty() {
+                return getEntity() instanceof LivingEntity && !(getEntity() instanceof Player);
+            }
+        }.setProjectile();
     }
 
     @Override

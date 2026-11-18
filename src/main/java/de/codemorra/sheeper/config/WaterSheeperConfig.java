@@ -137,7 +137,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_DAMAGE = BUILDER
             .comment("Damage per proximity push in health points; 2 = one heart. 0 disables damage, keeping knockback.")
-            .defineInRange("elemental.water.proximityPush.damage", 2.0, 0.0, 20.0);
+            .defineInRange("elemental.water.proximityPush.damage", 3.66, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_STRENGTH = BUILDER
             .comment("Horizontal launch velocity away from the boss for proximity knockback.")
@@ -149,8 +149,8 @@ public final class WaterSheeperConfig {
 
     /** Water projectiles (elemental.water.projectile). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
-            .comment("Damage per water projectile in health points (2 = one heart).")
-            .defineInRange("elemental.water.projectile.damage", 2.0, 0.0, 1024.0);
+            .comment("Base damage per water projectile in health points (2 = one heart); difficulty and armor apply.")
+            .defineInRange("elemental.water.projectile.damage", 4.88, 0.0, 1024.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_SPEED_PER_SECOND = BUILDER
             .comment("Constant water projectile speed in blocks per second, including underwater.")
@@ -210,7 +210,7 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_DAMAGE_PER_SECOND = BUILDER
             .comment(
                     "Beam damage in health points on first contact, then at least one second after the last accepted beam hit.")
-            .defineInRange("elemental.water.beam.damagePerSecond", 2.0, 0.0, 20.0);
+            .defineInRange("elemental.water.beam.damagePerSecond", 4.88, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_SIGHT_TIMEOUT = BUILDER
             .comment("Consecutive seconds without sight before aborting; collision still stops the visible beam.")
@@ -298,7 +298,7 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_DAMAGE = BUILDER
             .comment("Normal mob damage per second from wave contact until the wave ends; 2 = one heart.",
                     "Each hit scales with damageIntervalSeconds; armor and shields apply normally.")
-            .defineInRange("elemental.water.maelstrom.damagePerSecond", 2.0, 0.0, 20.0);
+            .defineInRange("elemental.water.maelstrom.damagePerSecond", 7.32, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_DAMAGE_INTERVAL = BUILDER
             .comment("Seconds between wave damage pulses; minimum respects ordinary Minecraft damage immunity.")
@@ -330,7 +330,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DAMAGE = BUILDER
             .comment("One-time damage per player and fountain column in health points; 2 = one heart.")
-            .defineInRange("elemental.water.fountain.damage", 2.0, 0.0, 20.0);
+            .defineInRange("elemental.water.fountain.damage", 6.10, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
             .comment(
