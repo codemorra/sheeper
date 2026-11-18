@@ -84,7 +84,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final WaterProximityPush proximityPush = new WaterProximityPush(this);
     private final WaterArenaCombat arenaCombat = new WaterArenaCombat(this);
     private final WaterArenaPlayers arenaPlayers = new WaterArenaPlayers(this);
-    private final WaterArenaBoundary arenaBoundary = new WaterArenaBoundary(this);
     private final WaterSpecialAttacks specialAttacks = new WaterSpecialAttacks(this);
     private float previousBeamEyeIntensity;
     private WaterOrbitGoal orbitGoal;
@@ -620,7 +619,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         super.tick();
         if (!level.isClientSide && isAlive() && isCombatReady()) {
-            arenaBoundary.tick();
             if (!isNoAi()) {
                 arenaCombat.tick(getCombatParticipants());
                 specialAttacks.tickAttack();
