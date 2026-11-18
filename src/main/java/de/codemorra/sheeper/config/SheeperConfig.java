@@ -616,6 +616,32 @@ public class SheeperConfig {
             .comment("Seconds for warning eyes to fade after the beam ends.")
             .defineInRange("elemental.water.beam.eyeFadeSeconds", 0.5, 0.05, 2.0);
 
+    /** Maelstrom preparation (elemental.water.maelstrom). */
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_COOLDOWN = BUILDER
+            .comment("Seconds before Maelstrom becomes ready, both at encounter start and after each use.",
+                    "The initial countdown starts with the first combat participant; full recovery restarts it.")
+            .defineInRange("elemental.water.maelstrom.cooldownSeconds", 60.0, 1.0, 300.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_MELEE_DELAY = BUILDER
+            .comment("Continuous melee-mode seconds required before starting Maelstrom while in close range.")
+            .defineInRange("elemental.water.maelstrom.meleeDelaySeconds", 5.0, 0.0, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_CENTER_SPEED = BUILDER
+            .comment("Navigation speed multiplier while moving to the arena center for Maelstrom.")
+            .defineInRange("elemental.water.maelstrom.centerSpeedMultiplier", 3.0, 0.1, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_CENTER_TIMEOUT = BUILDER
+            .comment("Maximum center-approach seconds before aborting safely and releasing damage immunity.")
+            .defineInRange("elemental.water.maelstrom.centerTimeoutSeconds", 15.0, 1.0, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ROTATION_DURATION = BUILDER
+            .comment("Initial stationary rotation seconds before the later ascent and suction stages.")
+            .defineInRange("elemental.water.maelstrom.rotationSeconds", 2.0, 0.1, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ROTATION_SPEED = BUILDER
+            .comment("Initial visual rotation speed in degrees per second.")
+            .defineInRange("elemental.water.maelstrom.rotationDegreesPerSecond", 180.0, 30.0, 720.0);
+
     /** Shared recovery after stationary specials (elemental.water.special). */
     public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_RECOVERY = BUILDER
             .comment("Seconds without attacks after a stationary special; movement resumes immediately.")

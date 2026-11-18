@@ -47,7 +47,8 @@ public final class WaterOrbitGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady() && !boss.isPerformingBeam()
+        return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady()
+                && !boss.isPerformingBeam() && !boss.isPerformingMaelstrom()
                 && boss.getTarget() instanceof ServerPlayer && boss.getMovementRadius() > 0
                 && SheeperConfig.WATER_MOVEMENT_SPEED.get() > 0;
     }
@@ -73,6 +74,11 @@ public final class WaterOrbitGoal extends Goal {
 
     @Override
     public void tick() {
+        if (boss.isPerformingMaelstrom()) {
+            // Special selection runs before goal continuation checks. Do not
+            // overwrite the center route during that transition tick.
+            return;
+        }
         if (!(boss.getTarget() instanceof ServerPlayer player) || !player.isAlive() || player.isRemoved()) {
             // Goal continuation checks do not necessarily run before every AI
             // tick. Arena exits can already have cleared the shared target.

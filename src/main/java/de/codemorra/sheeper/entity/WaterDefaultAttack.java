@@ -27,6 +27,7 @@ final class WaterDefaultAttack {
     private UUID targetId;
     private boolean firing;
     private boolean closingOnTarget;
+    private int meleeTicks;
     private int phaseTicks = PAUSE_TICKS;
     private int shotTicks;
 
@@ -51,6 +52,7 @@ final class WaterDefaultAttack {
             // Keep the firing cycle frozen during a temporary arena exit.
             targetId = null;
             closingOnTarget = false;
+            meleeTicks = 0;
             return null;
         }
         ServerPlayer target = participants.stream().filter(player -> player.getUUID().equals(targetId))
@@ -74,6 +76,9 @@ final class WaterDefaultAttack {
             }
         }
         updateCloseRange(target);
+        if (closingOnTarget) {
+            meleeTicks = Math.min(600, meleeTicks + 1);
+        }
         return target;
     }
 
@@ -111,6 +116,17 @@ final class WaterDefaultAttack {
         double threshold = SheeperConfig.WATER_CLOSE_RANGE_DISTANCE.get();
         closingOnTarget = boss.getBoundingBox().getCenter()
                 .distanceToSqr(target.getBoundingBox().getCenter()) <= threshold * threshold;
+        if (!closingOnTarget) {
+            meleeTicks = 0;
+        }
+    }
+
+    /**
+     * @return continuous melee-mode ticks; switching to another nearby target does
+     *         not interrupt the mode
+     */
+    int getMeleeTicks() {
+        return meleeTicks;
     }
 
     /**
@@ -158,6 +174,7 @@ final class WaterDefaultAttack {
         targetId = null;
         firing = false;
         closingOnTarget = false;
+        meleeTicks = 0;
         phaseTicks = PAUSE_TICKS;
         shotTicks = 0;
     }
@@ -172,6 +189,7 @@ final class WaterDefaultAttack {
         }
         tag.putBoolean("Firing", firing);
         tag.putBoolean("ClosingOnTarget", closingOnTarget);
+        tag.putInt("MeleeTicks", meleeTicks);
         tag.putInt("PhaseTicks", phaseTicks);
         tag.putInt("ShotTicks", shotTicks);
         return tag;
@@ -187,6 +205,7 @@ final class WaterDefaultAttack {
         targetId = tag.hasUUID("Target") ? tag.getUUID("Target") : null;
         firing = tag.getBoolean("Firing");
         closingOnTarget = tag.getBoolean("ClosingOnTarget");
+        meleeTicks = closingOnTarget ? Mth.clamp(tag.getInt("MeleeTicks"), 0, 600) : 0;
         if (tag.contains("PhaseTicks", Tag.TAG_INT)) {
             phaseTicks = Mth.clamp(tag.getInt("PhaseTicks"), 1, 1200);
         }

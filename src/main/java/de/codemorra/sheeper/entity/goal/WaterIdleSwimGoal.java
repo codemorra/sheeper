@@ -28,7 +28,8 @@ public final class WaterIdleSwimGoal extends Goal {
     @Override
     public boolean canUse() {
         return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady() && boss.isInArenaWater()
-                && boss.getTarget() == null && !boss.isPerformingBeam() && boss.getMovementRadius() > 0
+                && boss.getTarget() == null && !boss.isPerformingBeam() && !boss.isPerformingMaelstrom()
+                && boss.getMovementRadius() > 0
                 && SheeperConfig.WATER_MOVEMENT_SPEED.get() > 0
                 && SheeperConfig.WATER_IDLE_SPEED.get() > 0;
     }
