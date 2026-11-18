@@ -6,79 +6,124 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.NoRenderParticle;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleProvider;
+import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.client.particle.WaterDropParticle;
+import net.minecraft.client.particle.TextureSheetParticle;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 
-/** Vertical drops provide arena rain and bright, sustained fountain jets. */
-public final class ArenaWaterParticle extends WaterDropParticle {
-    private final boolean fountain;
+/**
+ * Local full-height bubble emitter; the former arena-rain packet produces no
+ * particles.
+ */
+public final class ArenaWaterParticle extends NoRenderParticle {
+    private final double height;
+    private final double speed;
+    private final boolean warning;
+    private final SpriteSet sprites;
 
-    private ArenaWaterParticle(ClientLevel level, double x, double y, double z, double speed, boolean fountain) {
+    private ArenaWaterParticle(ClientLevel level, double x, double y, double z,
+            double height, double speed, int ticks, SpriteSet sprites) {
         super(level, x, y, z);
-        this.fountain = fountain;
-        xd = 0;
-        zd = 0;
-        yd = speed;
-        lifetime = 80;
-        if (fountain) {
-            quadSize = 0.18F + random.nextFloat() * 0.08F;
-            setColor(0.4F, 0.8F, 1.0F);
-        }
-    }
-
-    @Override
-    public int getLightColor(float partialTick) {
-        return fountain ? 0xF000F0 : super.getLightColor(partialTick);
+        this.height = Math.min(128, Math.max(0, height));
+        warning = speed <= 0;
+        this.speed = warning ? 0.025D : Mth.clamp(speed * 2, 0.65D, 1.2D);
+        this.sprites = sprites;
+        lifetime = Mth.clamp(ticks, 1, 160);
     }
 
     /**
-     * Emits locally so a visible water column needs only one server packet per
-     * cell.
+     * Distributes both phases over the full column, with a denser continuous stream
+     * during eruption.
      */
-    private static final class FountainEmitter extends NoRenderParticle {
-        private final double speed;
-        private final SpriteSet sprites;
+    @Override
+    public void tick() {
+        if (age >= lifetime || !level.getFluidState(new BlockPos(x, y, z)).is(FluidTags.WATER)) {
+            remove();
+            return;
+        }
+        if (age == 0) {
+            int samples = Math.max(1, (int) Math.ceil(warning ? height / 8 : height * 1.5D));
+            for (int index = 0; index < samples; index++) {
+                emit(y + height * (index + random.nextDouble()) / samples);
+            }
+        }
+        if (!warning || age % 8 == 0) {
+            int count = warning ? 1 : Mth.clamp((int) Math.ceil(height / 8), 2, 8);
+            for (int index = 0; index < count; index++) {
+                emit(y + random.nextDouble() * height);
+            }
+        }
+        age++;
+    }
 
-        private FountainEmitter(ClientLevel level, double x, double y, double z, double speed, SpriteSet sprites) {
+    private void emit(double bubbleY) {
+        double bubbleX = x + (random.nextDouble() - 0.5D) * 0.8D;
+        double bubbleZ = z + (random.nextDouble() - 0.5D) * 0.8D;
+        if (level.getFluidState(new BlockPos(bubbleX, bubbleY, bubbleZ)).is(FluidTags.WATER)) {
+            Minecraft.getInstance().particleEngine.add(new Bubble(level, bubbleX, bubbleY, bubbleZ,
+                    speed, y + height, warning, sprites));
+        }
+    }
+
+    /**
+     * Maintains the eruption's upward speed instead of vanilla bubbles' strong
+     * velocity damping.
+     */
+    private static final class Bubble extends TextureSheetParticle {
+        private final double ceiling;
+
+        private Bubble(ClientLevel level, double x, double y, double z, double speed,
+                double ceiling, boolean warning, SpriteSet sprites) {
             super(level, x, y, z);
-            this.speed = speed;
-            this.sprites = sprites;
-            lifetime = 12;
+            this.ceiling = ceiling;
+            pickSprite(sprites);
+            setSize(0.04F, 0.04F);
+            quadSize = warning ? 0.045F : 0.055F + random.nextFloat() * 0.035F;
+            xd = 0;
+            yd = speed;
+            zd = 0;
+            friction = 1;
+            lifetime = warning ? 12 : Mth.clamp((int) Math.ceil((ceiling - y) / speed) + 2, 8, 160);
         }
 
         @Override
         public void tick() {
-            if (age++ >= lifetime) {
+            super.tick();
+            if (y >= ceiling || !level.getFluidState(new BlockPos(x, y, z)).is(FluidTags.WATER)) {
                 remove();
-                return;
             }
-            for (int drop = 0; drop < 3; drop++) {
-                ArenaWaterParticle particle = new ArenaWaterParticle(level,
-                        x + (random.nextDouble() - 0.5D) * 0.8D, y,
-                        z + (random.nextDouble() - 0.5D) * 0.8D, speed, true);
-                particle.pickSprite(sprites);
-                Minecraft.getInstance().particleEngine.add(particle);
-            }
+        }
+
+        @Override
+        public ParticleRenderType getRenderType() {
+            return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
         }
     }
 
     public static final class Provider implements ParticleProvider<SimpleParticleType> {
         private final SpriteSet sprites;
 
+        /** @param sprites shared bubble texture for the warning and eruption phases */
         public Provider(SpriteSet sprites) {
             this.sprites = sprites;
         }
 
+        /**
+         * Decodes the column's height, ascent speed and lifetime from the three
+         * motion fields. Legacy rain packets are ignored without removing a registry
+         * ID.
+         */
         @Override
         public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z,
-                double dx, double dy, double dz) {
-            if (type == ModParticles.WATER_FOUNTAIN.get()) {
-                return new FountainEmitter(level, x, y, z, dy, sprites);
+                double height, double speed, double ticks) {
+            if (type != ModParticles.WATER_FOUNTAIN.get()
+                    || !Double.isFinite(height) || !Double.isFinite(speed) || !Double.isFinite(ticks)) {
+                return null;
             }
-            ArenaWaterParticle particle = new ArenaWaterParticle(level, x, y, z, -0.6D, false);
-            particle.pickSprite(sprites);
-            return particle;
+            return new ArenaWaterParticle(level, x, y, z, height, speed, (int) ticks, sprites);
         }
     }
 }
