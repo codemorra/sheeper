@@ -37,7 +37,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 #### Water Sheeper encounter
 
-- **Flooded arena:** The Water Sheeper fills a bounded volume of connected open space before combat begins. Boss water allows breathing and recedes after defeat, preserving existing natural water. Players can enter from above but must leave sideways; creative and spectator players bypass the upper barrier.
+- **Flooded arena:** The Water Sheeper fills a bounded volume of connected open space before combat begins. Both boss water and natural water inside the arena allow breathing and share its underwater appearance. Boss water recedes after defeat, preserving existing natural water. Players can enter from above but must leave sideways; creative and spectator players bypass the upper barrier.
 - **Water beam:** A stationary, warned stream with gradual tracking and fixed reach replaces projectile support briefly, followed by a recovery window.
 - **Maelstrom:** An immune, rotating ascent draws players inward before a downward impact releases a pressure wave. Contact starts damage and outward transport; reaching the protected outer ring ends both. Damage stops when the wave finishes. The boss becomes briefly vulnerable as the wave spreads.
 - **Fountains:** Warned bubble columns rise from the floor to the arena ceiling, dealing damage once per player and column and carrying victims upward while ordinary combat continues.

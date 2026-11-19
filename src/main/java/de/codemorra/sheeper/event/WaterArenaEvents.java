@@ -4,6 +4,8 @@ import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.network.ModNetwork;
+import de.codemorra.sheeper.network.WaterArenaPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity.RemovalReason;
 import net.minecraftforge.event.TickEvent;
@@ -28,6 +30,13 @@ public final class WaterArenaEvents {
                 }
             }
             WaterArenaData.tick(level, WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
+            if (level.getGameTime() % 10 == 0) {
+                WaterArenaPacket snapshot = new WaterArenaPacket(level.dimension().location(),
+                        WaterArenaData.activeVolumes(level));
+                for (var player : level.players()) {
+                    ModNetwork.sendWaterArenas(player, snapshot);
+                }
+            }
         }
     }
 
