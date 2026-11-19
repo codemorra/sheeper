@@ -20,6 +20,7 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.ForgeEventFactory;
@@ -60,8 +61,17 @@ public class WaterProjectile extends Projectile {
                 discard();
                 return;
             }
-            HitResult hit = ProjectileUtil.getHitResult(this, this::canHitEntity);
-            if (hit.getType() != HitResult.Type.MISS && !ForgeEventFactory.onProjectileImpact(this, hit)) {
+            // Recheck the same flight segment after each removed leaf, so players
+            // and solid blocks behind foliage can still be hit during this tick.
+            for (int cleared = 0; cleared <= 16; cleared++) {
+                HitResult hit = ProjectileUtil.getHitResult(this, this::canHitEntity);
+                if (hit.getType() == HitResult.Type.MISS || ForgeEventFactory.onProjectileImpact(this, hit)) {
+                    break;
+                }
+                if (cleared < 16 && hit instanceof BlockHitResult block && getOwner() instanceof WaterSheeperEntity boss
+                        && WaterAttackBlocks.clearLeaves(boss, block.getBlockPos())) {
+                    continue;
+                }
                 onHit(hit);
                 return;
             }
