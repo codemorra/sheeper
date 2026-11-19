@@ -130,7 +130,7 @@ final class ElementalGameTests {
 
     private static void bossBars(GameTestContext context) {
         context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 16.0D);
-        context.set(WaterSheeperConfig.WATER_BOSS_BAR_DISTANCE, 0.0D);
+        context.set(WaterSheeperConfig.WATER_BOSS_BAR_DISTANCE, 2.5D);
         TestPlayer player = context.player(3, 1, 3);
         List<ElementalSheeperEntity> bosses = bosses(context);
         List<BossEvent.BossBarColor> colors = List.of(BossEvent.BossBarColor.RED,
@@ -152,6 +152,20 @@ final class ElementalGameTests {
         lava.setCustomName(Component.literal("Renamed elemental boss"));
         lava.hurt(DamageSource.GENERIC, lava.getMaxHealth() * 0.25F);
         context.at(3, () -> {
+            var water = bosses.get(2);
+            String waterName = water.getDisplayName().getString();
+            player.standAt(context.point(27, 1, 15));
+            water.tick();
+            drainBossPackets(player, view);
+            context.expect(view.named(waterName) == null,
+                    "The water bar must disappear beyond its configured distance from the arena");
+            player.standAt(context.point(26, 1, 15));
+            water.stopSeenByPlayer(player);
+            water.tick();
+            drainBossPackets(player, view);
+            context.expect(view.named(waterName) != null,
+                    "The water bar must return within the configured margin without a tracking event");
+            player.standAt(context.point(3, 1, 3));
             drainBossPackets(player, view);
             Bar renamed = view.named("Renamed elemental boss");
             context.expect(renamed != null && Math.abs(renamed.progress() - 0.75F) < 0.001F,

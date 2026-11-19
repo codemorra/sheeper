@@ -13,8 +13,10 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -82,6 +84,9 @@ public final class WaterLifecycleGameTests {
         c.setBlock(11, 1, 13, button);
         var boss = boss(c, 10, false);
         var player = c.player(15, 2, 10);
+        var cow = c.spawn(EntityType.COW, 14, 2, 11);
+        cow.setNoAi(true);
+        cow.setNoGravity(true);
         Vec3 sample = player.getEyePosition();
         c.expect(!boss.isCombatReady() && !ArenaWater.contains(c.level, sample),
                 "Combat and distant virtual swimming must wait for the startup front");
@@ -98,6 +103,8 @@ public final class WaterLifecycleGameTests {
             c.expect(c.level.getFluidState(new BlockPos(sample)).isEmpty()
                     && player.isInWater() && player.getEyeInFluidType() == ForgeMod.WATER_TYPE.get(),
                     "Actual movement and eye-fluid hooks must supply water physics in air blocks");
+            c.expect(cow.isInWater() && cow.getEyeInFluidType() == ForgeMod.WATER_TYPE.get(),
+                    "A normal mob must receive both body and eye water state through the same hooks");
             c.expect(c.level.getBlockState(c.pos(12, 1, 12)).is(Blocks.FERN)
                     && c.level.getBlockState(c.pos(11, 1, 13)).equals(button),
                     "Arena startup must preserve plants and attached blocks");
@@ -114,6 +121,8 @@ public final class WaterLifecycleGameTests {
         var blocked = c.player(13, 2, 10);
         var opposite = c.player(7, 2, 10);
         var outer = c.player(17, 2, 10);
+        var creative = c.player(10, 2, 13);
+        creative.setGameMode(GameType.CREATIVE);
         c.setBlock(14, 2, 10, Blocks.STONE);
         c.setBlock(14, 3, 10, Blocks.STONE);
         c.at(12, () -> {
@@ -129,6 +138,10 @@ public final class WaterLifecycleGameTests {
                             + blocked.getDeltaMovement() + ", opposite=" + opposite.getDeltaMovement()
                             + ", front=" + WaterArenaData.animatedVolumes(c.level));
             c.near(outer.getDeltaMovement().x, 0, "Players already in the destination ring must remain untouched");
+            c.expect(ArenaWater.contains(c.level, creative.getEyePosition()) && !creative.isInWater()
+                    && creative.getEyeInFluidType().isAir(), "Creative must bypass virtual water physics in the active arena");
+            c.near(creative.getDeltaMovement().horizontalDistanceSqr(), 0,
+                    "The spawn wave must not push Creative players after reaching them");
             Vec3 position = blocked.position();
             blocked.move(MoverType.SELF, new Vec3(blocked.getDeltaMovement().x, 0, 0));
             c.near(blocked.getX(), position.x, "The pressure wave must respect real wall collision");
