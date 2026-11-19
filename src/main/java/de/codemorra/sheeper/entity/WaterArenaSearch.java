@@ -11,6 +11,8 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.world.ArenaWater;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
@@ -175,7 +177,7 @@ public final class WaterArenaSearch {
     }
 
     private boolean isOpen(BlockPos pos) {
-        return isOpen(level, pos);
+        return hasVirtualFloor ? ArenaWater.isOpenCell(level, pos) : isOpen(level, pos);
     }
 
     /**
@@ -211,15 +213,19 @@ public final class WaterArenaSearch {
 
     /** Shared discovery/placement rule; callers must ensure the chunk is loaded. */
     public static boolean isSurface(Level level, BlockPos pos) {
-        BlockPos floor = pos.below();
-        BlockState support = level.getBlockState(floor);
-        return isOpen(level, pos) && !support.is(BlockTags.LEAVES)
-                && support.isFaceSturdy(level, floor, Direction.UP);
+        return isOpen(level, pos) && hasSupportingGround(level, pos);
     }
 
-    /** A captured lower boundary supports fountains even when no solid block lies below it. */
+    /** Uses virtual water clearance and accepts the captured lower plane as supporting ground. */
     public static boolean isSurface(Level level, BlockPos pos, int lowerBoundaryY) {
-        return pos.getY() == lowerBoundaryY ? isOpen(level, pos) : isSurface(level, pos);
+        return ArenaWater.isOpenCell(level, pos)
+                && (pos.getY() == lowerBoundaryY || hasSupportingGround(level, pos));
+    }
+
+    private static boolean hasSupportingGround(Level level, BlockPos pos) {
+        BlockPos floor = pos.below();
+        BlockState support = level.getBlockState(floor);
+        return !support.is(BlockTags.LEAVES) && support.isFaceSturdy(level, floor, Direction.UP);
     }
 
     public boolean isComplete() {

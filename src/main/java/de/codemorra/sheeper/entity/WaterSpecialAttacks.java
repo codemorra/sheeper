@@ -16,8 +16,6 @@ import net.minecraft.world.phys.Vec3;
  */
 final class WaterSpecialAttacks {
     private static final int BEAM_EYE_FADE_TICKS = 10;
-    // Re-enable after fountains and Maelstrom have been migrated to virtual water.
-    private static final boolean ARENA_SPECIALS_ENABLED = false;
     private final WaterSheeperEntity boss;
     private final WaterBeamAttack beam;
     private final WaterFountainAttack fountains;
@@ -105,8 +103,8 @@ final class WaterSpecialAttacks {
         }
         boolean beamReady = beamCooldown == 0
                 && !defaultAttack.isClosingOnTarget() && WaterAttackBlocks.hasLineOfSight(boss, target);
-        boolean fountainReady = ARENA_SPECIALS_ENABLED && fountainCooldown == 0;
-        boolean maelstromReady = ARENA_SPECIALS_ENABLED && maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
+        boolean fountainReady = fountainCooldown == 0;
+        boolean maelstromReady = maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
                 || defaultAttack.getMeleeTicks() >= SheeperConfig
                         .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));
         int choices = (beamReady ? 1 : 0) + (fountainReady ? 1 : 0) + (maelstromReady ? 1 : 0);
@@ -273,19 +271,14 @@ final class WaterSpecialAttacks {
         beam.load(tag.getCompound("Beam"));
         fountainCooldown = Mth.clamp(tag.getInt("FountainCooldown"), 0, 2400);
         fountainTicks = Mth.clamp(tag.getInt("FountainTicks"), 0, 12000);
-        // Ignore suspended hazards from older saves while their migration is pending.
-        if (ARENA_SPECIALS_ENABLED) {
-            fountains.load(tag.getCompound("Fountains"));
-        }
+        fountains.load(tag.getCompound("Fountains"));
         // The announcement window may have ended while a column still carries a player.
-        fountainActive = ARENA_SPECIALS_ENABLED && !beamActive && tag.getBoolean("FountainActive")
+        fountainActive = !beamActive && tag.getBoolean("FountainActive")
                 && (fountainTicks > 0 || fountains.hasActiveEffects());
         maelstromCooldown = tag.contains("MaelstromCooldown")
                 ? Mth.clamp(tag.getInt("MaelstromCooldown"), -1, 6000)
                 : -1;
-        if (ARENA_SPECIALS_ENABLED) {
-            maelstrom.load(tag.getCompound("Maelstrom"));
-        }
+        maelstrom.load(tag.getCompound("Maelstrom"));
         if (maelstrom.isActive()) {
             // Malformed or old state must never resume two specials together.
             beamActive = false;

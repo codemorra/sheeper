@@ -43,6 +43,23 @@ public final class ArenaWater {
     }
 
     /**
+     * Checks terrain clearance without requiring a fluid block. Non-colliding
+     * plants and attachments remain intact; solid shapes and other fluids block
+     * fountain columns and water particles.
+     */
+    public static boolean isOpenCell(Level level, BlockPos pos) {
+        var state = level.getBlockState(pos);
+        var fluid = state.getFluidState();
+        return (fluid.isEmpty() || fluid.is(FluidTags.WATER))
+                && state.getCollisionShape(level, pos).isEmpty();
+    }
+
+    /** Tests both active-volume membership and terrain clearance for a visual sample. */
+    public static boolean isOpenAt(Level level, Vec3 point) {
+        return contains(level, point) && isOpenCell(level, new BlockPos(point));
+    }
+
+    /**
      * Gives players and the arena owner vanilla water movement without placing
      * fluid blocks. Other creatures and foreign fluids retain their own physics.
      * Called after Forge has collected the real fluid heights for this tick.

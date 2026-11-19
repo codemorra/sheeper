@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.client.particle;
 
+import de.codemorra.sheeper.world.ArenaWater;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.NoRenderParticle;
@@ -8,9 +9,7 @@ import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -40,7 +39,7 @@ public final class MaelstromWaveParticle extends TextureSheetParticle {
     public void tick() {
         super.tick();
         quadSize *= 0.88F;
-        if (!level.getFluidState(new BlockPos(x, y, z)).is(FluidTags.WATER)) {
+        if (!ArenaWater.isOpenAt(level, new Vec3(x, y, z))) {
             remove();
         }
     }
@@ -84,7 +83,7 @@ public final class MaelstromWaveParticle extends TextureSheetParticle {
                     continue;
                 }
                 for (double py = bottom; py <= top; py += 1.0D) {
-                    if (level.getFluidState(new BlockPos(px, py, pz)).is(FluidTags.WATER)) {
+                    if (ArenaWater.isOpenAt(level, new Vec3(px, py, pz))) {
                         Minecraft.getInstance().particleEngine.add(new MaelstromWaveParticle(level,
                                 px, py, pz, Math.cos(angle) * speed, Math.sin(angle) * speed, sprites));
                     }

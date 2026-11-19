@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.client.particle;
 
+import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -9,10 +10,9 @@ import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Local full-height bubble emitter; the former arena-rain packet produces no
@@ -40,7 +40,7 @@ public final class ArenaWaterParticle extends NoRenderParticle {
      */
     @Override
     public void tick() {
-        if (age >= lifetime || !level.getFluidState(new BlockPos(x, y, z)).is(FluidTags.WATER)) {
+        if (age >= lifetime || !ArenaWater.isOpenAt(level, new Vec3(x, y, z))) {
             remove();
             return;
         }
@@ -62,7 +62,7 @@ public final class ArenaWaterParticle extends NoRenderParticle {
     private void emit(double bubbleY) {
         double bubbleX = x + (random.nextDouble() - 0.5D) * 0.8D;
         double bubbleZ = z + (random.nextDouble() - 0.5D) * 0.8D;
-        if (level.getFluidState(new BlockPos(bubbleX, bubbleY, bubbleZ)).is(FluidTags.WATER)) {
+        if (ArenaWater.isOpenAt(level, new Vec3(bubbleX, bubbleY, bubbleZ))) {
             Minecraft.getInstance().particleEngine.add(new Bubble(level, bubbleX, bubbleY, bubbleZ,
                     speed, y + height, warning, sprites));
         }
@@ -92,7 +92,7 @@ public final class ArenaWaterParticle extends NoRenderParticle {
         @Override
         public void tick() {
             super.tick();
-            if (y >= ceiling || !level.getFluidState(new BlockPos(x, y, z)).is(FluidTags.WATER)) {
+            if (y >= ceiling || !ArenaWater.isOpenAt(level, new Vec3(x, y, z))) {
                 remove();
             }
         }
