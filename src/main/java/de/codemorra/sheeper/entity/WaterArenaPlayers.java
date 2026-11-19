@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Qualifies entry behind the inner transition edge and retains permission until
- * the outer edge is cleared. Physical water bounds remain separate from combat.
+ * the player crosses the actual water edge.
  */
 final class WaterArenaPlayers {
     private static final double SURFACE_MARGIN = ArenaWater.BOUNDARY_MARGIN;
@@ -48,13 +48,12 @@ final class WaterArenaPlayers {
     }
 
     /**
-     * A new participant must be fully past the inner edge and submerged. Once
-     * qualified, crossing either half of the transition does not toggle combat;
-     * the entire body must clear the outer edge before qualification is lost.
+     * A new participant must be fully past the inner edge and submerged. On exit,
+     * the player's center crossing the water edge immediately revokes permission.
      */
     private boolean updateMembership(ServerPlayer player) {
         if (!boss.isAlive() || !boss.isCombatReady() || !player.isAlive() || player.isRemoved()
-                || player.isSpectator() || player.level != boss.level || isOutsideExit(player)) {
+                || player.isSpectator() || !boss.isInsideArenaColumn(player)) {
             players.remove(player.getUUID());
             return false;
         }
@@ -91,23 +90,6 @@ final class WaterArenaPlayers {
         return dx * dx + dz * dz <= radius * radius;
     }
 
-    /** Keeps partial body overlap with the outer edge eligible, without extending water physics there. */
-    private boolean isOutsideExit(ServerPlayer player) {
-        AABB body = player.getBoundingBox();
-        double x = boss.getArenaCenter().getX() + 0.5D;
-        double z = boss.getArenaCenter().getZ() + 0.5D;
-        double dx = x - Mth.clamp(x, body.minX, body.maxX);
-        double dz = z - Mth.clamp(z, body.minZ, body.maxZ);
-        double radius = boss.getArenaRadius() + transitionWidth();
-        if (dx * dx + dz * dz > radius * radius) {
-            return true;
-        }
-        // Outside the water column, a player can also leave the finite-height
-        // transition by walking down a slope; do not teleport them back inside.
-        return !boss.isInsideArenaColumn(player) && (body.maxY < boss.getArenaWaterMinimumY()
-                || body.minY > boss.getArenaWaterSurfaceY());
-    }
-
     /**
      * Repairs vertical escapes after movement, including teleports or missing
      * client snapshots. Normal floor contact uses predicted collision instead.
@@ -117,11 +99,11 @@ final class WaterArenaPlayers {
         ServerLevel level = (ServerLevel) boss.level;
         players.keySet().removeIf(id -> {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
-            return player != null && (player.level != level || !player.isAlive() || player.isRemoved()
-                    || player.isSpectator() || isOutsideExit(player));
+            return player != null && (!player.isAlive() || player.isRemoved()
+                    || player.isSpectator() || !boss.isInsideArenaColumn(player));
         });
         for (ServerPlayer player : level.players()) {
-            if (player.isCreative() || !contains(player) || !boss.isInsideArenaColumn(player)) {
+            if (player.isCreative() || !contains(player)) {
                 continue;
             }
             double minimumY = boss.getArenaWaterMinimumY() + SURFACE_MARGIN;

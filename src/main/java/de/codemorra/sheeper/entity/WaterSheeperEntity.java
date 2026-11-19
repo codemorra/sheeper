@@ -506,7 +506,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     /**
      * Current server-side participants after submerged entry behind the inner
-     * transition edge, retained until they leave the outer edge.
+     * transition edge, retained until they cross the actual arena boundary.
      */
     public List<ServerPlayer> getCombatParticipants() {
         if (!(level instanceof ServerLevel server) || !isAlive()) {

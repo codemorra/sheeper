@@ -140,7 +140,8 @@ final class WaterSpecialAttacks {
             finishBeam();
         }
         if (fountainActive) {
-            fountains.tick(boss.getCombatParticipants(), fountainTicks);
+            var participants = boss.getCombatParticipants();
+            fountains.tick(participants, participants.isEmpty() ? 0 : fountainTicks);
             fountainTicks = Math.max(0, fountainTicks - 1);
             if (fountainTicks == 0 && !fountains.hasActiveEffects()) {
                 finishFountains();
