@@ -5,10 +5,14 @@ import java.util.List;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.gametest.GameTestContext;
 import de.codemorra.sheeper.gametest.SheeperGameTests.Scenario;
+import de.codemorra.sheeper.world.WaterArenaBoundaryDrag;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.Vec3;
 
 /** Encounter membership, ownership and recovery contracts, independent of attack tuning. */
 public final class WaterArenaGameTests {
@@ -18,6 +22,9 @@ public final class WaterArenaGameTests {
     public static void add(List<Scenario> tests) {
         tests.add(new Scenario("water_membership_and_vertical_exits", WaterArenaGameTests::membership));
         tests.add(new Scenario("water_damage_requires_inside_owner", WaterArenaGameTests::damageOwnership));
+        tests.add(new Scenario("water_combat_transition_edges", WaterArenaGameTests::transitionEdges));
+        tests.add(new Scenario("water_drag_only_at_exposed_sides", WaterArenaGameTests::boundaryDrag));
+        tests.add(new Scenario("water_impulse_crosses_overlap_and_allows_exit", WaterArenaGameTests::boundaryImpulse));
         tests.add(new Scenario("water_empty_grace_return_and_reset", WaterArenaGameTests::recovery));
         tests.add(new Scenario("water_creative_damage_recovers_without_participation", WaterArenaGameTests::creative));
         tests.add(new Scenario("water_health_uses_simultaneous_peak", WaterArenaGameTests::health));
@@ -71,6 +78,73 @@ public final class WaterArenaGameTests {
         c.expect(!boss.isInvulnerableTo(DamageSource.playerAttack(outside)), "Creative attacks inside must work");
         outside.setGameMode(GameType.SPECTATOR);
         c.expect(boss.isInvulnerableTo(DamageSource.playerAttack(outside)), "Spectators must never gain permission");
+        c.pass();
+    }
+
+    private static void transitionEdges(GameTestContext c) {
+        var boss = WaterTestScene.boss(c);
+        var player = WaterTestScene.player(c, 17, 1, 10);
+        var melee = DamageSource.playerAttack(player);
+        var arrow = DamageSource.arrow(new Arrow(c.level, player), null);
+        c.expect(boss.getCombatParticipants().isEmpty() && boss.isInvulnerableTo(melee)
+                && boss.isInvulnerableTo(arrow), "The incoming player must fully clear the inner edge");
+
+        player.standAt(c.point(16, 1, 10));
+        c.expect(boss.getCombatParticipants().contains(player) && !boss.isInvulnerableTo(arrow),
+                "Crossing the inner edge must enable targeting and indirect damage");
+
+        player.standAt(c.point(19, 1, 10).add(0.1D, 0, 0));
+        c.expect(boss.getCombatParticipants().contains(player) && !boss.isInvulnerableTo(melee),
+                "The outgoing player must retain permission while part of the body overlaps the outer edge");
+
+        player.standAt(c.point(19, 1, 10).add(0.5D, 0, 0));
+        c.expect(boss.isInvulnerableTo(arrow) && boss.getCombatParticipants().isEmpty(),
+                "Leaving the outer edge must revoke permission even when a previously fired arrow hits first");
+
+        player.standAt(c.point(17, 1, 10));
+        c.expect(boss.getCombatParticipants().isEmpty() && boss.isInvulnerableTo(melee),
+                "Reentry into the transition alone must not restore permission");
+        c.pass();
+    }
+
+    private static void boundaryDrag(GameTestContext c) {
+        WaterTestScene.boss(c);
+        WaterTestScene.boss(c, 16);
+        c.set(WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_STRENGTH, 0.5D);
+        var player = WaterTestScene.player(c, 18, 2, 10);
+        var outward = new Vec3(0.2D, 0.1D, 0);
+        c.expect(WaterArenaBoundaryDrag.limitMovement(player, MoverType.SELF, outward).equals(outward),
+                "An arena side covered by another arena must not slow movement");
+
+        player.standAt(c.point(24, 2, 10));
+        var slowed = WaterArenaBoundaryDrag.limitMovement(player, MoverType.SELF, outward);
+        c.expect(slowed.x > 0 && slowed.x < outward.x, "The exposed side must slow outward movement without blocking it");
+        c.near(slowed.y, outward.y, "Boundary drag must preserve vertical movement");
+
+        player.standAt(c.point(24, 2, 10).add(0.25D, 0, 0));
+        var inward = new Vec3(-0.2D, 0, 0);
+        var entry = WaterArenaBoundaryDrag.limitMovement(player, MoverType.SELF, inward);
+        c.expect(entry.x > inward.x && entry.x < 0, "The exposed side must also slow players approaching from outside");
+        c.pass();
+    }
+
+    private static void boundaryImpulse(GameTestContext c) {
+        WaterTestScene.boss(c);
+        WaterTestScene.boss(c, 16);
+        var player = WaterTestScene.player(c, 17, 2, 10);
+        WaterArenaPushProtection.apply(player, new Vec3(3, 0, 0));
+        c.near(player.getDeltaMovement().x, 3, "A boss impulse must pass through the shared arena side");
+        WaterArenaPushProtection.apply(player, new Vec3(9, 0, 0));
+        c.near(player.getDeltaMovement().x, 6, "A boss impulse must stop one block before the union's exterior");
+
+        player.standAt(c.point(23, 2, 10));
+        var outward = new Vec3(1, 0, 0);
+        WaterArenaPushProtection.requestExit(player, outward.scale(-1));
+        c.expect(WaterArenaPushProtection.protectedUntil(player) > c.level.getGameTime(),
+                "Inward input must retain impulse protection");
+        WaterArenaPushProtection.requestExit(player, outward);
+        c.expect(WaterArenaPushProtection.protectedUntil(player) == 0 && player.getDeltaMovement().equals(Vec3.ZERO),
+                "Deliberate outward input must end protection and cancel the remaining impulse");
         c.pass();
     }
 
