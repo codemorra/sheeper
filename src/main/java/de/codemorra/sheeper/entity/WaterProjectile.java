@@ -56,7 +56,9 @@ public class WaterProjectile extends Projectile {
         }
         super.tick();
         if (!level.isClientSide) {
-            if (flightTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_LIFETIME.get())
+            // A defeated boss cannot leave damaging projectiles in its death sequence.
+            if (getOwner() instanceof WaterSheeperEntity boss && !boss.isAlive()
+                    || flightTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_LIFETIME.get())
                     || !level.getChunkSource().hasChunk(chunkPosition().x, chunkPosition().z)) {
                 discard();
                 return;
