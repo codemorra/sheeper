@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "6";
+    private static final String VERSION = "7";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -41,6 +41,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(WaterArenaPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(WaterArenaPacket::encode).decoder(WaterArenaPacket::decode)
                 .consumerMainThread(WaterArenaPacket::handle).add();
+        CHANNEL.messageBuilder(WaterArenaExitPacket.class, 3, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(WaterArenaExitPacket::encode).decoder(WaterArenaExitPacket::decode)
+                .consumerMainThread(WaterArenaExitPacket::handle).add();
     }
 
     /**
@@ -85,4 +88,9 @@ public final class ModNetwork {
     public static void sendWaterArenas(ServerPlayer observer, WaterArenaPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
+    /** Sends only movement intent; the server decides whether the player is near an exterior boundary. */
+    public static void requestWaterArenaExit(WaterArenaExitPacket packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
 }

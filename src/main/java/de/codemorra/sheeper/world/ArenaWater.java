@@ -127,7 +127,8 @@ public final class ArenaWater {
             return collisions;
         }
         List<VoxelShape> result = null;
-        for (var bounds : activeVolumes(entity.level)) {
+        var volumes = activeVolumes(entity.level);
+        for (var bounds : volumes) {
             if (!insideColumn(bounds, entity.getX(), entity.getZ())
                     || !insideColumn(bounds, entity.getX() + movement.x, entity.getZ() + movement.z)) {
                 continue;
@@ -138,7 +139,12 @@ public final class ArenaWater {
             double head = entity.getBoundingBox().maxY;
             boolean crossesFloor = movement.y < 0 && feet >= floor - 1.0E-5D && feet + movement.y < floor;
             boolean crossesCeiling = movement.y > 0 && head <= ceiling + 1.0E-5D && head + movement.y > ceiling;
-            if (!crossesFloor && !crossesCeiling) {
+            // A face covered by another volume is not an outer water boundary.
+            double boundaryY = crossesFloor ? floor - BOUNDARY_MARGIN - 1.0E-5D
+                    : ceiling + BOUNDARY_MARGIN + 1.0E-5D;
+            Vec3 crossing = new Vec3(entity.getX() + movement.x, boundaryY, entity.getZ() + movement.z);
+            if ((!crossesFloor && !crossesCeiling)
+                    || volumes.stream().anyMatch(other -> other != bounds && other.contains(crossing))) {
                 continue;
             }
             if (result == null) {
@@ -155,7 +161,8 @@ public final class ArenaWater {
         return result == null ? collisions : result;
     }
 
-    private static List<WaterArenaData.VolumeBounds> activeVolumes(Level level) {
+    /** Current water geometry shared by physics, protection and overlap-aware boundary calculations. */
+    public static List<WaterArenaData.VolumeBounds> activeVolumes(Level level) {
         return level instanceof ServerLevel server ? WaterArenaData.activeVolumes(server) : clientLookup.apply(level);
     }
 

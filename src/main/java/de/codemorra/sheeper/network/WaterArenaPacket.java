@@ -18,7 +18,7 @@ import net.minecraftforge.network.NetworkEvent;
  * Full dimension snapshot, independent of whether clients currently track the
  * boss.
  */
-public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> arenas) {
+public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> arenas, long pushProtectedUntil) {
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeVarInt(arenas.size());
@@ -33,6 +33,7 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
             buffer.writeLong(volume.drainStartTick());
             buffer.writeVarInt(volume.drainDurationTicks());
         }
+        buffer.writeLong(pushProtectedUntil);
     }
 
     /** Rejects invalid geometry and clocks before client physics or rendering uses them. */
@@ -59,7 +60,11 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
             }
             arenas.add(new AnimatedVolume(bounds, startTick, duration, drainTick, drainDuration));
         }
-        return new WaterArenaPacket(dimension, List.copyOf(arenas));
+        long protectedUntil = buffer.readLong();
+        if (protectedUntil < 0) {
+            throw new IllegalArgumentException("Invalid water push protection clock");
+        }
+        return new WaterArenaPacket(dimension, List.copyOf(arenas), protectedUntil);
     }
 
     /**

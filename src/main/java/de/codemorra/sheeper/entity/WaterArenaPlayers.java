@@ -7,6 +7,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaBoundary;
 import de.codemorra.sheeper.world.ArenaWater;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -49,6 +50,11 @@ final class WaterArenaPlayers {
             players.remove(player.getUUID());
             return false;
         }
+        if ((player.getY() < boss.getArenaWaterMinimumY()
+                || player.getBoundingBox().maxY > boss.getArenaWaterSurfaceY()) && isBodyInWater(player)) {
+            players.remove(player.getUUID());
+            return false;
+        }
         if (!players.containsKey(player.getUUID())
                 && player.getY() >= boss.getArenaWaterMinimumY()
                 && player.getBoundingBox().maxY <= boss.getArenaWaterSurfaceY() - SURFACE_MARGIN
@@ -77,7 +83,11 @@ final class WaterArenaPlayers {
             double minimumY = boss.getArenaWaterMinimumY() + SURFACE_MARGIN;
             double maximumY = boss.getArenaWaterSurfaceY() - SURFACE_MARGIN - player.getBbHeight();
             boolean below = player.getY() < minimumY - 1.0E-5D;
-            if (below || player.getY() > maximumY) {
+            double outsideY = below ? boss.getArenaWaterMinimumY() - 1.0E-5D
+                    : boss.getArenaWaterSurfaceY() + 1.0E-5D;
+            boolean coveredBoundary = isBodyInWater(player) && ArenaWater.contains(level,
+                    new Vec3(player.getX(), outsideY, player.getZ()));
+            if ((below || player.getY() > maximumY) && !coveredBoundary) {
                 Vec3 destination = correctionPosition(player, minimumY, maximumY, below);
                 if (destination != null) {
                     player.stopRiding();
@@ -91,6 +101,12 @@ final class WaterArenaPlayers {
                 }
             }
         }
+    }
+
+    /** Connected water can cover the body across several arenas with different vertical bounds. */
+    private boolean isBodyInWater(ServerPlayer player) {
+        return WaterArenaBoundary.containsBody(ArenaWater.activeVolumes(boss.level),
+                player.position(), player.getBbHeight());
     }
 
     /**

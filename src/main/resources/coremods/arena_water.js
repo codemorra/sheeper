@@ -107,6 +107,26 @@ function initializeCoreMod() {
         return node;
       }
     },
+    arena_water_push_movement: {
+      target: { type: "CLASS", name: "net.minecraft.world.entity.Entity" },
+      transformer: function (node) {
+        var count = 0;
+        for (var i = 0; i < node.methods.size(); i++) {
+          var method = node.methods.get(i);
+          if (String(method.desc) !== "(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V") continue;
+          var code = new List();
+          code.add(new Var(O.ALOAD, 0));
+          code.add(new Var(O.ALOAD, 2));
+          code.add(invoke("de/codemorra/sheeper/world/WaterArenaPushProtection", "limitMovement",
+              "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"));
+          code.add(new Var(O.ASTORE, 2));
+          method.instructions.insert(code);
+          count++;
+        }
+        check(count, 1, "Entity.move protected boss impulses");
+        return node;
+      }
+    },
     arena_water_boundary_collision: {
       target: { type: "CLASS", name: "net.minecraft.world.entity.Entity" },
       transformer: function (node) {
