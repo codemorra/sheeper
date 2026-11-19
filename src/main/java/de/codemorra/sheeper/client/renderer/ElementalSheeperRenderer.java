@@ -36,8 +36,13 @@ public class ElementalSheeperRenderer extends SheepRenderer {
     @Override
     public void render(Sheep sheep, float yaw, float partialTick, PoseStack poses, MultiBufferSource buffers,
             int light) {
+        poses.pushPose();
+        if (sheep instanceof WaterSheeperEntity boss) {
+            poses.translate(0, -boss.getDeathSinkOffset(partialTick), 0);
+        }
         super.render(sheep, yaw, partialTick, poses, buffers, light);
-        if (sheep instanceof WaterSheeperEntity boss && !boss.isInvisible()) {
+        poses.popPose();
+        if (sheep instanceof WaterSheeperEntity boss && boss.isAlive() && !boss.isInvisible()) {
             WaterBeamRenderer.render(boss, poses, buffers, light, partialTick);
         }
     }
@@ -63,8 +68,9 @@ public class ElementalSheeperRenderer extends SheepRenderer {
     protected void scale(Sheep sheep, PoseStack poses, float partialTick) {
         super.scale(sheep, poses, partialTick);
         float size = ((ElementalSheeperEntity) sheep).getSizeMultiplier();
-        poses.scale(size, size, size);
-        shadowRadius = 0.7F * size;
+        float dissolve = sheep instanceof WaterSheeperEntity boss ? boss.getDeathBodyScale(partialTick) : 1;
+        poses.scale(size * dissolve, size * dissolve, size * dissolve);
+        shadowRadius = 0.7F * size * dissolve;
     }
 
     /**
@@ -76,7 +82,16 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         super.setupRotations(sheep, poses, age, yaw, partialTick);
         if (sheep instanceof WaterSheeperEntity boss) {
             poses.mulPose(Vector3f.YP.rotationDegrees(boss.getMaelstromRotation(partialTick)));
+            float progress = boss.getDeathAnimationProgress(partialTick);
+            float tilt = progress * progress * (3 - 2 * progress);
+            poses.mulPose(Vector3f.ZP.rotationDegrees(70 * tilt));
         }
+    }
+
+    /** Replaces the fast vanilla death roll only for the water boss. */
+    @Override
+    protected float getFlipDegrees(Sheep sheep) {
+        return sheep instanceof WaterSheeperEntity ? 0 : super.getFlipDegrees(sheep);
     }
 
     /**

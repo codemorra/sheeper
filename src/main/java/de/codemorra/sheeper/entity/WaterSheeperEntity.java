@@ -48,6 +48,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     // Counteracts vanilla sheep water slowdown; user tuning uses navigation speed.
     private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
     private static final int SURFACE_DISCOVERY_STEP_HEIGHT = 1;
+    private static final int DEATH_ANIMATION_TICKS = 60;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -59,6 +60,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_DEATH_TICKS = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> DATA_MAELSTROM_ROTATION = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
 
@@ -105,6 +108,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+        entityData.define(DATA_DEATH_TICKS, 0);
         entityData.define(DATA_MAELSTROM_ROTATION, 0.0F);
         entityData.define(DATA_BEAM_EYES, 0.0F);
         entityData.define(DATA_BEAM_X, 0.0F);
@@ -381,6 +385,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
+        if (type == MoverType.SELF && isDeadOrDying()) {
+            movement = Vec3.ZERO;
+        }
         if (type == MoverType.SELF && !level.isClientSide
                 && (!isCombatReady() || isNoAi() || specialAttacks.locksMovement())) {
             movement = isInArenaWater() ? Vec3.ZERO : new Vec3(0.0D, movement.y, 0.0D);
@@ -690,11 +697,72 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void die(DamageSource source) {
         super.die(source);
-        if (dead && level instanceof ServerLevel server) {
+        if (dead && !level.isClientSide) {
             setTarget(null);
             specialAttacks.reset();
             stopMovement();
-            WaterArenaData.get(server).release(getUUID());
+            setNoGravity(true);
+        }
+    }
+
+    /**
+     * Retains the arena while the body dissolves. Removal still uses the ordinary
+     * killed reason, allowing the arena lifecycle event to perform the cleanup.
+     */
+    @Override
+    protected void tickDeath() {
+        int previousDeathTime = deathTime;
+        deathTime = Math.min(DEATH_ANIMATION_TICKS, Math.max(deathTime + 1, entityData.get(DATA_DEATH_TICKS)));
+        setDeltaMovement(Vec3.ZERO);
+        setNoGravity(true);
+        if (level.isClientSide) {
+            if (!isInvisible() && deathTime > previousDeathTime && deathTime < DEATH_ANIMATION_TICKS) {
+                spawnDeathBubbles();
+            }
+        } else {
+            entityData.set(DATA_DEATH_TICKS, deathTime);
+            if (deathTime >= DEATH_ANIMATION_TICKS) {
+                if (!isInvisible() && level instanceof ServerLevel server) {
+                    // Send the final burst before removal, even if a client missed the last animation tick.
+                    server.sendParticles(ParticleTypes.BUBBLE, getX(),
+                            getY() + getBbHeight() * 0.5D - getDeathSinkOffset(0), getZ(),
+                            48, getBbWidth() * 0.2D, getBbHeight() * 0.15D, getBbWidth() * 0.2D, 0.15D);
+                }
+                remove(RemovalReason.KILLED);
+            }
+        }
+    }
+
+    /** @return synchronized death progress from zero to one, interpolated for rendering */
+    public float getDeathAnimationProgress(float partialTick) {
+        return isDeadOrDying() ? Mth.clamp((Math.max(deathTime, entityData.get(DATA_DEATH_TICKS))
+                + partialTick) / DEATH_ANIMATION_TICKS, 0, 1) : 0;
+    }
+
+    /** @return visual downward offset; collision and drops keep their original world positions */
+    public double getDeathSinkOffset(float partialTick) {
+        return 0.6D * getSizeMultiplier() * getDeathAnimationProgress(partialTick);
+    }
+
+    /** @return remaining body scale as the final part of the animation dissolves into bubbles */
+    public float getDeathBodyScale(float partialTick) {
+        float dissolve = Mth.clamp((getDeathAnimationProgress(partialTick) - 0.65F) / 0.35F, 0, 1);
+        return Math.max(0.001F, 1 - dissolve * dissolve * (3 - 2 * dissolve));
+    }
+
+    /** Local bubbles grow denser around the sinking body before a final outward burst. */
+    private void spawnDeathBubbles() {
+        float progress = getDeathAnimationProgress(0);
+        int count = 2 + (int) (progress * 10);
+        double width = getBbWidth() * Math.max(0.25F, getDeathBodyScale(0));
+        double height = getBbHeight() * 0.5D;
+        double centerY = getY() + height - getDeathSinkOffset(0);
+        for (int index = 0; index < count; index++) {
+            double dx = (random.nextDouble() - 0.5D) * width;
+            double dz = (random.nextDouble() - 0.5D) * width;
+            level.addParticle(ParticleTypes.BUBBLE, getX() + dx,
+                    centerY + (random.nextDouble() - 0.5D) * height, getZ() + dz,
+                    dx * 0.08D, 0.1D + progress * 0.1D, dz * 0.08D);
         }
     }
 
@@ -714,6 +782,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         entityData.set(DATA_COMBAT_READY, false);
+        entityData.set(DATA_DEATH_TICKS, Mth.clamp(deathTime, 0, DEATH_ANIMATION_TICKS));
         defaultAttack.load(tag.getCompound("WaterDefaultAttack"));
         proximityPush.load(tag.getList("WaterProximityPush", Tag.TAG_COMPOUND));
         arenaCombat.load(tag.getCompound("WaterArenaCombat"));
