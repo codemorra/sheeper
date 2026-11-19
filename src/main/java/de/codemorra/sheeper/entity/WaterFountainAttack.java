@@ -204,8 +204,8 @@ final class WaterFountainAttack {
     }
 
     /**
-     * Finds the real floor beneath a swimming player without tunneling through
-     * solid roofs.
+     * Finds real ground or the captured arena floor below a swimmer without
+     * tunneling through solid roofs.
      */
     @Nullable
     private BlockPos findFloor(BlockPos playerPos) {
@@ -215,7 +215,7 @@ final class WaterFountainAttack {
             if (!isOpenWater(pos)) {
                 return null;
             }
-            if (WaterArenaSearch.isSurface(boss.level, pos)) {
+            if (WaterArenaSearch.isSurface(boss.level, pos, boss.getArenaWaterMinimumY())) {
                 return pos;
             }
         }
@@ -256,7 +256,8 @@ final class WaterFountainAttack {
     }
 
     private boolean suitable(BlockPos center, int size) {
-        if (!isOpenWater(center) || !WaterArenaSearch.isSurface(boss.level, center)) {
+        if (!isOpenWater(center)
+                || !WaterArenaSearch.isSurface(boss.level, center, boss.getArenaWaterMinimumY())) {
             return false;
         }
         int offset = size / 2;

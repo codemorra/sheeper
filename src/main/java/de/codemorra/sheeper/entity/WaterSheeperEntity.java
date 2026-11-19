@@ -676,7 +676,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                     if (arenaSearch == null) {
                         arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
                                 WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                                SURFACE_DISCOVERY_STEP_HEIGHT);
+                                SURFACE_DISCOVERY_STEP_HEIGHT, getArenaWaterMinimumY());
                     }
                     int searchBudget = WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20;
                     int surfaceBudget = arenaSearch.isComplete() ? 0
