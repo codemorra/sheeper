@@ -152,7 +152,7 @@ final class WaterFountainAttack {
                 iterator.remove();
             }
         }
-        transports.tick(players);
+        transports.tick(players.stream().filter(player -> boss.containsAttackPoint(player.position())).toList());
         if (remainingTicks <= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_FOUNTAIN_WARNING.get())) {
             return;
         }
@@ -261,6 +261,16 @@ final class WaterFountainAttack {
             return false;
         }
         int offset = size / 2;
+        // All four footprint corners must fit so the column cannot straddle the circular edge.
+        double x0 = center.getX() - offset;
+        double z0 = center.getZ() - offset;
+        double y = center.getY();
+        if (!boss.containsAttackPoint(new Vec3(x0, y, z0))
+                || !boss.containsAttackPoint(new Vec3(x0 + size, y, z0))
+                || !boss.containsAttackPoint(new Vec3(x0, y, z0 + size))
+                || !boss.containsAttackPoint(new Vec3(x0 + size, y, z0 + size))) {
+            return false;
+        }
         for (int x = 0; x < size; x++) {
             for (int z = 0; z < size; z++) {
                 BlockPos pos = center.offset(x - offset, 0, z - offset);
@@ -340,7 +350,8 @@ final class WaterFountainAttack {
     private void hitPlayers(Fountain fountain, List<ServerPlayer> players) {
         AABB area = area(fountain);
         for (ServerPlayer player : players) {
-            if (fountain.hitPlayers.contains(player.getUUID()) || !area.intersects(player.getBoundingBox())
+            if (!boss.containsAttackPoint(player.position()) || fountain.hitPlayers.contains(player.getUUID())
+                    || !area.intersects(player.getBoundingBox())
                     || !hasWaterPath(fountain, player, area)) {
                 continue;
             }

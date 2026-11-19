@@ -47,10 +47,10 @@ final class WaterCombatSettings {
     /** Preserves a central danger region even when the arena radius is reduced. */
     double safeOuterWidth() {
         double configured = WaterSheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH.get();
-        double effective = Math.min(configured, boss.getCombatRadius() * 0.5D);
+        double effective = Math.min(configured, boss.getArenaRadius() * 0.5D);
         if (effective < configured) {
-            warnOnce("Maelstrom safeOuterWidth=" + configured + " exceeds half of combatRadius="
-                    + boss.getCombatRadius() + ". Using " + effective + " without modifying the config.");
+            warnOnce("Maelstrom safeOuterWidth=" + configured + " exceeds half of the arena radius="
+                    + boss.getArenaRadius() + ". Using " + effective + " without modifying the config.");
         }
         return effective;
     }

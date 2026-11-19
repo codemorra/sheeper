@@ -273,6 +273,17 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return arenaVolume != null && arenaVolume.contains(pos);
     }
 
+    /** @return captured bounds for attacks, independent of overlapping arenas */
+    @Nullable
+    WaterArenaData.VolumeBounds getAttackVolume() {
+        return arenaVolume;
+    }
+
+    /** Checks exact coordinates without extending attack reach into the combat transition zone. */
+    boolean containsAttackPoint(Vec3 point) {
+        return arenaVolume != null && arenaVolume.contains(point);
+    }
+
     /**
      * Maintains neutral buoyancy in water without changing the persistent gravity
      * flag. On land, gravity and fall behavior remain vanilla.

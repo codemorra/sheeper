@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaBoundary;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -114,7 +115,16 @@ final class WaterBeamAttack {
             direction = boss.getLookAngle();
         }
         // Target movement controls direction only; length grows to a fixed range.
-        Vec3 tip = loadedTip(start, direction.normalize(), beamLength);
+        var volume = boss.getAttackVolume();
+        if (volume == null) {
+            return false;
+        }
+        Vec3 unit = direction.normalize();
+        double fraction = WaterArenaBoundary.attackFraction(volume, start, unit.scale(beamLength));
+        if (fraction == 0) {
+            return --remainingAttackTicks > 0;
+        }
+        Vec3 tip = loadedTip(start, unit, beamLength * fraction);
         Vec3 end = WaterAttackBlocks.clipBeam(boss, start, tip).getLocation();
         boss.setBeamOffset(end.subtract(start));
         // Continuous flight audio follows the synchronized segment on each client;
@@ -126,6 +136,9 @@ final class WaterBeamAttack {
             impactSoundTicks = 39;
         }
         for (ServerPlayer player : boss.getCombatParticipants()) {
+            if (!boss.containsAttackPoint(player.position())) {
+                continue;
+            }
             var bounds = player.getBoundingBox().inflate(WaterSheeperEntity.BEAM_RADIUS);
             if (!bounds.contains(start) && bounds.clip(start, end).isEmpty()) {
                 continue;

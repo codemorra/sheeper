@@ -59,7 +59,7 @@ final class WaterProximityPush {
         boolean discharged = false;
         int delay = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get());
         for (ServerPlayer player : participants) {
-            if (boss.distanceToSqr(player) > radius * radius) {
+            if (!boss.containsAttackPoint(player.position()) || boss.distanceToSqr(player) > radius * radius) {
                 continue;
             }
             UUID id = player.getUUID();

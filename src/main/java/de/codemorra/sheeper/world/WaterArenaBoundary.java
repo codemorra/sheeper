@@ -21,6 +21,12 @@ public final class WaterArenaBoundary {
     private WaterArenaBoundary() {
     }
 
+    /** Returns the fraction of an attack segment that stays in the owner's cylinder, without a movement inset. */
+    public static double attackFraction(VolumeBounds volume, Vec3 origin, Vec3 motion) {
+        Interval hit = intersect(volume, origin, motion);
+        return hit == null || hit.start() > EPSILON ? 0 : Math.max(0, Math.min(1, hit.end()));
+    }
+
     /** Checks the entire vertical body column, allowing connected water from several arenas. */
     public static boolean containsBody(List<VolumeBounds> volumes, Vec3 feet, double height) {
         return trace(volumes, feet, new Vec3(0, height, 0)).end() >= 1 - EPSILON;
