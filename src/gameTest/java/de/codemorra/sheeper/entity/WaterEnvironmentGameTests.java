@@ -95,12 +95,24 @@ public final class WaterEnvironmentGameTests {
     private static void spawnSpace(GameTestContext c) {
         configureSpawn(c);
         // A two-block-high cave fits a normal sheep, but not the configured double-size body.
-        c.setBlock(10, 3, 10, Blocks.STONE);
+        for (int x = 7; x <= 13; x++) {
+            for (int z = 7; z <= 13; z++) {
+                c.setBlock(x, 3, z, Blocks.STONE);
+            }
+        }
         var tooTall = spawnAt(c, c.point(10, 1, 10));
         c.expect(tooTall.isRemoved() && WaterArenaData.get(c.level).getVolume(tooTall.getUUID()) == null,
-                "A ceiling intersecting the scaled head must reject the spawn without arena creation");
-        c.setBlock(10, 3, 10, Blocks.AIR);
-        c.setBlock(11, 1, 10, Blocks.STONE);
+                "A low ceiling across the search area must reject the spawn without arena creation");
+        // Open the center column upward but keep the corridor too narrow for the scaled body.
+        for (int z = 7; z <= 13; z++) {
+            c.setBlock(10, 3, z, Blocks.AIR);
+            for (int x = 7; x <= 13; x++) {
+                if (x != 10) {
+                    c.setBlock(x, 1, z, Blocks.STONE);
+                    c.setBlock(x, 2, z, Blocks.STONE);
+                }
+            }
+        }
         var tooWide = spawnAt(c, c.point(10, 1, 10));
         c.expect(tooWide.isRemoved(), "A side wall must reject a spawn even when the center column is clear");
         c.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
