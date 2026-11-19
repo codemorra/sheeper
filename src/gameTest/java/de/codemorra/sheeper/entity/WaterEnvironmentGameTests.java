@@ -48,7 +48,7 @@ public final class WaterEnvironmentGameTests {
         c.set(WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE, 0.0D);
         c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 2);
         c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 4);
-        c.set(WaterSheeperConfig.WATER_SPAWN_WAVE_RADIUS, 0.0D);
+        c.set(WaterSheeperConfig.WATER_SPAWN_PUSH_SPEED, 0.0D);
         c.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, 20);
         c.set(WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, 20);
     }

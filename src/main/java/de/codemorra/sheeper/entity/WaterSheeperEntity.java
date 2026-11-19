@@ -1,13 +1,9 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -18,7 +14,6 @@ import de.codemorra.sheeper.entity.goal.WaterOrbitGoal;
 import de.codemorra.sheeper.entity.goal.WaterIdleSwimGoal;
 import de.codemorra.sheeper.entity.navigation.WaterArenaNavigation;
 import de.codemorra.sheeper.entity.navigation.WaterSwimMoveControl;
-import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.registry.ModFluids;
 import de.codemorra.sheeper.world.WaterArenaData;
 import de.codemorra.sheeper.world.ArenaWater;
@@ -26,9 +21,7 @@ import de.codemorra.sheeper.world.ArenaWater;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -87,8 +80,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private Queue<BlockPos> waterPlacement;
     private int placementWave = -1;
     private long nextFloodWaveTick;
-    private final Set<UUID> waterWaveContacts = new HashSet<>();
-    private final Map<UUID, Integer> waterWaveDelays = new HashMap<>();
 
     private final WaterCombatSettings combatSettings = new WaterCombatSettings(this);
     private final WaterDefaultAttack defaultAttack = new WaterDefaultAttack(this);
@@ -558,77 +549,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         idleGoal.reset();
     }
 
-    private boolean touchesArenaWater(ServerPlayer player, WaterArenaData data) {
-        AABB bounds = player.getBoundingBox().deflate(1.0E-7D);
-        for (BlockPos pos : BlockPos.betweenClosed(new BlockPos(bounds.minX, bounds.minY, bounds.minZ),
-                new BlockPos(bounds.maxX, bounds.maxY, bounds.maxZ))) {
-            if (WaterArenaData.isLoaded((ServerLevel) level, pos) && data.isOwnedBy(getUUID(), pos)
-                    && level.getFluidState(pos).getType() instanceof BossWaterFluid
-                    && pos.getY() + level.getFluidState(pos).getHeight(level, pos) > bounds.minY) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void tickWaterWave(boolean preparing) {
-        double radius = WaterSheeperConfig.WATER_SPAWN_WAVE_RADIUS.get();
-        if (radius == 0.0D || WaterSheeperConfig.WATER_SPAWN_WAVE_HEIGHT.get() == 0.0D
-                && WaterSheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH.get() == 0.0D) {
-            waterWaveDelays.clear();
-            return;
-        }
-        ServerLevel server = (ServerLevel) level;
-        var pending = waterWaveDelays.entrySet().iterator();
-        while (pending.hasNext()) {
-            var entry = pending.next();
-            ServerPlayer player = server.players().stream()
-                    .filter(candidate -> candidate.getUUID().equals(entry.getKey())).findFirst().orElse(null);
-            if (player == null || !isActivePlayer(player) || distanceToSqr(player) > radius * radius) {
-                pending.remove();
-            } else if (entry.getValue() <= 1) {
-                launchWaterWave(player);
-                pending.remove();
-            } else {
-                entry.setValue(entry.getValue() - 1);
-            }
-        }
-        if (!preparing) {
-            return;
-        }
-        WaterArenaData data = WaterArenaData.get(server);
-        for (ServerPlayer player : server.players()) {
-            if (!isActivePlayer(player) || distanceToSqr(player) > radius * radius
-                    || waterWaveContacts.contains(player.getUUID())
-                    || !touchesArenaWater(player, data)) {
-                continue;
-            }
-            waterWaveContacts.add(player.getUUID());
-            int delay = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPAWN_PUSH_DELAY.get());
-            if (delay == 0) {
-                launchWaterWave(player);
-            } else {
-                waterWaveDelays.put(player.getUUID(), delay);
-            }
-        }
-    }
-
-    private void launchWaterWave(ServerPlayer player) {
-        Vec3 center = Vec3.atBottomCenterOf(getArenaCenter());
-        Vec3 direction = new Vec3(player.getX() - center.x, 0.0D, player.getZ() - center.z);
-        if (direction.lengthSqr() < 1.0E-8D) {
-            direction = new Vec3(1.0D, 0.0D, 0.0D);
-        }
-        direction = direction.normalize().scale(WaterSheeperConfig.WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH.get());
-        double upward = WaterFountainAttack.launchSpeed(WaterSheeperConfig.WATER_SPAWN_WAVE_HEIGHT.get(),
-                player.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get()));
-        // A defined launch velocity keeps existing momentum from extending the flight.
-        player.setDeltaMovement(direction.x, upward, direction.z);
-        player.fallDistance = 0;
-        player.connection.send(new ClientboundSetEntityMotionPacket(player));
-        player.hurtMarked = false;
-    }
-
     public boolean isArenaSearchComplete() {
         return arenaSearch != null && arenaSearch.isComplete();
     }
@@ -848,21 +768,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.put("WaterArenaCombat", arenaCombat.save());
         tag.put("WaterArenaPlayers", arenaPlayers.save());
         tag.put("WaterSpecialAttacks", specialAttacks.save());
-        ListTag contacts = new ListTag();
-        waterWaveContacts.forEach(id -> {
-            CompoundTag entry = new CompoundTag();
-            entry.putUUID("Player", id);
-            contacts.add(entry);
-        });
-        tag.put("WaterWaveContacts", contacts);
-        ListTag wave = new ListTag();
-        waterWaveDelays.forEach((id, ticks) -> {
-            CompoundTag entry = new CompoundTag();
-            entry.putUUID("Player", id);
-            entry.putInt("Ticks", ticks);
-            wave.add(entry);
-        });
-        tag.put("WaterWaveDelays", wave);
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
         tag.putString("WaterArenaDimension", level.dimension().location().toString());
     }
@@ -871,22 +776,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         entityData.set(DATA_COMBAT_READY, false);
-        waterWaveContacts.clear();
-        for (Tag value : tag.getList("WaterWaveContacts", Tag.TAG_COMPOUND)) {
-            CompoundTag entry = (CompoundTag) value;
-            if (entry.hasUUID("Player")) {
-                waterWaveContacts.add(entry.getUUID("Player"));
-            }
-        }
-        waterWaveDelays.clear();
-        for (Tag value : tag.getList("WaterWaveDelays", Tag.TAG_COMPOUND)) {
-            CompoundTag entry = (CompoundTag) value;
-            if (entry.hasUUID("Player")) {
-                UUID player = entry.getUUID("Player");
-                waterWaveContacts.add(player);
-                waterWaveDelays.put(player, Mth.clamp(entry.getInt("Ticks"), 1, 1200));
-            }
-        }
         defaultAttack.load(tag.getCompound("WaterDefaultAttack"));
         proximityPush.load(tag.getList("WaterProximityPush", Tag.TAG_COMPOUND));
         arenaCombat.load(tag.getCompound("WaterArenaCombat"));
