@@ -24,7 +24,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeMod;
 
-/** Water ownership, actual collision hooks and terrain penetration regressions. */
+/** Virtual swimming, actual collision hooks and terrain penetration regressions. */
 public final class WaterEnvironmentGameTests {
     private WaterEnvironmentGameTests() {
     }
@@ -40,7 +40,7 @@ public final class WaterEnvironmentGameTests {
         tests.add(new Scenario("water_projectile_difficulty_and_lifetime", WaterEnvironmentGameTests::projectile));
     }
 
-    /** Keep flooding minimal while testing placement rather than arena generation. */
+    /** Small geometry isolates spawn clearance from unrelated combat behavior. */
     private static void configureSpawn(GameTestContext c) {
         c.set(WaterSheeperConfig.WATER_SIZE, 2.0D);
         c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 4.0D);
@@ -157,6 +157,9 @@ public final class WaterEnvironmentGameTests {
     private static void breathingAndFloor(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
         var player = WaterTestScene.player(c, 13, 1, 10);
+        for (int y = 1; y <= 3; y++) {
+            c.setBlock(13, y, 10, Blocks.WATER);
+        }
         c.expect(!player.canDrownInFluidType(ForgeMod.WATER_TYPE.get()),
                 "The actual drowning hook must protect natural water inside the arena");
         player.standAt(c.point(21, 1, 10));
@@ -179,7 +182,6 @@ public final class WaterEnvironmentGameTests {
 
     private static void swimming(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
-        WaterTestScene.fill(c, boss);
         c.expect(boss.canSwimAt(boss.position().add(0, 1, 0)), "Open water above the boss must be navigable");
         Vec3 limited = boss.clampSwimmingPosition(boss.position().add(30, 30, 0));
         c.expect(boss.isWithinMovementArea(limited.x, limited.z)
@@ -200,7 +202,6 @@ public final class WaterEnvironmentGameTests {
 
     private static void movement(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
-        WaterTestScene.fill(c, boss);
         c.set(WaterSheeperConfig.WATER_MOVEMENT_SPEED, 1.0D);
         c.set(WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE, 3.0D);
         c.set(WaterSheeperConfig.WATER_MOVEMENT_HEIGHT_OFFSET, 0.0D);

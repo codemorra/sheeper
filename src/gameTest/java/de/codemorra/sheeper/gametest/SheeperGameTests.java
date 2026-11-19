@@ -14,6 +14,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import de.codemorra.sheeper.entity.WaterArenaGameTests;
 import de.codemorra.sheeper.entity.WaterAttackGameTests;
 import de.codemorra.sheeper.entity.WaterEnvironmentGameTests;
+import de.codemorra.sheeper.entity.WaterLifecycleGameTests;
 
 import net.minecraft.gametest.framework.GameTestGenerator;
 import net.minecraft.gametest.framework.GameTestInfo;
@@ -64,6 +65,7 @@ public final class SheeperGameTests {
         WaterArenaGameTests.add(scenarios);
         WaterAttackGameTests.add(scenarios);
         WaterEnvironmentGameTests.add(scenarios);
+        WaterLifecycleGameTests.add(scenarios);
         DataGameTests.add(scenarios);
         ConfigUnitGameTests.add(scenarios);
 

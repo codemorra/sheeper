@@ -193,7 +193,6 @@ public final class WaterAttackGameTests {
 
     private static void fountain(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
-        WaterTestScene.fill(c, boss);
         // Remove physical support: this column must start on the virtual arena floor.
         c.setBlock(14, 0, 10, Blocks.AIR);
         c.set(WaterSheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 0.05D);
@@ -255,7 +254,6 @@ public final class WaterAttackGameTests {
 
     private static void maelstromScheduling(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
-        WaterTestScene.fill(c, boss);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN, 1.0D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY, 1.5D);
         var player = WaterTestScene.player(c, 12, 1, 10);
@@ -282,7 +280,6 @@ public final class WaterAttackGameTests {
 
     private static void maelstrom(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
-        WaterTestScene.fill(c, boss);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_ROTATION_DURATION, 0.1D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_ASCENT_DURATION, 0.1D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_MEDIUM_DURATION, 0.1D);

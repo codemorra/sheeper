@@ -1,5 +1,7 @@
 package de.codemorra.sheeper.gametest;
 
+import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +18,7 @@ import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.item.Item;
@@ -60,6 +63,30 @@ public final class TestPlayer extends ServerPlayer {
         for (int tick = 0; tick < 60; tick++) {
             super.tick();
         }
+    }
+
+    /**
+     * GameTestServer has no profile cache or authentication services, so vanilla
+     * login cannot run. Populate its UUID registry only; assertions still exercise
+     * the real PlayerList lookup used by persistent arena effects.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<UUID, ServerPlayer> serverPlayersById() {
+        try {
+            Field field = PlayerList.class.getDeclaredField("playersByUUID");
+            field.setAccessible(true);
+            return (Map<UUID, ServerPlayer>) field.get(server.getPlayerList());
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot register a player in the mapped GameTest server", failure);
+        }
+    }
+
+    void registerServerPlayer() {
+        serverPlayersById().put(getUUID(), this);
+    }
+
+    void unregisterServerPlayer() {
+        serverPlayersById().remove(getUUID());
     }
 
     @Override
