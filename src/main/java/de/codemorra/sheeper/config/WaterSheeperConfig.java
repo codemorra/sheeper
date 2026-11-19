@@ -103,22 +103,19 @@ public final class WaterSheeperConfig {
             .comment("Maximum seconds between idle swim plans; capped below by intervalMinSeconds.")
             .defineInRange("elemental.water.movement.idle.intervalMaxSeconds", 5.0, 0.1, 15.0);
 
-    /** Water-contact spawn wave (elemental.water.spawnPush). */
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_RADIUS = BUILDER
-            .comment("Maximum distance from the boss for contact and launch of the spawn water wave; 0 disables it.")
-            .defineInRange("elemental.water.spawnPush.radius", 15.0, 0.0, 64.0);
+    /** Damage-free transport during arena expansion (elemental.water.spawnPush). */
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_SPEED = BUILDER
+            .comment("Maximum outward transport speed during arena startup in blocks per second; 0 disables the push.",
+                    "Players follow the expanding front; obstacles do not cancel transport before the wave ends.")
+            .defineInRange("elemental.water.spawnPush.speedBlocksPerSecond", 20.0, 0.0, 40.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_DELAY = BUILDER
-            .comment("Seconds after first contact with this boss's water during flooding before the one-time push.")
-            .defineInRange("elemental.water.spawnPush.delaySeconds", 0.15, 0.0, 3.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_EDGE_DISTANCE = BUILDER
+            .comment("Distance from the arena edge where spawn transport stops; players already in this outer ring are spared.")
+            .defineInRange("elemental.water.spawnPush.edgeDistance", 8.0, 0.0, 32.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_HEIGHT = BUILDER
-            .comment("Maximum rise of the spawn water wave in blocks; water drag and ceilings may reduce it.")
-            .defineInRange("elemental.water.spawnPush.height", 10.0, 0.0, 10.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_HORIZONTAL_STRENGTH = BUILDER
-            .comment("Horizontal launch velocity away from the arena center for the spawn water wave.")
-            .defineInRange("elemental.water.spawnPush.horizontalStrength", 1.5, 0.0, 3.9);
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_LIFT_HEIGHT = BUILDER
+            .comment("Gentle rise above the player's height at first wave contact, in blocks; ceilings limit the lift.")
+            .defineInRange("elemental.water.spawnPush.liftHeight", 2.0, 0.0, 6.0);
 
     /** Water boss close-range approach (elemental.water.closeRange). */
     public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_DISTANCE = BUILDER

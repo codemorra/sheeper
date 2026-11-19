@@ -50,6 +50,7 @@ public final class WaterArenaData extends SavedData {
     private final Map<UUID, Arena> arenas = new LinkedHashMap<>();
     private final Map<BlockPos, Set<UUID>> owners = new HashMap<>();
     private final Queue<UUID> cleanup = new ArrayDeque<>();
+    private final List<WaterArenaSpawnWave> retiredSpawnWaves = new ArrayList<>();
 
     /**
      * Captured block-cell bounds shared by volume discovery, placement and native
@@ -116,6 +117,7 @@ public final class WaterArenaData extends SavedData {
     }
 
     private static final class Arena {
+        private final WaterArenaSpawnWave spawnWave = new WaterArenaSpawnWave();
         private final Set<BlockPos> positions = new LinkedHashSet<>();
         private final Map<BlockPos, Integer> distances = new HashMap<>();
         private final NavigableMap<Integer, Set<BlockPos>> drainWaves = new TreeMap<>(Comparator.reverseOrder());
@@ -137,7 +139,12 @@ public final class WaterArenaData extends SavedData {
     public static void tick(ServerLevel level, int budget) {
         WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
         if (data != null) {
+            data.retiredSpawnWaves.forEach(wave -> wave.clear(level));
+            data.retiredSpawnWaves.clear();
             for (Arena arena : data.arenas.values()) {
+                if (!arena.cleaning && arena.volume != null && arena.spawnWave.tick(level, data.expansion(arena))) {
+                    data.setDirty();
+                }
                 if (!arena.cleaning && !arena.generated && arena.volume != null
                         && !data.expansion(arena).isExpanding(level.getGameTime())) {
                     arena.generated = true;
@@ -408,6 +415,7 @@ public final class WaterArenaData extends SavedData {
         if (arena == null || arena.cleaning) {
             return;
         }
+        retiredSpawnWaves.add(arena.spawnWave);
         if (arena.positions.isEmpty()) {
             arenas.remove(boss);
         } else {
@@ -499,6 +507,7 @@ public final class WaterArenaData extends SavedData {
             Arena arena = new Arena();
             arena.legacyVanilla = !entry.getBoolean("BossWater");
             arena.generated = entry.getBoolean("Generated");
+            arena.spawnWave.load(entry.getCompound("SpawnWave"));
             arena.startupTick = Math.max(0, entry.getLong("StartupTick"));
             arena.startupDuration = Math.max(0, Math.min(600, entry.getInt("StartupDuration")));
             arena.cleaning = entry.getBoolean("Cleaning");
@@ -537,6 +546,7 @@ public final class WaterArenaData extends SavedData {
             entry.putUUID("Boss", boss);
             entry.putBoolean("BossWater", !arena.legacyVanilla);
             entry.putBoolean("Generated", arena.generated);
+            entry.put("SpawnWave", arena.spawnWave.save());
             entry.putLong("StartupTick", arena.startupTick);
             entry.putInt("StartupDuration", arena.startupDuration);
             entry.putBoolean("Cleaning", arena.cleaning);
