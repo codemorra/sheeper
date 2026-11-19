@@ -165,6 +165,31 @@ function initializeCoreMod() {
         return node;
       }
     },
+    arena_water_bubble_particles: {
+      target: { type: "CLASS", name: "net.minecraft.client.particle.BubbleParticle" },
+      transformer: function (node) {
+        var count = 0;
+        for (var i = 0; i < node.methods.size(); i++) {
+          var m = node.methods.get(i);
+          var instructions = m.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if (insn.getOpcode() === O.INVOKEVIRTUAL &&
+                String(insn.owner) === "net/minecraft/client/multiplayer/ClientLevel" &&
+                String(insn.desc) === "(" + pos + ")" + state) {
+              var code = new List();
+              code.add(new Var(O.ALOAD, 0));
+              code.add(invoke(client, "bubbleFluid",
+                  "(" + state + "Lnet/minecraft/client/particle/Particle;)" + state));
+              m.instructions.insert(insn, code);
+              count++;
+            }
+          }
+        }
+        check(count, 1, "BubbleParticle virtual water lifetime");
+        return node;
+      }
+    },
     arena_water_camera: {
       target: { type: "CLASS", name: "net.minecraft.client.Camera" },
       transformer: function (node) {
