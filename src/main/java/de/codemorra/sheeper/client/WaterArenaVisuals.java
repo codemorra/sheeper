@@ -152,13 +152,11 @@ public final class WaterArenaVisuals {
         return current.level() == level ? current.arenas() : List.of();
     }
 
-    /**
-     * Called only from the liquid renderer; natural water elsewhere keeps its biome
-     * tint.
-     */
+    /** Tints legacy boss water only; natural water retains its normal biome appearance. */
     public static int tintColor(int vanilla, BlockAndTintGetter getter, BlockPos pos, FluidState fluid) {
         ClientLevel level = Minecraft.getInstance().level;
-        return level != null && fluid.is(FluidTags.WATER) && contains(level, pos) ? 0xFF5AB9D8 : vanilla;
+        return level != null && fluid.getType() instanceof BossWaterFluid && contains(level, pos)
+                ? 0xFF5AB9D8 : vanilla;
     }
 
     /**
@@ -214,10 +212,10 @@ public final class WaterArenaVisuals {
         return physical;
     }
 
-    /** Hides physical water interfaces inside the virtual volume without changing their blocks. */
+    /** Hides legacy boss-water meshes only; natural water surfaces remain visible inside the arena. */
     public static boolean hideWaterCell(BlockPos pos, FluidState fluid) {
         ClientLevel level = Minecraft.getInstance().level;
-        return level != null && fluid.is(FluidTags.WATER)
+        return level != null && fluid.getType() instanceof BossWaterFluid
                 && activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(Vec3.atCenterOf(pos)));
     }
 
