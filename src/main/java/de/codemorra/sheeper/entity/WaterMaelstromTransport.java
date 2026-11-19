@@ -46,7 +46,7 @@ final class WaterMaelstromTransport {
                 boss.getArenaCenter().getZ() + 0.5D);
         Vec3 relative = player.position().subtract(center);
         Vec3 outward = new Vec3(player.getX() - impact.x, 0, player.getZ() - impact.z);
-        double radius = Math.min(Math.max(0, boss.getCombatRadius() - 2), WaterMaelstromWave.dangerRadius(boss));
+        double radius = Math.min(Math.max(0, boss.getArenaRadius() - 2), WaterMaelstromWave.dangerRadius(boss));
         if (relative.horizontalDistanceSqr() >= radius * radius) {
             return;
         }

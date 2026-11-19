@@ -114,7 +114,9 @@ public final class WaterAttackGameTests {
         c.near(player.getHealth(), 18, "First beam contact must deal immediate damage");
         player.standAt(c.point(16, 1, 10));
         WaterTestScene.ticks(2, () -> beam.tick(player));
-        c.near(boss.getBeamOffset().length(), 12, "Beam range must be independent of target distance");
+        c.near(boss.getBeamOrigin().add(boss.getBeamOffset()).x,
+                boss.getArenaCenter().getX() + 0.5D + boss.getArenaRadius(),
+                "Beam range must be independent of target distance and stop at the arena edge");
         WaterBeamAttack restored = new WaterBeamAttack(boss);
         restored.load(beam.save());
         // Advance vanilla immunity explicitly; controller ticks alone do not tick players.
@@ -205,6 +207,10 @@ public final class WaterAttackGameTests {
         var player = WaterTestScene.player(c, 14, 2, 10);
         WaterFountainAttack attack = new WaterFountainAttack(boss);
         attack.start();
+        // Isolate this single player warning from independently placed arena columns.
+        CompoundTag initial = attack.save();
+        initial.putInt("ArenaDelay", 100);
+        attack.load(initial);
         attack.tick(List.of(player), 100);
         CompoundTag announced = attack.save();
         var columns = announced.getList("Currents", Tag.TAG_COMPOUND);

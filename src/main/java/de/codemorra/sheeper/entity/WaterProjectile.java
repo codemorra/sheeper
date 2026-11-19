@@ -1,9 +1,17 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.UUID;
+
+import javax.annotation.Nullable;
+
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaBoundary;
+import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -18,17 +26,23 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraftforge.entity.IEntityAdditionalSpawnData;
 import net.minecraftforge.network.NetworkHooks;
 
 /** Constant-velocity water shot with one server-authoritative impact. */
-public class WaterProjectile extends Projectile {
+public class WaterProjectile extends Projectile implements IEntityAdditionalSpawnData {
     private int flightTicks;
+    @Nullable
+    private UUID arenaOwner;
+    @Nullable
+    private VolumeBounds clientVolume;
 
     public WaterProjectile(EntityType<? extends WaterProjectile> type, Level level) {
         super(type, level);
@@ -45,6 +59,12 @@ public class WaterProjectile extends Projectile {
     }
 
     @Override
+    public void setOwner(@Nullable Entity owner) {
+        super.setOwner(owner);
+        arenaOwner = owner instanceof WaterSheeperEntity ? owner.getUUID() : null;
+    }
+
+    @Override
     protected boolean canHitEntity(Entity entity) {
         return entity instanceof LivingEntity && !ownedBy(entity) && super.canHitEntity(entity);
     }
@@ -55,6 +75,19 @@ public class WaterProjectile extends Projectile {
             return;
         }
         super.tick();
+        VolumeBounds volume = attackVolume();
+        if (volume == null) {
+            discard();
+            return;
+        }
+        Vec3 start = position();
+        Vec3 motion = getDeltaMovement();
+        double fraction = WaterArenaBoundary.attackFraction(volume, start, motion);
+        if (fraction == 0) {
+            discard();
+            return;
+        }
+        Vec3 step = motion.scale(fraction);
         if (!level.isClientSide) {
             // A defeated boss cannot leave damaging projectiles in its death sequence.
             if (getOwner() instanceof WaterSheeperEntity boss && !boss.isAlive()
@@ -66,7 +99,7 @@ public class WaterProjectile extends Projectile {
             // Recheck the same flight segment after each removed leaf, so players
             // and solid blocks behind foliage can still be hit during this tick.
             for (int cleared = 0; cleared <= 16; cleared++) {
-                HitResult hit = ProjectileUtil.getHitResult(this, this::canHitEntity);
+                HitResult hit = findImpact(volume, start, step);
                 if (hit.getType() == HitResult.Type.MISS || ForgeEventFactory.onProjectileImpact(this, hit)) {
                     break;
                 }
@@ -78,24 +111,47 @@ public class WaterProjectile extends Projectile {
                 return;
             }
         } else {
-            spawnBubbleTrail();
+            spawnBubbleTrail(volume);
         }
         // No gravity, water drag, or target updates: dodging never changes the shot.
-        setPos(position().add(getDeltaMovement()));
+        setPos(start.add(step));
+        if (fraction < 1) {
+            discard();
+        }
         flightTicks++;
+    }
+
+    /** Clips terrain and entity queries before any Forge impact event or foliage removal. */
+    private HitResult findImpact(VolumeBounds volume, Vec3 start, Vec3 step) {
+        HitResult terrain = level.clip(new ClipContext(start, start.add(step), ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, this));
+        EntityHitResult entity = ProjectileUtil.getEntityHitResult(level, this, start, terrain.getLocation(),
+                getBoundingBox().expandTowards(step).inflate(1), candidate ->
+                        canHitEntity(candidate) && volume.contains(candidate.position()));
+        return entity == null ? terrain : entity;
+    }
+
+    @Nullable
+    private VolumeBounds attackVolume() {
+        if (level instanceof ServerLevel server) {
+            return arenaOwner == null ? null : WaterArenaData.get(server).getVolume(arenaOwner);
+        }
+        return clientVolume;
     }
 
     /**
      * Samples the travelled segment so fast shots retain a continuous, bounded
      * trail.
      */
-    private void spawnBubbleTrail() {
+    private void spawnBubbleTrail(VolumeBounds volume) {
         Vec3 motion = getDeltaMovement();
         int samples = Math.max(1, Math.min(8, (int) Math.ceil(motion.length() / 0.25D)));
         for (int index = 0; index < samples; index++) {
             Vec3 point = position().subtract(motion.scale((double) index / samples));
-            level.addParticle(ParticleTypes.BUBBLE, point.x, point.y, point.z,
-                    motion.x * 0.15D, motion.y * 0.15D, motion.z * 0.15D);
+            if (volume.contains(point)) {
+                level.addParticle(ParticleTypes.BUBBLE, point.x, point.y, point.z,
+                        motion.x * 0.15D, motion.y * 0.15D, motion.z * 0.15D);
+            }
         }
     }
 
@@ -155,6 +211,30 @@ public class WaterProjectile extends Projectile {
     protected void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         flightTicks = Math.max(0, tag.getInt("FlightTicks"));
+        // Retain the arena lookup even when the projectile reloads before its owner.
+        arenaOwner = tag.hasUUID("Owner") ? tag.getUUID("Owner") : null;
+    }
+
+    /** Sends the owner's fixed bounds so flight prediction stops locally at the same edge. */
+    @Override
+    public void writeSpawnData(FriendlyByteBuf buffer) {
+        VolumeBounds volume = attackVolume();
+        buffer.writeBoolean(volume != null);
+        if (volume != null) {
+            buffer.writeBlockPos(volume.center());
+            buffer.writeDouble(volume.radius());
+            buffer.writeInt(volume.minimumY());
+            buffer.writeDouble(volume.maximumY());
+        }
+    }
+
+    @Override
+    public void readSpawnData(FriendlyByteBuf buffer) {
+        if (buffer.readBoolean()) {
+            var volume = new VolumeBounds(buffer.readBlockPos(), buffer.readDouble(), buffer.readInt(),
+                    buffer.readDouble());
+            clientVolume = volume.isValidFor(level) ? volume : null;
+        }
     }
 
     @Override

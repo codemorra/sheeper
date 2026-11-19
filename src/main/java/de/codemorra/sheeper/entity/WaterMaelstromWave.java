@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
-import de.codemorra.sheeper.registry.ModParticles;
+import de.codemorra.sheeper.particle.MaelstromWaveOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -49,9 +49,11 @@ final class WaterMaelstromWave {
         origin = impact;
         double dx = origin.x - boss.getArenaCenter().getX() - 0.5D;
         double dz = origin.z - boss.getArenaCenter().getZ() - 0.5D;
-        maximumRadius = boss.getCombatRadius() + Math.sqrt(dx * dx + dz * dz);
+        maximumRadius = boss.getArenaRadius() + Math.sqrt(dx * dx + dz * dz);
         for (ServerPlayer player : boss.getCombatParticipants()) {
-            pending.put(player.getUUID(), player.position().subtract(origin).horizontalDistance());
+            if (boss.containsAttackPoint(player.position())) {
+                pending.put(player.getUUID(), player.position().subtract(origin).horizontalDistance());
+            }
         }
     }
 
@@ -65,7 +67,11 @@ final class WaterMaelstromWave {
      */
     void tick(List<ServerPlayer> players) {
         Map<UUID, ServerPlayer> current = new HashMap<>();
-        players.forEach(player -> current.put(player.getUUID(), player));
+        for (ServerPlayer player : players) {
+            if (player.isAlive() && boss.containsAttackPoint(player.position())) {
+                current.put(player.getUUID(), player);
+            }
+        }
         if (radius < maximumRadius) {
             double previousRadius = radius;
             radius = Math.min(maximumRadius, radius + WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D);
@@ -122,7 +128,7 @@ final class WaterMaelstromWave {
             pending.clear();
             damageDelays.clear();
         }
-        transports.tick(players.stream().filter(ServerPlayer::isAlive).toList());
+        transports.tick(List.copyOf(current.values()));
     }
 
     /**
@@ -130,7 +136,7 @@ final class WaterMaelstromWave {
      *         origin
      */
     static double dangerRadius(WaterSheeperEntity boss) {
-        return Math.max(0, boss.getCombatRadius() - boss.getMaelstromSafeOuterWidth());
+        return Math.max(0, boss.getArenaRadius() - boss.getMaelstromSafeOuterWidth());
     }
 
     /**
@@ -154,8 +160,10 @@ final class WaterMaelstromWave {
     private void showFront(List<ServerPlayer> players) {
         double bottom = boss.getArenaWaterMinimumY();
         double height = boss.getArenaWaterSurfaceY() - bottom;
+        var arena = new MaelstromWaveOptions(boss.getArenaCenter().getX() + 0.5D,
+                boss.getArenaCenter().getZ() + 0.5D, boss.getArenaRadius());
         for (ServerPlayer player : players) {
-            ((ServerLevel) boss.level).sendParticles(player, ModParticles.MAELSTROM_WAVE.get(), true,
+            ((ServerLevel) boss.level).sendParticles(player, arena, true,
                     origin.x, bottom, origin.z, 0, radius, height,
                     WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D, 1);
         }
@@ -174,8 +182,10 @@ final class WaterMaelstromWave {
             }
             Vec3 point = origin.add(radial.normalize().scale(radius));
             double height = Mth.clamp(listener.y, boss.getArenaWaterMinimumY(), boss.getArenaWaterSurfaceY());
-            WaterAttackSounds.nearby(player, new Vec3(point.x, height, point.z),
-                    SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, 0.65F, 0.65F);
+            Vec3 source = new Vec3(point.x, height, point.z);
+            if (boss.containsAttackPoint(source)) {
+                WaterAttackSounds.nearby(player, source, SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, 0.65F, 0.65F);
+            }
         }
     }
 

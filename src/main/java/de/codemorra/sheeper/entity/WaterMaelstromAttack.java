@@ -369,7 +369,8 @@ final class WaterMaelstromAttack {
         double strength = phase == Phase.STRONG_PULL
                 ? Math.max(medium, WaterSheeperConfig.WATER_MAELSTROM_STRONG_PULL.get())
                 : phase == Phase.MEDIUM_PULL ? medium : weak;
-        suction.tick(boss.getCombatParticipants(), destination, strength);
+        suction.tick(boss.getCombatParticipants().stream()
+                .filter(player -> boss.containsAttackPoint(player.position())).toList(), destination, strength);
     }
 
     private void beginRotation() {
@@ -449,7 +450,7 @@ final class WaterMaelstromAttack {
      */
     private void sendBubble(Vec3 point, Vec3 motion) {
         BlockPos cell = new BlockPos(point);
-        if (boss.isArenaWaterCell(cell)
+        if (boss.containsAttackPoint(point)
                 && WaterArenaData.isLoaded((ServerLevel) boss.level, cell)
                 && ArenaWater.isOpenCell(boss.level, cell)) {
             // Zero count preserves the velocity; positive counts randomize it.
