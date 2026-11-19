@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -17,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
  * surface.
  */
 final class WaterBeamRenderer {
-    private static final ResourceLocation WATER = new ResourceLocation("minecraft",
+    private static final ResourceLocation WATER = ResourceLocations.create("minecraft",
             "block/water_flow");
 
     private WaterBeamRenderer() {

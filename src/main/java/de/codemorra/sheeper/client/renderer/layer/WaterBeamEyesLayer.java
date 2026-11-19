@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer.layer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.model.SheepModel;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -12,12 +13,11 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.animal.Sheep;
 
 /** Uses the existing red eye texture without the elemental body's blue tint. */
 public final class WaterBeamEyesLayer extends RenderLayer<Sheep, SheepModel<Sheep>> {
-    private static final RenderType EYES = RenderType.eyes(new ResourceLocation(
+    private static final RenderType EYES = RenderType.eyes(ResourceLocations.create(
             SheeperMod.MODID, "textures/entity/sheeper_eyes.png"));
     private final SheepModel<Sheep> eyes;
 

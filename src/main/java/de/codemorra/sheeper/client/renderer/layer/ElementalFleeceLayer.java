@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer.layer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.SheepFurModel;
 import net.minecraft.client.model.SheepModel;
@@ -22,10 +23,10 @@ import net.minecraft.world.inventory.InventoryMenu;
 
 /** Elemental fleece colors and animated surfaces for lava and lightning. */
 public class ElementalFleeceLayer extends SheepFurLayer {
-    private static final ResourceLocation MAGMA = new ResourceLocation("minecraft", "block/magma");
-    private static final ResourceLocation FLEECE = new ResourceLocation("minecraft",
+    private static final ResourceLocation MAGMA = ResourceLocations.create("minecraft", "block/magma");
+    private static final ResourceLocation FLEECE = ResourceLocations.create("minecraft",
             "textures/entity/sheep/sheep_fur.png");
-    private static final ResourceLocation LIGHTNING = new ResourceLocation("minecraft",
+    private static final ResourceLocation LIGHTNING = ResourceLocations.create("minecraft",
             "textures/entity/creeper/creeper_armor.png");
 
     private final SheepFurModel<Sheep> fleece;

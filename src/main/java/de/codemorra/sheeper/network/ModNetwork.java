@@ -1,8 +1,8 @@
 package de.codemorra.sheeper.network;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
@@ -18,7 +18,7 @@ public final class ModNetwork {
     // version.
     private static final String VERSION = "8";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(SheeperMod.MODID, "main"),
+            ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
 
     private ModNetwork() {

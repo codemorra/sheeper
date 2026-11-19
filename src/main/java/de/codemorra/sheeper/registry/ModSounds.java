@@ -1,7 +1,7 @@
 package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
-import net.minecraft.resources.ResourceLocation;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -31,7 +31,7 @@ public final class ModSounds {
      */
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name,
-                () -> new SoundEvent(new ResourceLocation(SheeperMod.MODID, name)));
+                () -> new SoundEvent(ResourceLocations.create(SheeperMod.MODID, name)));
     }
 
     /** Connects sound registration to the mod bus on both physical sides. */

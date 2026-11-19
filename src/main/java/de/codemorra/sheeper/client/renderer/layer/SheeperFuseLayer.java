@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer.layer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import de.codemorra.sheeper.entity.SheeperEntity;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.model.SheepFurModel;
 import net.minecraft.client.model.SheepModel;
 import net.minecraft.client.model.geom.EntityModelSet;
@@ -20,7 +21,7 @@ import net.minecraft.world.entity.animal.Sheep;
  */
 public class SheeperFuseLayer extends RenderLayer<Sheep, SheepModel<Sheep>> {
 
-    private static final ResourceLocation FUR_TEXTURE = new ResourceLocation("minecraft",
+    private static final ResourceLocation FUR_TEXTURE = ResourceLocations.create("minecraft",
             "textures/entity/sheep/sheep_fur.png");
 
     private final SheepFurModel<Sheep> furModel;

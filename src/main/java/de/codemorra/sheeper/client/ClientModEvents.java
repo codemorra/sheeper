@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.event.RegisterShadersEvent;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModEntities;
@@ -20,6 +19,7 @@ import de.codemorra.sheeper.client.particle.MaelstromWaveParticle;
 import de.codemorra.sheeper.client.particle.WaterArenaBoundaryParticle;
 import de.codemorra.sheeper.client.particle.LightningRingParticle;
 import de.codemorra.sheeper.registry.ModParticles;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.entity.LightningBoltRenderer;
 import net.minecraftforge.api.distmarker.Dist;
@@ -47,7 +47,7 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) throws IOException {
         event.registerShader(new ShaderInstance(event.getResourceManager(),
-                new ResourceLocation(SheeperMod.MODID, "arena_water_fog"),
+                ResourceLocations.create(SheeperMod.MODID, "arena_water_fog"),
                 DefaultVertexFormat.POSITION_TEX), WaterArenaFogRenderer::setShader);
     }
 
