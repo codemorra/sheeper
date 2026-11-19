@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.WaterOrbitGoal;
@@ -653,11 +654,34 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             if (isAlive()) {
                 boolean preparing = !isCombatReady();
                 if (!volumeInitialized) {
-                    WaterArenaData data = WaterArenaData.get((ServerLevel) level);
-                    WaterArenaData.VolumeBounds bounds = data.prepareVolume(
-                            (ServerLevel) level, getUUID(), getArenaCenter(), getCombatRadius(),
+                    ServerLevel server = (ServerLevel) level;
+                    WaterArenaData data = WaterArenaData.get(server);
+                    WaterArenaData.VolumeBounds existing = data.getVolume(getUUID());
+                    WaterArenaData.VolumeBounds proposed = existing == null ? WaterArenaData.VolumeBounds.capture(
+                            server, getArenaCenter(), getCombatRadius(),
                             WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
+                            WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()) : existing;
+                    // Validate before creating saved arena state or placing any water.
+                    // A loaded encounter may occupy terrain changed after its initial spawn.
+                    if (!proposed.isValidFor(server)) {
+                        SheeperMod.LOGGER.warn(
+                                "Water Sheeper {}: spawn rejected at {} because its arena bounds are outside the world.",
+                                getUUID(), getArenaCenter());
+                        discard();
+                        return;
+                    }
+                    if (existing == null && !combatSettings.canSpawn(proposed)) {
+                        discard();
+                        return;
+                    }
+                    WaterArenaData.VolumeBounds bounds = data.prepareVolume(server, getUUID(), getArenaCenter(),
+                            getCombatRadius(), WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
                             WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get());
+                    if (bounds == null) {
+                        // prepareVolume also protects callers that do not perform spawn checks.
+                        discard();
+                        return;
+                    }
                     arenaVolume = bounds;
                     if (!data.isGenerated(getUUID())) {
                         volumeSearch = new WaterArenaVolumeSearch((ServerLevel) level, bounds);

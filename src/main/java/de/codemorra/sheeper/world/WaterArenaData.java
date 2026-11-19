@@ -34,6 +34,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -54,6 +55,25 @@ public final class WaterArenaData extends SavedData {
      * water flow.
      */
     public record VolumeBounds(BlockPos center, double radius, int minimumY, int maximumY) {
+        /** Captures the requested cylinder, clipping its vertical extent to the world. */
+        public static VolumeBounds capture(Level level, BlockPos center, double radius, int depth, int height) {
+            return new VolumeBounds(center.immutable(), radius,
+                    Math.max(level.getMinBuildHeight(), center.getY() - depth),
+                    Math.min(level.getMaxBuildHeight() - 1, center.getY() + height - 1));
+        }
+
+        /** Uses the same geometry limits for saved data and network snapshots. */
+        public boolean isValid() {
+            return Double.isFinite(radius) && radius >= 1 && radius <= 128
+                    && minimumY <= maximumY && (long) maximumY - minimumY <= 128
+                    && minimumY >= -2032 && maximumY <= 2031;
+        }
+
+        /** Rejects inverted or out-of-world bounds before arena creation or synchronization. */
+        public boolean isValidFor(Level level) {
+            return isValid() && minimumY >= level.getMinBuildHeight() && maximumY < level.getMaxBuildHeight();
+        }
+
         /**
          * @return whether a water cell belongs to this arena's horizontal circle and
          *         vertical extent
@@ -97,13 +117,20 @@ public final class WaterArenaData extends SavedData {
         WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
         return data == null ? List.of()
                 : data.arenas.values().stream()
-                        .filter(arena -> !arena.cleaning && arena.volume != null)
+                        .filter(arena -> !arena.cleaning && arena.volume != null && arena.volume.isValidFor(level))
                         .map(arena -> arena.volume).toList();
     }
 
     public boolean isGenerated(UUID boss) {
         Arena arena = arenas.get(boss);
         return arena != null && arena.generated;
+    }
+
+    /** Returns captured bounds without creating an arena for a rejected spawn. */
+    @Nullable
+    public VolumeBounds getVolume(UUID boss) {
+        Arena arena = arenas.get(boss);
+        return arena == null ? null : arena.volume;
     }
 
     /**
@@ -116,15 +143,21 @@ public final class WaterArenaData extends SavedData {
      * @param radius horizontal combat radius in blocks
      * @param depth  lower search extent below the origin
      * @param height common water surface height above the origin
-     * @return persistent volume bounds used after subsequent reloads as well
+     * @return persistent volume bounds, or null if the requested geometry is invalid
      */
+    @Nullable
     public VolumeBounds prepareVolume(ServerLevel level, UUID boss, BlockPos center, double radius, int depth,
             int height) {
+        VolumeBounds captured = getVolume(boss);
+        if (captured == null) {
+            captured = VolumeBounds.capture(level, center, radius, depth, height);
+        }
+        if (!captured.isValidFor(level)) {
+            return null;
+        }
         Arena arena = arenas.computeIfAbsent(boss, ignored -> new Arena());
         if (arena.volume == null) {
-            arena.volume = new VolumeBounds(center.immutable(), radius,
-                    Math.max(level.getMinBuildHeight(), center.getY() - depth),
-                    Math.min(level.getMaxBuildHeight() - 1, center.getY() + height - 1));
+            arena.volume = captured;
             arena.generated = false;
             setDirty();
         }
@@ -427,11 +460,10 @@ public final class WaterArenaData extends SavedData {
             arena.nextDrainWaveTick = entry.getLong("NextDrainWaveTick");
             CompoundTag volume = entry.getCompound("Volume");
             double radius = volume.getDouble("Radius");
-            if (volume.contains("Center", Tag.TAG_LONG) && Double.isFinite(radius) && radius >= 1 && radius <= 128
-                    && volume.getInt("MinimumY") <= volume.getInt("MaximumY")
-                    && (long) volume.getInt("MaximumY") - volume.getInt("MinimumY") <= 128) {
-                arena.volume = new VolumeBounds(BlockPos.of(volume.getLong("Center")), radius,
-                        volume.getInt("MinimumY"), volume.getInt("MaximumY"));
+            VolumeBounds bounds = new VolumeBounds(BlockPos.of(volume.getLong("Center")), radius,
+                    volume.getInt("MinimumY"), volume.getInt("MaximumY"));
+            if (volume.contains("Center", Tag.TAG_LONG) && bounds.isValid()) {
+                arena.volume = bounds;
             }
             long[] positions = entry.getLongArray("Positions");
             int[] distances = entry.getIntArray("Distances");

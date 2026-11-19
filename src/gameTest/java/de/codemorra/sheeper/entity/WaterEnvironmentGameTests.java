@@ -6,6 +6,10 @@ import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.gametest.GameTestContext;
 import de.codemorra.sheeper.gametest.SheeperGameTests.Scenario;
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.network.WaterArenaPacket;
+import io.netty.buffer.Unpooled;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.nbt.Tag;
 import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
@@ -26,12 +30,129 @@ public final class WaterEnvironmentGameTests {
     }
 
     public static void add(List<Scenario> tests) {
+        tests.add(new Scenario("water_spawn_respects_world_and_water_bounds", WaterEnvironmentGameTests::spawnBounds));
+        tests.add(new Scenario("water_spawn_requires_clear_scaled_body", WaterEnvironmentGameTests::spawnSpace));
+        tests.add(new Scenario("water_invalid_saved_volumes_are_not_synchronized", WaterEnvironmentGameTests::invalidVolumes));
         tests.add(new Scenario("water_volume_generation_and_owned_cleanup", WaterEnvironmentGameTests::generation));
         tests.add(new Scenario("water_native_breathing_and_floor_sliding", WaterEnvironmentGameTests::breathingAndFloor));
         tests.add(new Scenario("water_swim_bounds_and_config_relationships", WaterEnvironmentGameTests::swimming));
         tests.add(new Scenario("water_swimming_approaches_target", WaterEnvironmentGameTests::movement));
         tests.add(new Scenario("water_attacks_pierce_leaves_without_air", WaterEnvironmentGameTests::leaves));
         tests.add(new Scenario("water_projectile_difficulty_and_lifetime", WaterEnvironmentGameTests::projectile));
+    }
+
+    /** Keep flooding minimal while testing placement rather than arena generation. */
+    private static void configureSpawn(GameTestContext c) {
+        c.set(WaterSheeperConfig.WATER_SIZE, 2.0D);
+        c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 4.0D);
+        c.set(WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE, 0.0D);
+        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 2);
+        c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 4);
+        c.set(WaterSheeperConfig.WATER_SPAWN_WAVE_RADIUS, 0.0D);
+        c.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, 20);
+        c.set(WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, 20);
+    }
+
+    private static WaterSheeperEntity spawnAt(GameTestContext c, Vec3 point) {
+        var boss = ModEntities.WATER_SHEEPER.get().create(c.level);
+        boss.setPos(point);
+        boss.setNoAi(true);
+        c.expect(c.level.addFreshEntity(boss), "Test boss must enter the level before first-tick validation");
+        boss.tick();
+        return boss;
+    }
+
+    private static void spawnBounds(GameTestContext c) {
+        configureSpawn(c);
+        int bottom = c.level.getMinBuildHeight();
+        int top = c.level.getMaxBuildHeight();
+        Vec3 column = c.point(10, 1, 10);
+        WaterArenaData data = WaterArenaData.get(c.level);
+        for (int y : new int[] { bottom - 1, top + 10, top - 1 }) {
+            var rejected = spawnAt(c, new Vec3(column.x, y, column.z));
+            c.expect(rejected.isRemoved() && data.getVolume(rejected.getUUID()) == null,
+                    "Out-of-world or partially exposed spawns must be removed before creating an arena at Y=" + y);
+        }
+        for (int y : new int[] { bottom, top - 3 }) {
+            // The flat test world's bedrock may occupy the lower build boundary.
+            for (BlockPos cell : BlockPos.betweenClosed(new BlockPos(column.x - 1, y, column.z - 1),
+                    new BlockPos(column.x + 1, y + 2, column.z + 1))) {
+                c.level.setBlock(cell, Blocks.AIR.defaultBlockState(), 2);
+            }
+            var valid = spawnAt(c, new Vec3(column.x, y, column.z));
+            try {
+                var bounds = data.getVolume(valid.getUUID());
+                c.expect(!valid.isRemoved() && bounds != null && bounds.isValidFor(c.level),
+                        "A full body must fit even when the desired water volume is clipped at Y=" + y);
+                c.expect(y == bottom ? bounds.minimumY() == bottom : bounds.maximumY() == top - 1,
+                        "Captured water must be clipped to the actual world boundary");
+            } finally {
+                // These placements are deliberately outside the shared scene's cleanup box.
+                valid.discard();
+            }
+        }
+        c.pass();
+    }
+
+    private static void spawnSpace(GameTestContext c) {
+        configureSpawn(c);
+        // A two-block-high cave fits a normal sheep, but not the configured double-size body.
+        c.setBlock(10, 3, 10, Blocks.STONE);
+        var tooTall = spawnAt(c, c.point(10, 1, 10));
+        c.expect(tooTall.isRemoved() && WaterArenaData.get(c.level).getVolume(tooTall.getUUID()) == null,
+                "A ceiling intersecting the scaled head must reject the spawn without arena creation");
+        c.setBlock(10, 3, 10, Blocks.AIR);
+        c.setBlock(11, 1, 10, Blocks.STONE);
+        var tooWide = spawnAt(c, c.point(10, 1, 10));
+        c.expect(tooWide.isRemoved(), "A side wall must reject a spawn even when the center column is clear");
+        c.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
+        c.setBlock(10, 3, 10, Blocks.STONE);
+        var fits = spawnAt(c, c.point(10, 1, 10));
+        c.expect(!fits.isRemoved(), "The same cave must accept a smaller body that actually fits");
+        CompoundTag saved = new CompoundTag();
+        fits.addAdditionalSaveData(saved);
+        c.setBlock(10, 1, 10, Blocks.STONE);
+        fits.readAdditionalSaveData(saved);
+        fits.tick();
+        c.expect(!fits.isRemoved(), "Reload must not reject an established boss after terrain changes");
+        c.pass();
+    }
+
+    private static void invalidVolumes(GameTestContext c) {
+        configureSpawn(c);
+        var boss = spawnAt(c, c.point(10, 1, 10));
+        WaterArenaData original = WaterArenaData.get(c.level);
+        CompoundTag saved = original.save(new CompoundTag());
+        for (Tag value : saved.getList("Arenas", Tag.TAG_COMPOUND)) {
+            CompoundTag entry = (CompoundTag) value;
+            if (entry.getUUID("Boss").equals(boss.getUUID())) {
+                // Valid packet geometry may still be outside this dimension's build range.
+                entry.getCompound("Volume").putInt("MinimumY", c.level.getMaxBuildHeight() + 1);
+                entry.getCompound("Volume").putInt("MaximumY", c.level.getMaxBuildHeight() + 4);
+            }
+        }
+        try {
+            c.level.getDataStorage().set("sheeper_water_arenas", WaterArenaData.load(saved));
+            var volumes = WaterArenaData.activeVolumes(c.level);
+            c.expect(volumes.stream().allMatch(bounds -> bounds.isValidFor(c.level)),
+                    "Out-of-world saved volumes must not enter snapshots or player protection");
+            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+            try {
+                var packet = new WaterArenaPacket(c.level.dimension().location(), volumes);
+                packet.encode(buffer);
+                c.expect(packet.equals(WaterArenaPacket.decode(buffer)),
+                        "Filtered server snapshots must round-trip through the client decoder");
+            } finally {
+                buffer.release();
+            }
+        } finally {
+            c.level.getDataStorage().set("sheeper_water_arenas", original);
+        }
+        Vec3 column = c.point(14, 1, 10);
+        BlockPos invalid = new BlockPos(column.x, c.level.getMaxBuildHeight() + 10, column.z);
+        c.expect(original.prepareVolume(c.level, java.util.UUID.randomUUID(), invalid, 4, 2, 4) == null,
+                "Direct volume preparation must reject inverted bounds as well");
+        c.pass();
     }
 
     private static void generation(GameTestContext c) {
