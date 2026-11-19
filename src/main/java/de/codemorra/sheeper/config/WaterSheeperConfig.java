@@ -33,6 +33,11 @@ public final class WaterSheeperConfig {
             .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
             .defineInRange("elemental.water.arenaBuild.durationSeconds", 5.0, 0.5, 30.0);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_DURATION = BUILDER
+            .comment("Seconds for the virtual water level to sink after the boss disappears.",
+                    "Affected players descend gently and remain protected from fall damage until landing.")
+            .defineInRange("elemental.water.arena.drainDurationSeconds", 8.0, 1.0, 30.0);
+
     /** Empty-arena grace and recovery (elemental.water.arenaRecovery). */
     public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = BUILDER
             .comment("Seconds without arena participants before regeneration begins.",

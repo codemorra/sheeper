@@ -30,11 +30,7 @@ public final class WaterArenaEvents {
             }
             WaterArenaData.tick(level);
             if (level.getGameTime() % 10 == 0) {
-                WaterArenaPacket snapshot = new WaterArenaPacket(level.dimension().location(),
-                        WaterArenaData.expandingVolumes(level));
-                for (var player : level.players()) {
-                    ModNetwork.sendWaterArenas(player, snapshot);
-                }
+                sendSnapshot(level);
             }
         }
     }
@@ -44,8 +40,18 @@ public final class WaterArenaEvents {
         if (event.getLevel() instanceof ServerLevel level && event.getEntity() instanceof WaterSheeperEntity boss) {
             RemovalReason reason = boss.getRemovalReason();
             if (reason != null && (reason.shouldDestroy() || reason == RemovalReason.CHANGED_DIMENSION)) {
-                WaterArenaData.get(level).release(boss.getUUID());
+                WaterArenaData.get(level).startDraining(level, boss.getUUID());
+                sendSnapshot(level);
             }
         }
     }
+    /** Starts visible drainage immediately; periodic snapshots also cover login and missed updates. */
+    private static void sendSnapshot(ServerLevel level) {
+        WaterArenaPacket snapshot = new WaterArenaPacket(level.dimension().location(),
+                WaterArenaData.animatedVolumes(level));
+        for (var player : level.players()) {
+            ModNetwork.sendWaterArenas(player, snapshot);
+        }
+    }
+
 }

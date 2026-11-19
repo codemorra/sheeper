@@ -26,7 +26,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Persists virtual arena geometry and startup progress without placing water blocks.
+ * Persists virtual arena geometry, startup and drainage without placing water blocks.
  */
 public final class WaterArenaData extends SavedData {
     private static final String FILE_NAME = "sheeper_water_arenas";
@@ -36,7 +36,7 @@ public final class WaterArenaData extends SavedData {
     /**
      * Captured bounds shared by virtual swimming, attacks and client rendering.
      */
-    public record VolumeBounds(BlockPos center, double radius, int minimumY, int maximumY) {
+    public record VolumeBounds(BlockPos center, double radius, int minimumY, double maximumY) {
         /** Captures the requested cylinder, clipping its vertical extent to the world. */
         public static VolumeBounds capture(Level level, BlockPos center, double radius, int depth, int height) {
             return new VolumeBounds(center.immutable(), radius,
@@ -47,7 +47,7 @@ public final class WaterArenaData extends SavedData {
         /** Uses the same geometry limits for saved data and network snapshots. */
         public boolean isValid() {
             return Double.isFinite(radius) && radius >= 1 && radius <= 128
-                    && minimumY <= maximumY && (long) maximumY - minimumY <= 128
+                    && Double.isFinite(maximumY) && minimumY <= maximumY && maximumY - minimumY <= 128
                     && minimumY >= -2032 && maximumY <= 2031;
         }
 
@@ -80,24 +80,42 @@ public final class WaterArenaData extends SavedData {
         }
     }
 
-    /** Fixed geometry and a world-time clock keep startup consistent across saves and clients. */
-    public record ExpandingVolume(VolumeBounds bounds, long startTick, int durationTicks) {
-        /** Returns the currently usable cylinder without changing the captured arena bounds. */
+    /** Fixed geometry and world-time clocks keep startup and drainage consistent on both sides. */
+    public record AnimatedVolume(VolumeBounds bounds, long startTick, int durationTicks,
+            long drainStartTick, int drainDurationTicks) {
+        /** Returns the current cylinder; a drained volume has zero height and is excluded from active lookups. */
         public VolumeBounds at(double gameTime) {
             double progress = durationTicks == 0 ? 1
                     : Math.max(0, Math.min(1, (gameTime - startTick) / durationTicks));
+            double surface = bounds.maximumY() + 1;
+            if (isDraining()) {
+                double drained = Math.max(0, Math.min(1, (gameTime - drainStartTick) / drainDurationTicks));
+                surface -= (surface - bounds.minimumY()) * drained;
+            }
             return new VolumeBounds(bounds.center(), Math.max(1, bounds.radius() * progress),
-                    bounds.minimumY(), bounds.maximumY());
+                    bounds.minimumY(), surface - 1);
         }
 
-        /** Whether the one-time arena startup is still in progress at the supplied world time. */
+        /** Whether the one-time startup front is still advancing. */
         public boolean isExpanding(double gameTime) {
-            return durationTicks > 0 && gameTime - startTick < durationTicks;
+            return !isDraining() && durationTicks > 0 && gameTime - startTick < durationTicks;
+        }
+
+        public boolean isDraining() {
+            return drainDurationTicks > 0;
+        }
+
+        /** Also expires stale client geometry between snapshot packets. */
+        public boolean hasWater(double gameTime) {
+            return !isDraining() || gameTime - drainStartTick < drainDurationTicks;
         }
     }
 
     private static final class Arena {
         private final WaterArenaSpawnWave spawnWave = new WaterArenaSpawnWave();
+        private final WaterArenaDrain drain = new WaterArenaDrain();
+        private long drainTick;
+        private int drainDuration;
         private boolean ready;
         private long startupTick;
         private int startupDuration;
@@ -115,42 +133,68 @@ public final class WaterArenaData extends SavedData {
         if (data != null) {
             data.releasedSpawnWaves.forEach(wave -> wave.clear(level));
             data.releasedSpawnWaves.clear();
-            for (Arena arena : data.arenas.values()) {
-                if (arena.volume != null && arena.spawnWave.tick(level, data.expansion(arena))) {
-                    data.setDirty();
+            var iterator = data.arenas.entrySet().iterator();
+            while (iterator.hasNext()) {
+                var entry = iterator.next();
+                Arena arena = entry.getValue();
+                if (arena.volume == null) {
+                    continue;
                 }
-                if (!arena.ready && arena.volume != null
-                        && !data.expansion(arena).isExpanding(level.getGameTime())) {
-                    arena.ready = true;
-                    data.setDirty();
+                AnimatedVolume volume = data.animation(arena);
+                if (volume.isDraining()) {
+                    boolean changed = arena.drain.tick(level, volume,
+                            point -> data.hasOtherWater(level, entry.getKey(), point));
+                    if (!volume.hasWater(level.getGameTime()) && arena.drain.isFinished()) {
+                        iterator.remove();
+                        changed = true;
+                    }
+                    if (changed) {
+                        data.setDirty();
+                    }
+                } else {
+                    if (arena.spawnWave.tick(level, volume)) {
+                        data.setDirty();
+                    }
+                    if (!arena.ready && !volume.isExpanding(level.getGameTime())) {
+                        arena.ready = true;
+                        data.setDirty();
+                    }
                 }
             }
         }
     }
 
     /**
-     * Captured arenas retain protection while unloaded; removed arenas disappear immediately.
+     * Captured arenas remain active while unloaded and recede independently after owner removal.
      */
     public static List<VolumeBounds> activeVolumes(ServerLevel level) {
-        return expandingVolumes(level).stream().map(volume -> volume.at(level.getGameTime())).toList();
+        return animatedVolumes(level).stream().map(volume -> volume.at(level.getGameTime())).toList();
     }
 
-    /** Synchronizes the startup clock as well as bounds, so clients can animate between packets. */
-    public static List<ExpandingVolume> expandingVolumes(ServerLevel level) {
+    /** Synchronizes both lifecycle clocks and bounds so clients can animate between packets. */
+    public static List<AnimatedVolume> animatedVolumes(ServerLevel level) {
         WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
         return data == null ? List.of()
                 : data.arenas.values().stream()
                         .filter(arena -> arena.volume != null && arena.volume.isValidFor(level))
-                        .map(data::expansion).toList();
+                        .map(data::animation).filter(volume -> volume.hasWater(level.getGameTime())).toList();
     }
 
-    private ExpandingVolume expansion(Arena arena) {
-        return new ExpandingVolume(arena.volume, arena.startupTick, arena.ready ? 0 : arena.startupDuration);
+    private AnimatedVolume animation(Arena arena) {
+        return new AnimatedVolume(arena.volume, arena.startupTick, arena.ready ? 0 : arena.startupDuration,
+                arena.drainTick, arena.drainDuration);
+    }
+
+    /** Overlapping arenas keep their own water physics and must not drag swimmers down with this one. */
+    private boolean hasOtherWater(ServerLevel level, UUID draining, Vec3 point) {
+        return arenas.entrySet().stream().anyMatch(entry -> !entry.getKey().equals(draining)
+                && entry.getValue().volume != null && animation(entry.getValue()).hasWater(level.getGameTime())
+                && animation(entry.getValue()).at(level.getGameTime()).contains(point));
     }
 
     public boolean isReady(UUID boss) {
         Arena arena = arenas.get(boss);
-        return arena != null && arena.ready;
+        return arena != null && arena.ready && arena.drainDuration == 0;
     }
 
     /** Returns captured bounds without creating an arena for a rejected spawn. */
@@ -231,13 +275,23 @@ public final class WaterArenaData extends SavedData {
         }
     }
 
-    /** Removes the arena immediately and releases any continuing spawn transport on the next world tick. */
-    public void release(UUID boss) {
+    /** Starts a persisted lowering water level after death or explicit removal; unloading alone does not drain. */
+    public void startDraining(ServerLevel level, UUID boss) {
         Arena arena = arenas.remove(boss);
-        if (arena != null) {
-            releasedSpawnWaves.add(arena.spawnWave);
-            setDirty();
+        if (arena == null) {
+            return;
         }
+        releasedSpawnWaves.add(arena.spawnWave);
+        if (arena.volume != null && arena.volume.isValidFor(level)) {
+            // Freeze a partially built arena rather than completing its startup after removal.
+            arena.volume = animation(arena).at(level.getGameTime());
+            arena.ready = true;
+            arena.drainTick = level.getGameTime();
+            arena.drainDuration = (int) Math.round(WaterSheeperConfig.WATER_ARENA_DRAIN_DURATION.get() * 20);
+            // Detach from the owner so a boss returning from another dimension can start a fresh arena.
+            arenas.put(UUID.randomUUID(), arena);
+        }
+        setDirty();
     }
 
     public static boolean isLoaded(ServerLevel level, BlockPos pos) {
@@ -253,13 +307,16 @@ public final class WaterArenaData extends SavedData {
             UUID boss = entry.getUUID("Boss");
             Arena arena = new Arena();
             arena.ready = entry.getBoolean("Ready");
+            arena.drainTick = Math.max(0, entry.getLong("DrainTick"));
+            arena.drainDuration = Math.max(0, Math.min(600, entry.getInt("DrainDuration")));
+            arena.drain.load(entry.getList("DrainPlayers", Tag.TAG_COMPOUND));
             arena.spawnWave.load(entry.getCompound("SpawnWave"));
             arena.startupTick = Math.max(0, entry.getLong("StartupTick"));
             arena.startupDuration = Math.max(0, Math.min(600, entry.getInt("StartupDuration")));
             CompoundTag volume = entry.getCompound("Volume");
             double radius = volume.getDouble("Radius");
             VolumeBounds bounds = new VolumeBounds(BlockPos.of(volume.getLong("Center")), radius,
-                    volume.getInt("MinimumY"), volume.getInt("MaximumY"));
+                    volume.getInt("MinimumY"), volume.getDouble("MaximumY"));
             if (volume.contains("Center", Tag.TAG_LONG) && bounds.isValid()) {
                 arena.volume = bounds;
             }
@@ -275,6 +332,9 @@ public final class WaterArenaData extends SavedData {
             CompoundTag entry = new CompoundTag();
             entry.putUUID("Boss", boss);
             entry.putBoolean("Ready", arena.ready);
+            entry.putLong("DrainTick", arena.drainTick);
+            entry.putInt("DrainDuration", arena.drainDuration);
+            entry.put("DrainPlayers", arena.drain.save());
             entry.put("SpawnWave", arena.spawnWave.save());
             entry.putLong("StartupTick", arena.startupTick);
             entry.putInt("StartupDuration", arena.startupDuration);
@@ -283,7 +343,7 @@ public final class WaterArenaData extends SavedData {
                 volume.putLong("Center", arena.volume.center().asLong());
                 volume.putDouble("Radius", arena.volume.radius());
                 volume.putInt("MinimumY", arena.volume.minimumY());
-                volume.putInt("MaximumY", arena.volume.maximumY());
+                volume.putDouble("MaximumY", arena.volume.maximumY());
                 entry.put("Volume", volume);
             }
             saved.add(entry);

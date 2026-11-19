@@ -63,7 +63,7 @@ public final class WaterArenaBoundaryEffects {
     private static void emitStartupFront(Minecraft minecraft, Vec3 camera) {
         var level = minecraft.level;
         int[] remaining = { 192 };
-        for (var volume : WaterArenaVisuals.expandingVolumes(level)) {
+        for (var volume : WaterArenaVisuals.animatedVolumes(level)) {
             if (!volume.isExpanding(level.getGameTime())) {
                 continue;
             }
@@ -87,6 +87,9 @@ public final class WaterArenaBoundaryEffects {
     private static void faces(VolumeBounds bounds, Vec3 camera, FaceConsumer consumer) {
         double bottom = bounds.minimumY() + ArenaWater.BOUNDARY_MARGIN;
         double top = bounds.maximumY() + 1.0D - ArenaWater.BOUNDARY_MARGIN;
+        if (top <= bottom) {
+            return;
+        }
         double dx = camera.x - bounds.center().getX() - 0.5D;
         double dz = camera.z - bounds.center().getZ() - 0.5D;
         double radial = Math.sqrt(dx * dx + dz * dz);
