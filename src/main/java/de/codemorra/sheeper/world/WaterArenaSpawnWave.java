@@ -43,6 +43,11 @@ public final class WaterArenaSpawnWave {
         boolean changed = false;
         for (ServerPlayer player : level.players()) {
             UUID id = player.getUUID();
+            if (player.isCreative()) {
+                // A mode change also releases active transport without overriding flight.
+                changed |= lifts.remove(id) != null;
+                continue;
+            }
             Vec3 radial = new Vec3(player.getX() - centerX, 0, player.getZ() - centerZ);
             double distance = radial.length();
             // Keep the whole player inside the water before contact and during transport.
@@ -107,7 +112,7 @@ public final class WaterArenaSpawnWave {
     void clear(ServerLevel level) {
         for (UUID id : lifts.keySet()) {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
-            if (player != null && player.level == level && player.isAlive()) {
+            if (player != null && player.level == level && player.isAlive() && !player.isCreative()) {
                 stop(player);
             }
         }

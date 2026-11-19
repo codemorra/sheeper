@@ -19,6 +19,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.material.FluidState;
@@ -136,6 +137,7 @@ public final class WaterArenaVisuals {
     @SubscribeEvent
     public static void onWaterOverlay(RenderBlockScreenEffectEvent event) {
         if (event.getOverlayType() == RenderBlockScreenEffectEvent.OverlayType.WATER
+                && !event.getPlayer().isCreative()
                 && de.codemorra.sheeper.world.ArenaWater.contains(event.getPlayer().level,
                         event.getPlayer().getEyePosition())) {
             event.setCanceled(true);
@@ -145,10 +147,16 @@ public final class WaterArenaVisuals {
     /** Matches vanilla's underwater FOV gradually without forcing an instant water camera state. */
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
-        if (canBlendFog(event.getCamera()) && event.getCamera().getFluidInCamera() == FogType.NONE) {
+        Camera camera = event.getCamera();
+        if (!hasCreativeCamera(camera) && canBlendFog(camera) && camera.getFluidInCamera() == FogType.NONE) {
             double scale = Minecraft.getInstance().options.fovEffectScale().get() * fogBlend(event.getPartialTick());
             event.setFOV(event.getFOV() * Mth.lerp(scale, 1.0D, (double) 0.85714287F));
         }
+    }
+
+    /** Leaves the personal view in Creative untouched while the arena still renders in the world. */
+    private static boolean hasCreativeCamera(Camera camera) {
+        return camera.getEntity() instanceof Player player && player.isCreative();
     }
 
     /** Preserves vision restrictions and the appearance of non-water fluids. */
@@ -177,12 +185,12 @@ public final class WaterArenaVisuals {
     /**
      * Keeps virtual and physical water on one vanilla fog baseline inside the
      * arena. The bounded fog renderer supplies underwater color and attenuation;
-     * null delegates to vanilla outside the volume and for non-water fluids.
+     * null delegates to vanilla outside the volume, in Creative and for non-water fluids.
      */
     @Nullable
     public static FogType cameraFluid(Camera camera) {
         ClientLevel level = Minecraft.getInstance().level;
-        if (level == null || camera.getEntity() == null) {
+        if (level == null || camera.getEntity() == null || hasCreativeCamera(camera)) {
             return null;
         }
         Vec3 point = camera.getPosition();
