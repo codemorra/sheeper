@@ -6,9 +6,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
-import de.codemorra.sheeper.world.WaterArenaData.ExpandingVolume;
+import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -17,46 +16,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.living.LivingFallEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
 /** One-time, damage-free transport carried by the arena's expanding startup front. */
-@Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class WaterArenaSpawnWave {
     private static final double FRONT_CLEARANCE = 2.0D;
-    private static final String FALL_PROTECTION = "SheeperSpawnWaveFallProtection";
     private final Set<UUID> contacts = new HashSet<>();
     private final Map<UUID, Double> lifts = new HashMap<>();
-
-    /**
-     * Keeps a released swimmer safe until landing or returning to water, rather
-     * than granting general damage immunity or a fixed protection timeout.
-     */
-    @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)
-                || !player.getPersistentData().getBoolean(FALL_PROTECTION)) {
-            return;
-        }
-        player.fallDistance = 0;
-        if (!player.isAlive() || player.isOnGround() || player.isInWaterOrBubble() || player.isInLava()
-                || player.isSpectator() || player.getAbilities().flying) {
-            player.getPersistentData().remove(FALL_PROTECTION);
-        }
-    }
-
-    /** Landing is handled before the player end-tick hook can clear the protection. */
-    @SubscribeEvent
-    public static void onLivingFall(LivingFallEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player
-                && player.getPersistentData().getBoolean(FALL_PROTECTION)) {
-            event.setCanceled(true);
-            player.fallDistance = 0;
-            player.getPersistentData().remove(FALL_PROTECTION);
-        }
-    }
 
     /**
      * Continues pushing against real collisions until the front ends or the player
@@ -64,7 +29,7 @@ public final class WaterArenaSpawnWave {
      *
      * @return whether persistent contact or transport state changed
      */
-    boolean tick(ServerLevel level, ExpandingVolume volume) {
+    boolean tick(ServerLevel level, AnimatedVolume volume) {
         double speed = WaterSheeperConfig.WATER_SPAWN_PUSH_SPEED.get() / 20.0D;
         if (!volume.isExpanding(level.getGameTime()) || speed <= 0) {
             boolean changed = !lifts.isEmpty();
@@ -112,7 +77,7 @@ public final class WaterArenaSpawnWave {
             // Send the intended motion again even after a wall clipped the previous tick.
             // Vanilla collision remains responsible for preventing movement through blocks.
             player.setDeltaMovement(direction.x * step, upward, direction.z * step);
-            player.getPersistentData().putBoolean(FALL_PROTECTION, true);
+            WaterArenaFallProtection.protect(player);
             sync(player);
         }
         var iterator = lifts.keySet().iterator();

@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
-import de.codemorra.sheeper.world.WaterArenaData.ExpandingVolume;
+import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
 import net.minecraft.client.Camera;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.Minecraft;
@@ -35,7 +35,7 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class WaterArenaVisuals {
     // Physics and rendering share immutable snapshots published by the client thread.
-    private record Snapshot(ClientLevel level, List<ExpandingVolume> arenas, long receivedAt) {
+    private record Snapshot(ClientLevel level, List<AnimatedVolume> arenas, long receivedAt) {
     }
 
     private static volatile Snapshot snapshot = new Snapshot(null, List.of(), 0);
@@ -108,18 +108,19 @@ public final class WaterArenaVisuals {
     /** Supplies the same captured floor geometry used by the server for local movement prediction. */
     public static List<VolumeBounds> activeVolumes(Level level) {
         Snapshot current = snapshot;
-        return current.level() == level ? current.arenas().stream()
+        return current.level() == level ? current.arenas().stream().filter(volume -> volume.hasWater(level.getGameTime()))
                 .map(volume -> volume.at(level.getGameTime())).toList() : List.of();
     }
 
-    /** Interpolates only the visual front; collision prediction remains aligned with server ticks. */
+    /** Interpolates visual expansion and drainage; collision prediction stays aligned with server ticks. */
     static List<VolumeBounds> renderVolumes(Level level, float partialTick) {
-        return expandingVolumes(level).stream()
+        return animatedVolumes(level).stream()
+                .filter(volume -> volume.hasWater(level.getGameTime() + partialTick))
                 .map(volume -> volume.at(level.getGameTime() + partialTick)).toList();
     }
 
-    /** Startup clocks are immutable and shared by fog, local physics and the bubble front. */
-    public static List<ExpandingVolume> expandingVolumes(Level level) {
+    /** Lifecycle clocks are immutable and shared by fog, local physics and boundary bubbles. */
+    public static List<AnimatedVolume> animatedVolumes(Level level) {
         Snapshot current = snapshot;
         return current.level() == level ? current.arenas() : List.of();
     }
