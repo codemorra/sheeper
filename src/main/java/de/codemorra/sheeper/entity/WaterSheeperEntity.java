@@ -21,6 +21,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -427,6 +428,35 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         double dx = x - (center.getX() + 0.5D);
         double dz = z - (center.getZ() + 0.5D);
         return dx * dx + dz * dz;
+    }
+
+    /** Shows the health bar around the captured arena, even when the boss is out of entity tracking range. */
+    @Override
+    protected void updateBossBarViewers(ServerBossEvent event) {
+        if (!(level instanceof ServerLevel server) || arenaVolume == null) {
+            return;
+        }
+        double distance = WaterSheeperConfig.WATER_BOSS_BAR_DISTANCE.get();
+        double distanceSquared = distance * distance;
+        for (ServerPlayer viewer : List.copyOf(event.getPlayers())) {
+            if (viewer.level != server || viewer.isRemoved() || !isWithinBossBarRange(viewer, distanceSquared)) {
+                event.removePlayer(viewer);
+            }
+        }
+        for (ServerPlayer player : server.players()) {
+            if (!event.getPlayers().contains(player) && isWithinBossBarRange(player, distanceSquared)) {
+                event.addPlayer(player);
+            }
+        }
+    }
+
+    /** Measures the shortest distance from the player's position to the arena cylinder, including its caps. */
+    private boolean isWithinBossBarRange(ServerPlayer player, double maxDistanceSquared) {
+        double radial = Math.max(0, Math.sqrt(horizontalDistanceSquared(player.getX(), player.getZ()))
+                - getArenaRadius());
+        double vertical = Math.max(0, Math.max(getArenaWaterMinimumY() - player.getY(),
+                player.getY() - getArenaWaterSurfaceY()));
+        return radial * radial + vertical * vertical <= maxDistanceSquared;
     }
 
     /** Checks horizontal membership independently of height or game mode. */

@@ -220,6 +220,9 @@ public class ElementalSheeperEntity extends Sheep {
             }
             bossEvent.setName(getDisplayName());
             bossEvent.setProgress(Mth.clamp(getHealth() / getMaxHealth(), 0.0F, 1.0F));
+            if (isAlive()) {
+                updateBossBarViewers(bossEvent);
+            }
             bossEvent.setVisible(isAlive());
         } else if (element != Element.WATER && isAlive() && !isInvisible() && (tickCount + getId()) % 6 == 0) {
             spawnElementParticle();
@@ -265,16 +268,24 @@ public class ElementalSheeperEntity extends Sheep {
                 0.0D, upwardSpeed, 0.0D);
     }
 
+    /** Lets an arena boss update its audience independently of entity tracking. */
+    protected void updateBossBarViewers(ServerBossEvent event) {
+    }
+
     @Override
     public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
-        bossEvent.addPlayer(player);
+        if (element != Element.WATER) {
+            bossEvent.addPlayer(player);
+        }
     }
 
     @Override
     public void stopSeenByPlayer(ServerPlayer player) {
         super.stopSeenByPlayer(player);
-        bossEvent.removePlayer(player);
+        if (element != Element.WATER) {
+            bossEvent.removePlayer(player);
+        }
     }
 
     /** Cleans up the bar for every removal path, including chunk unloading. */
