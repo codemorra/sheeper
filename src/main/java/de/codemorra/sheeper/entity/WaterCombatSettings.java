@@ -20,25 +20,6 @@ final class WaterCombatSettings {
     }
 
     /**
-     * Requires the entire scaled body to fit underwater at its initial placement.
-     * Only terrain is checked: nearby entities must not prevent summoning a boss.
-     * Established encounters skip this check when their chunks are loaded again.
-     */
-    boolean canSpawn(WaterArenaData.VolumeBounds bounds) {
-        var body = boss.getBoundingBox();
-        if (body.minY < bounds.minimumY() || body.maxY + 0.15D > bounds.maximumY() + 1.0D
-                || !hasArenaRoom(bounds)) {
-            warnOnce("Spawn rejected: the scaled body does not fit inside the captured arena water bounds.");
-            return false;
-        }
-        if (boss.level.getBlockCollisions(boss, body.deflate(1.0E-7D)).iterator().hasNext()) {
-            warnOnce("Spawn rejected: solid terrain intersects the scaled body. Choose a taller or wider space.");
-            return false;
-        }
-        return true;
-    }
-
-    /**
      * Keeps the stopping point inside melee entry and any enabled proximity
      * defense.
      */

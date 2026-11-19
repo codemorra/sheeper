@@ -567,22 +567,22 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         ServerLevel server = (ServerLevel) level;
         WaterArenaData data = WaterArenaData.get(server);
         WaterArenaData.VolumeBounds existing = data.getVolume(getUUID());
-        WaterArenaData.VolumeBounds proposed = existing == null ? WaterArenaData.VolumeBounds.capture(
-                server, getArenaCenter(), getCombatRadius(),
-                WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()) : existing;
-        // Validate before creating saved arena state.
-        // A loaded encounter may occupy terrain changed after its initial spawn.
-        if (!proposed.isValidFor(server)) {
-            SheeperMod.LOGGER.warn(
-                    "Water Sheeper {}: spawn rejected at {} because its arena bounds are outside the world.",
-                    getUUID(), getArenaCenter());
-            discard();
-            return false;
-        }
-        if (existing == null && !combatSettings.canSpawn(proposed)) {
-            discard();
-            return false;
+        if (existing == null) {
+            Vec3 placement = WaterSpawnPlacement.find(server, this, combatSettings);
+            if (placement == null) {
+                SheeperMod.LOGGER.warn(
+                        "Water Sheeper {}: spawn rejected at {}. No nearby position fits its scaled body and arena bounds.",
+                        getUUID(), blockPosition());
+                discard();
+                return false;
+            }
+            if (!placement.equals(position())) {
+                setPos(placement);
+            }
+            arenaCenter = blockPosition().immutable();
+        } else {
+            // A loaded encounter keeps its captured center even if its terrain changed.
+            arenaCenter = existing.center();
         }
         WaterArenaData.VolumeBounds bounds = data.prepareVolume(server, getUUID(), getArenaCenter(),
                 getCombatRadius(), WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
@@ -623,8 +623,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         previousBeamEyeIntensity = entityData.get(DATA_BEAM_EYES);
         previousMaelstromRotation = entityData.get(DATA_MAELSTROM_ROTATION);
         if (!level.isClientSide) {
-            // Capture placement before gravity or future AI can move the boss.
-            getArenaCenter();
             if (isAlive()) {
                 if (!initializeArenaVolume()) {
                     return;
