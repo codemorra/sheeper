@@ -33,6 +33,9 @@ public final class ModParticles {
     public static final RegistryObject<SimpleParticleType> WATER_ARENA_FLOOR = PARTICLES.register("water_arena_floor",
             () -> new SimpleParticleType(false));
 
+    public static final RegistryObject<SimpleParticleType> WATER_ARENA_SIDE = PARTICLES.register("water_arena_side",
+            () -> new SimpleParticleType(false));
+
     public static final RegistryObject<ParticleType<LightningRingOptions>> LIGHTNING_RING = PARTICLES.register(
             "lightning_ring", () -> new ParticleType<LightningRingOptions>(true, LightningRingOptions.DESERIALIZER) {
                 @Override
