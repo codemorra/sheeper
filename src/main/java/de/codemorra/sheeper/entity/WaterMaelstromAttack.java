@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.ArenaWater;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -15,7 +16,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.pathfinder.Path;
@@ -445,13 +445,13 @@ final class WaterMaelstromAttack {
     }
 
     /**
-     * Emits directed bubbles only in loaded arena water, keeping terrain untouched.
+     * Emits directed bubbles in loaded, unobstructed virtual water cells.
      */
     private void sendBubble(Vec3 point, Vec3 motion) {
         BlockPos cell = new BlockPos(point);
         if (boss.isArenaWaterCell(cell)
                 && WaterArenaData.isLoaded((ServerLevel) boss.level, cell)
-                && boss.level.getFluidState(cell).is(FluidTags.WATER)) {
+                && ArenaWater.isOpenCell(boss.level, cell)) {
             // Zero count preserves the velocity; positive counts randomize it.
             ((ServerLevel) boss.level).sendParticles(ParticleTypes.BUBBLE,
                     point.x, point.y, point.z, 0, motion.x, motion.y, motion.z, 1);

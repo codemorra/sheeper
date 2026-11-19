@@ -15,6 +15,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.ArenaWater;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -23,7 +24,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.AABB;
@@ -272,10 +272,10 @@ final class WaterFountainAttack {
         return true;
     }
 
+    /** Virtual columns require open terrain within the captured arena, not water blocks. */
     private boolean isOpenWater(BlockPos pos) {
         return boss.isArenaWaterCell(pos) && WaterArenaData.isLoaded((ServerLevel) boss.level, pos)
-                && boss.level.getFluidState(pos).is(FluidTags.WATER)
-                && boss.level.getBlockState(pos).getCollisionShape(boss.level, pos).isEmpty();
+                && ArenaWater.isOpenCell(boss.level, pos);
     }
 
     private AABB area(Fountain fountain) {
