@@ -38,6 +38,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Tracks initial boss sources and every flowing descendant, including finite
@@ -72,6 +73,19 @@ public final class WaterArenaData extends SavedData {
         /** Rejects inverted or out-of-world bounds before arena creation or synchronization. */
         public boolean isValidFor(Level level) {
             return isValid() && minimumY >= level.getMinBuildHeight() && maximumY < level.getMaxBuildHeight();
+        }
+
+        /** Signed distance to the nearest cylinder boundary; positive values are inside. */
+        public double interiorDistance(Vec3 point) {
+            double dx = point.x - center.getX() - 0.5D;
+            double dz = point.z - center.getZ() - 0.5D;
+            return Math.min(radius - Math.sqrt(dx * dx + dz * dz),
+                    Math.min(point.y - minimumY, maximumY + 1.0D - point.y));
+        }
+
+        /** Tests continuous world coordinates without rounding the circular boundary to cells. */
+        public boolean contains(Vec3 point) {
+            return interiorDistance(point) >= 0;
         }
 
         /**
