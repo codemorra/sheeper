@@ -32,12 +32,14 @@ public final class WaterEnvironmentGameTests {
     public static void add(List<Scenario> tests) {
         tests.add(new Scenario("water_spawn_respects_world_and_water_bounds", WaterEnvironmentGameTests::spawnBounds));
         tests.add(new Scenario("water_spawn_requires_clear_scaled_body", WaterEnvironmentGameTests::spawnSpace));
+        tests.add(new Scenario("water_spawn_uses_nearby_collision_surface", WaterEnvironmentGameTests::spawnSurface));
         tests.add(new Scenario("water_invalid_saved_volumes_are_not_synchronized", WaterEnvironmentGameTests::invalidVolumes));
         tests.add(new Scenario("water_native_breathing_and_floor_sliding", WaterEnvironmentGameTests::breathingAndFloor));
         tests.add(new Scenario("water_swim_bounds_and_config_relationships", WaterEnvironmentGameTests::swimming));
         tests.add(new Scenario("water_swimming_approaches_target", WaterEnvironmentGameTests::movement));
         tests.add(new Scenario("water_attacks_pierce_leaves_without_air", WaterEnvironmentGameTests::leaves));
         tests.add(new Scenario("water_projectile_difficulty_and_lifetime", WaterEnvironmentGameTests::projectile));
+        tests.add(new Scenario("water_projectile_stops_at_own_arena", WaterEnvironmentGameTests::projectileBoundary));
     }
 
     /** Small geometry isolates spawn clearance from unrelated combat behavior. */
@@ -125,6 +127,20 @@ public final class WaterEnvironmentGameTests {
         fits.readAdditionalSaveData(saved);
         fits.tick();
         c.expect(!fits.isRemoved(), "Reload must not reject an established boss after terrain changes");
+        c.pass();
+    }
+
+    private static void spawnSurface(GameTestContext c) {
+        configureSpawn(c);
+        c.setBlock(10, 0, 10, Blocks.DIRT_PATH);
+        c.setBlock(11, 0, 10, Blocks.STONE);
+        Vec3 surface = c.point(10, 1, 10);
+        var boss = spawnAt(c, surface.add(0, -1.0D / 16, 0));
+        var volume = WaterArenaData.get(c.level).getVolume(boss.getUUID());
+        c.expect(!boss.isRemoved() && volume != null, "A path depression must allow a safe adjusted spawn");
+        c.near(boss.getY(), surface.y, "The boss must rise only to the neighboring block's collision surface");
+        c.expect(volume.center().equals(new BlockPos(surface)),
+                "A usable vertical adjustment must take priority over a horizontal move and anchor the arena");
         c.pass();
     }
 
@@ -305,6 +321,28 @@ public final class WaterEnvironmentGameTests {
         c.expect(!flight.isRemoved(), "Projectile must remain alive through its configured flight duration");
         flight.tick();
         c.expect(flight.isRemoved(), "Projectile must expire at the configured lifetime");
+        c.pass();
+    }
+
+    private static void projectileBoundary(GameTestContext c) {
+        var boss = WaterTestScene.boss(c);
+        var neighbor = WaterTestScene.boss(c, 16);
+        var player = WaterTestScene.player(c, 20, 1, 10);
+        c.expect(neighbor.getCombatParticipants().contains(player),
+                "The target must be in the neighboring arena so union geometry would allow a hit");
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_DAMAGE, 4.0D);
+        c.rule(GameRules.RULE_MOBGRIEFING, true);
+        c.setBlock(19, 2, 10, Blocks.OAK_LEAVES);
+        var shot = c.spawn(ModEntities.WATER_PROJECTILE.get(), 17, 2, 10);
+        shot.setOwner(boss);
+        shot.setPos(c.point(17, 2, 10));
+        shot.setDeltaMovement(new Vec3(5, 0, 0));
+        shot.tick();
+        c.expect(shot.isRemoved(), "One fast flight step must stop even where another arena overlaps");
+        c.near(shot.getX(), c.point(18, 2, 10).x, "The flight must stop at the firing boss's water edge");
+        c.expect(c.level.getBlockState(c.pos(19, 2, 10)).is(Blocks.OAK_LEAVES),
+                "The shot must leave foliage beyond its boundary intact");
+        c.near(player.getHealth(), player.getMaxHealth(), "The shot must leave players in the other arena unharmed");
         c.pass();
     }
 }
