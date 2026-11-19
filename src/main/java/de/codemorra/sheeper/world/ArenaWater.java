@@ -4,14 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -39,7 +38,12 @@ public final class ArenaWater {
 
     /** Tests the exact cylindrical water volume on either logical side. */
     public static boolean contains(Level level, Vec3 point) {
-        return activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(point));
+        for (var bounds : activeVolumes(level)) {
+            if (bounds.contains(point)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -60,12 +64,11 @@ public final class ArenaWater {
     }
 
     /**
-     * Gives players and the arena owner vanilla water movement without placing
-     * fluid blocks. Other creatures and foreign fluids retain their own physics.
-     * Called after Forge has collected the real fluid heights for this tick.
+     * Reports virtual water through Forge's normal fluid state so living entities
+     * use their own water behavior. This runs after Forge detects physical fluids.
      */
     public static double waterHeight(Entity entity) {
-        if (!supportsSwimming(entity) || entity.getFluidTypeHeight(ForgeMod.LAVA_TYPE.get()) > 0) {
+        if (!supportsSwimming(entity)) {
             return 0;
         }
         double height = 0;
@@ -76,7 +79,14 @@ public final class ArenaWater {
                         - Math.max(body.minY, bounds.minimumY()));
             }
         }
-        return height > 0 ? Math.max(height, entity.getFluidTypeHeight(ForgeMod.WATER_TYPE.get())) : 0;
+        if (height <= 0) {
+            return 0;
+        }
+        FluidType water = ForgeMod.WATER_TYPE.get();
+        if (entity.isInFluidType((type, depth) -> type != water && !type.isAir() && depth > 0)) {
+            return 0;
+        }
+        return Math.max(height, entity.getFluidTypeHeight(water));
     }
 
     /** Supplies Forge's eye-fluid lookup while preserving lava and other real fluids. */
@@ -95,17 +105,16 @@ public final class ArenaWater {
     }
 
     private static boolean supportsSwimming(Entity entity) {
-        return entity.isAlive() && (entity instanceof Player player && !player.isSpectator()
-                || entity instanceof WaterSheeperEntity);
+        return entity instanceof LivingEntity && entity.isAlive()
+                && (!(entity instanceof Player player) || !player.isCreative() && !player.isSpectator());
     }
 
     /**
-     * Called by the Forge drowning hook before air consumption. Only players in
-     * ordinary water inside a live captured arena gain the same protection as boss
-     * water.
+     * Grants arena breathing to participating player game modes. Other living
+     * entities use their usual breathing rules for water.
      */
     public static boolean allowsBreathing(LivingEntity entity, FluidType type) {
-        if (!(entity instanceof Player) || type != ForgeMod.WATER_TYPE.get()) {
+        if (!(entity instanceof Player) || !supportsSwimming(entity) || type != ForgeMod.WATER_TYPE.get()) {
             return false;
         }
         return contains(entity.level, entity.getEyePosition());

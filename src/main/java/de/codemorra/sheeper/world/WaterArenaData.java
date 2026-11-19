@@ -168,13 +168,15 @@ public final class WaterArenaData extends SavedData {
      * Captured arenas remain active while unloaded and recede independently after owner removal.
      */
     public static List<VolumeBounds> activeVolumes(ServerLevel level) {
-        return animatedVolumes(level).stream().map(volume -> volume.at(level.getGameTime())).toList();
+        var animated = animatedVolumes(level);
+        return animated.isEmpty() ? List.of()
+                : animated.stream().map(volume -> volume.at(level.getGameTime())).toList();
     }
 
     /** Synchronizes both lifecycle clocks and bounds so clients can animate between packets. */
     public static List<AnimatedVolume> animatedVolumes(ServerLevel level) {
         WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
-        return data == null ? List.of()
+        return data == null || data.arenas.isEmpty() ? List.of()
                 : data.arenas.values().stream()
                         .filter(arena -> arena.volume != null && arena.volume.isValidFor(level))
                         .map(data::animation).filter(volume -> volume.hasWater(level.getGameTime())).toList();
