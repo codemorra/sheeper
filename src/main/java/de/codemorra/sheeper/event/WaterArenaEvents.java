@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.event;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
 import de.codemorra.sheeper.world.WaterArenaPushProtection;
@@ -54,7 +55,9 @@ public final class WaterArenaEvents {
         var volumes = WaterArenaData.animatedVolumes(level);
         for (var player : level.players()) {
             ModNetwork.sendWaterArenas(player, new WaterArenaPacket(level.dimension().location(), volumes,
-                    WaterArenaPushProtection.protectedUntil(player)));
+                    WaterArenaPushProtection.protectedUntil(player),
+                    WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_WIDTH.get(),
+                    WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_STRENGTH.get()));
         }
     }
 

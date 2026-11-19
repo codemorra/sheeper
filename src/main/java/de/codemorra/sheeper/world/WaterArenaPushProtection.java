@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.world;
 
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.network.WaterArenaPacket;
@@ -48,7 +49,13 @@ public final class WaterArenaPushProtection {
 
     /** Stores an initial safe position and synchronizes geometry before the following motion packet. */
     private static void protect(ServerPlayer player) {
-        if (!eligible(player) || !WaterArenaBoundary.containsBody(ArenaWater.activeVolumes(player.level),
+        if (!eligible(player)) {
+            return;
+        }
+        // Qualified opponents can remain in combat in the outer transition,
+        // beyond the actual water. Boss damage must not make that exit a fatal fall.
+        WaterArenaFallProtection.protect(player);
+        if (!WaterArenaBoundary.containsBody(ArenaWater.activeVolumes(player.level),
                 player.position(), player.getBbHeight())) {
             return;
         }
@@ -208,6 +215,8 @@ public final class WaterArenaPushProtection {
 
     private static void synchronize(ServerPlayer player) {
         ModNetwork.sendWaterArenas(player, new WaterArenaPacket(player.level.dimension().location(),
-                WaterArenaData.animatedVolumes((ServerLevel) player.level), protectedUntil(player)));
+                WaterArenaData.animatedVolumes((ServerLevel) player.level), protectedUntil(player),
+                WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_WIDTH.get(),
+                WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_STRENGTH.get()));
     }
 }

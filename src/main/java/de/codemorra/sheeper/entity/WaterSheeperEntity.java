@@ -206,6 +206,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return WaterSheeperConfig.WATER_COMBAT_RADIUS.get();
     }
 
+    /** Captured water radius; live config changes must not move an established encounter's borders. */
+    double getArenaRadius() {
+        return arenaVolume == null ? getCombatRadius() : arenaVolume.radius();
+    }
+
     /**
      * @return a stopping distance compatible with melee entry and enabled proximity
      *         pushes
@@ -434,7 +439,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      * participation.
      */
     boolean isInsideArenaColumn(double x, double z) {
-        return horizontalDistanceSquared(x, z) <= getCombatRadius() * getCombatRadius();
+        return horizontalDistanceSquared(x, z) <= getArenaRadius() * getArenaRadius();
     }
 
     /**
@@ -447,22 +452,20 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Grants damage permission independently of combat participation. Creative
-     * players may attack inside the arena without becoming targets or stopping
-     * regeneration; spectators and outside players remain excluded.
+     * Uses the same transition-edge qualification as targeting. Creative players
+     * retain damage permission without becoming targets or stopping regeneration;
+     * spectators and unqualified players remain excluded.
      *
      * @param player responsible player of a direct or indirect attack
      * @return whether the player is alive and inside this arena's combat bounds
      */
     boolean canPlayerDamage(ServerPlayer player) {
-        return isAlive() && player.isAlive() && !player.isRemoved() && !player.isSpectator()
-                && (player.isCreative() ? isInsideArenaColumn(player)
-                        && player.getEyeY() < getArenaWaterSurfaceY() : arenaPlayers.contains(player));
+        return arenaPlayers.canDamage(player);
     }
 
     /**
-     * Current server-side participants after submerged entry, independent of
-     * subsequent height changes or sight.
+     * Current server-side participants after submerged entry behind the inner
+     * transition edge, retained until they leave the outer edge.
      */
     public List<ServerPlayer> getCombatParticipants() {
         if (!(level instanceof ServerLevel server) || !isAlive()) {
@@ -797,9 +800,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 && !tag.getString("WaterArenaDimension").equals(level.dimension().location().toString())) {
             arenaCenter = null;
         }
-        // Derived surface data is rediscovered from the saved origin after loading.
+        // Restore captured bounds immediately; terrain discovery is rebuilt separately.
         arenaSearch = null;
-        arenaVolume = null;
+        arenaVolume = level instanceof ServerLevel server ? WaterArenaData.get(server).getVolume(getUUID()) : null;
         volumeInitialized = false;
     }
 }

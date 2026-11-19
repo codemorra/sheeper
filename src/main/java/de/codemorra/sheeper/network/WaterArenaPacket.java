@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.WaterArenaVisuals;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
 import net.minecraft.core.BlockPos;
@@ -18,7 +19,8 @@ import net.minecraftforge.network.NetworkEvent;
  * Full dimension snapshot, independent of whether clients currently track the
  * boss.
  */
-public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> arenas, long pushProtectedUntil) {
+public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> arenas, long pushProtectedUntil,
+        double boundarySlowdownWidth, double boundarySlowdownStrength) {
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeVarInt(arenas.size());
@@ -34,6 +36,8 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
             buffer.writeVarInt(volume.drainDurationTicks());
         }
         buffer.writeLong(pushProtectedUntil);
+        buffer.writeDouble(boundarySlowdownWidth);
+        buffer.writeDouble(boundarySlowdownStrength);
     }
 
     /** Rejects invalid geometry and clocks before client physics or rendering uses them. */
@@ -64,7 +68,14 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
         if (protectedUntil < 0) {
             throw new IllegalArgumentException("Invalid water push protection clock");
         }
-        return new WaterArenaPacket(dimension, List.copyOf(arenas), protectedUntil);
+        double width = buffer.readDouble();
+        double strength = buffer.readDouble();
+        if (!Double.isFinite(width) || width < 0 || width > WaterSheeperConfig.MAX_BOUNDARY_SLOWDOWN_WIDTH
+                || !Double.isFinite(strength) || strength < 0
+                || strength > WaterSheeperConfig.MAX_BOUNDARY_SLOWDOWN_STRENGTH) {
+            throw new IllegalArgumentException("Invalid water boundary slowdown settings");
+        }
+        return new WaterArenaPacket(dimension, List.copyOf(arenas), protectedUntil, width, strength);
     }
 
     /**

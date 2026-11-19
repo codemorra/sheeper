@@ -38,6 +38,20 @@ public final class WaterSheeperConfig {
                     "Affected players descend gently and remain protected from fall damage until landing.")
             .defineInRange("elemental.water.arena.drainDurationSeconds", 8.0, 1.0, 30.0);
 
+    /** Soft lateral arena boundary (elemental.water.boundary). */
+    public static final double MAX_BOUNDARY_SLOWDOWN_WIDTH = 4.0D;
+    public static final double MAX_BOUNDARY_SLOWDOWN_STRENGTH = 0.75D;
+
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_WIDTH = BUILDER
+            .comment("Width in blocks on each side of the outer arena boundary where crossing is slowed; 0 disables it.",
+                    "Combat entry and exit use its inner and outer edges. Width is capped at half the arena radius.")
+            .defineInRange("elemental.water.boundary.slowdownWidth", 1.5, 0.0, MAX_BOUNDARY_SLOWDOWN_WIDTH);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_STRENGTH = BUILDER
+            .comment("Maximum fraction of boundary-crossing speed removed at the edge; 0 disables the slowdown.",
+                    "The effect fades smoothly with distance. Movement along the edge remains unaffected.")
+            .defineInRange("elemental.water.boundary.slowdownStrength", 0.35, 0.0, MAX_BOUNDARY_SLOWDOWN_STRENGTH);
+
     /** Empty-arena grace and recovery (elemental.water.arenaRecovery). */
     public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = BUILDER
             .comment("Seconds without arena participants before regeneration begins.",

@@ -75,6 +75,132 @@ public final class WaterArenaBoundary {
         return result;
     }
 
+    /** Nearest exposed side of the water union; positive distance denotes an interior point. */
+    public record LateralBoundary(Vec3 normal, double distance, double width) {
+    }
+
+    /** Retains an accessible inner region even when a configured transition is wider than a small arena. */
+    public static double slowdownWidth(double configured, double radius) {
+        return Math.min(configured, radius * 0.5D);
+    }
+
+    /**
+     * Finds nearby exposed arcs in a horizontal cross-section. A circle's closest
+     * point and its intersections with other circles contain every possible nearest
+     * point of an exposed arc. Covered candidates are discarded before choosing a
+     * normal, so internal arena faces cannot slow swimmers.
+     *
+     * @param point body center whose height selects the relevant water cross-section
+     * @param reach maximum distance to either side of an exterior boundary
+     * @return nearest exterior side, or null when no exposed side is within reach
+     */
+    @Nullable
+    public static LateralBoundary lateralBoundary(List<VolumeBounds> volumes, Vec3 point, double reach) {
+        List<VolumeBounds> covering = new ArrayList<>();
+        List<VolumeBounds> candidates = new ArrayList<>();
+        boolean inside = false;
+        for (VolumeBounds volume : volumes) {
+            if (point.y < volume.minimumY() || point.y > volume.maximumY() + 1) {
+                continue;
+            }
+            double distance = horizontalOffset(volume, point).length();
+            if (distance <= volume.radius() + reach) {
+                covering.add(volume);
+                inside |= distance <= volume.radius();
+                if (Math.abs(distance - volume.radius()) <= reach) {
+                    candidates.add(volume);
+                }
+            }
+        }
+        ClosestSide closest = new ClosestSide(point, reach, covering);
+        for (int first = 0; first < candidates.size(); first++) {
+            VolumeBounds circle = candidates.get(first);
+            Vec3 radial = horizontalOffset(circle, point);
+            Vec3 normal = radial.lengthSqr() > EPSILON * EPSILON ? radial.normalize() : new Vec3(1, 0, 0);
+            Vec3 center = new Vec3(circle.center().getX() + 0.5D, point.y, circle.center().getZ() + 0.5D);
+            closest.consider(center.add(normal.scale(circle.radius())), normal, circle.radius());
+            for (int second = first + 1; second < candidates.size(); second++) {
+                VolumeBounds other = candidates.get(second);
+                Vec3 between = new Vec3(other.center().getX() - circle.center().getX(), 0,
+                        other.center().getZ() - circle.center().getZ());
+                double separation = between.length();
+                if (separation < EPSILON || separation > circle.radius() + other.radius()
+                        || separation < Math.abs(circle.radius() - other.radius())) {
+                    continue;
+                }
+                double along = (circle.radius() * circle.radius() - other.radius() * other.radius()
+                        + separation * separation) / (2 * separation);
+                double height = Math.sqrt(Math.max(0, circle.radius() * circle.radius() - along * along));
+                Vec3 axis = between.scale(1 / separation);
+                Vec3 midpoint = center.add(axis.scale(along));
+                Vec3 offset = new Vec3(-axis.z, 0, axis.x).scale(height);
+                for (Vec3 intersection : new Vec3[] { midpoint.add(offset), midpoint.subtract(offset) }) {
+                    Vec3 combined = horizontalOffset(circle, intersection).normalize()
+                            .add(horizontalOffset(other, intersection).normalize());
+                    closest.consider(intersection, combined.lengthSqr() > EPSILON * EPSILON
+                            ? combined.normalize() : horizontalOffset(circle, intersection).normalize(),
+                            Math.min(circle.radius(), other.radius()));
+                }
+            }
+        }
+        return closest.result(inside);
+    }
+
+    private static Vec3 horizontalOffset(VolumeBounds volume, Vec3 point) {
+        return new Vec3(point.x - volume.center().getX() - 0.5D, 0, point.z - volume.center().getZ() - 0.5D);
+    }
+
+    /** Accumulates exposed candidates without retaining geometry between changing arena snapshots. */
+    private static final class ClosestSide {
+        private final Vec3 point;
+        private final List<VolumeBounds> volumes;
+        private double distanceSquared;
+        private final double maximumWidth;
+        private double boundaryWidth;
+        @Nullable
+        private Vec3 boundary;
+        private Vec3 fallbackNormal = Vec3.ZERO;
+
+        private ClosestSide(Vec3 point, double reach, List<VolumeBounds> volumes) {
+            this.point = point;
+            this.volumes = volumes;
+            distanceSquared = reach * reach;
+            maximumWidth = reach;
+        }
+
+        private void consider(Vec3 candidate, Vec3 normal, double radiusLimit) {
+            double distance = candidate.distanceToSqr(point);
+            double width = slowdownWidth(maximumWidth, radiusLimit);
+            if (distance > distanceSquared || distance > width * width) {
+                return;
+            }
+            for (VolumeBounds volume : volumes) {
+                // Use a world-space tolerance so distant world coordinates do not
+                // classify a rounded point on its own circle as covered interior.
+                double radius = Math.max(0, volume.radius() - EPSILON);
+                if (horizontalOffset(volume, candidate).lengthSqr() < radius * radius) {
+                    return;
+                }
+            }
+            distanceSquared = distance;
+            boundary = candidate;
+            fallbackNormal = normal;
+            boundaryWidth = width;
+        }
+
+        @Nullable
+        private LateralBoundary result(boolean inside) {
+            if (boundary == null) {
+                return null;
+            }
+            double distance = Math.sqrt(distanceSquared);
+            Vec3 normal = distance > EPSILON
+                    ? (inside ? boundary.subtract(point) : point.subtract(boundary)).scale(1 / distance)
+                    : fallbackNormal;
+            return new LateralBoundary(normal, inside ? distance : -distance, boundaryWidth);
+        }
+    }
+
     /** Finds the connected interval containing the ray origin, rather than just testing its destination. */
     private static Interval trace(List<VolumeBounds> volumes, Vec3 origin, Vec3 motion) {
         List<Interval> intervals = new ArrayList<>();
