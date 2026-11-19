@@ -1,6 +1,5 @@
 package de.codemorra.sheeper.event;
 
-import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
@@ -13,7 +12,7 @@ import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-/** Cleanup continues even when the responsible boss is no longer loaded. */
+/** Advances arena startup and synchronization even while the boss is unloaded. */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class WaterArenaEvents {
     private WaterArenaEvents() {
@@ -29,7 +28,7 @@ public final class WaterArenaEvents {
                     boss.enforceArenaPlayerBounds();
                 }
             }
-            WaterArenaData.tick(level, WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
+            WaterArenaData.tick(level);
             if (level.getGameTime() % 10 == 0) {
                 WaterArenaPacket snapshot = new WaterArenaPacket(level.dimension().location(),
                         WaterArenaData.expandingVolumes(level));

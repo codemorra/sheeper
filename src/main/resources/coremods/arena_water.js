@@ -1,4 +1,4 @@
-// Keep arena breathing and floor collision positional; unify water in the client renderer.
+// Provide virtual arena swimming, breathing, particles and camera effects without changing fluid blocks.
 // Physics comparisons in Fluid/WaterFluid are deliberately left untouched.
 function initializeCoreMod() {
   var O = Java.type("org.objectweb.asm.Opcodes");
@@ -11,9 +11,7 @@ function initializeCoreMod() {
   var Label = Java.type("org.objectweb.asm.tree.LabelNode");
   var Type = Java.type("org.objectweb.asm.tree.TypeInsnNode");
   var client = "de/codemorra/sheeper/client/WaterArenaVisuals";
-  var fluid = "Lnet/minecraft/world/level/material/Fluid;";
   var state = "Lnet/minecraft/world/level/material/FluidState;";
-  var getter = "Lnet/minecraft/world/level/BlockAndTintGetter;";
   var pos = "Lnet/minecraft/core/BlockPos;";
 
   function invoke(owner, name, desc) {
@@ -212,58 +210,6 @@ function initializeCoreMod() {
           }
         }
         check(count, 1, "Camera.getFluidInCamera");
-        return node;
-      }
-    },
-    arena_water_rendering: {
-      target: { type: "CLASS", name: "net.minecraft.client.renderer.block.LiquidBlockRenderer" },
-      transformer: function (node) {
-        var comparisons = 0;
-        var tints = 0;
-        var hiddenCells = 0;
-        for (var i = 0; i < node.methods.size(); i++) {
-          var m = node.methods.get(i);
-          if (String(m.desc) === "(" + getter + pos +
-              "Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/world/level/block/state/BlockState;" + state + ")V") {
-            var skip = new List();
-            var physical = new Label();
-            skip.add(new Var(O.ALOAD, 2));
-            skip.add(new Var(O.ALOAD, 5));
-            skip.add(invoke(client, "hideWaterCell", "(" + pos + state + ")Z"));
-            skip.add(new Jump(O.IFEQ, physical));
-            skip.add(new Insn(O.RETURN));
-            skip.add(physical);
-            m.instructions.insert(skip);
-            hiddenCells++;
-          }
-          var instructions = m.instructions.toArray();
-          for (var j = 0; j < instructions.length; j++) {
-            var insn = instructions[j];
-            if (insn.getOpcode() === O.INVOKEVIRTUAL &&
-                String(insn.owner) === "net/minecraft/world/level/material/Fluid" &&
-                String(insn.desc) === "(" + fluid + ")Z") {
-              m.instructions.set(insn, invoke(client, "sameFluid", "(" + fluid + fluid + ")Z"));
-              comparisons++;
-            }
-            if (String(m.desc) === "(" + getter + pos +
-                "Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/world/level/block/state/BlockState;" + state + ")V" &&
-                insn.getOpcode() === O.INVOKEINTERFACE &&
-                String(insn.owner) === "net/minecraftforge/client/extensions/common/IClientFluidTypeExtensions" &&
-                String(insn.name) === "getTintColor" &&
-                String(insn.desc) === "(" + state + getter + pos + ")I") {
-              var tint = new List();
-              tint.add(new Var(O.ALOAD, 1));
-              tint.add(new Var(O.ALOAD, 2));
-              tint.add(new Var(O.ALOAD, 5));
-              tint.add(invoke(client, "tintColor", "(I" + getter + pos + state + ")I"));
-              m.instructions.insert(insn, tint);
-              tints++;
-            }
-          }
-        }
-        check(comparisons, 3, "LiquidBlockRenderer fluid comparisons");
-        check(tints, 1, "LiquidBlockRenderer water tint");
-        check(hiddenCells, 1, "LiquidBlockRenderer virtual water interfaces");
         return node;
       }
     }

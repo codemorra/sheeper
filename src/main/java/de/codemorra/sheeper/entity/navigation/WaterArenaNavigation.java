@@ -1,6 +1,5 @@
 package de.codemorra.sheeper.entity.navigation;
 
-import de.codemorra.sheeper.registry.ModFluids;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
@@ -43,10 +42,10 @@ public final class WaterArenaNavigation extends WaterBoundPathNavigation {
         return new PathFinder(nodeEvaluator, budget);
     }
 
-    /** {@inheritDoc} Includes the custom arena fluid alongside ordinary water. */
+    /** {@inheritDoc} Includes virtual arena water alongside ordinary water. */
     @Override
     protected boolean isInLiquid() {
-        return mob.isInWaterOrBubble() || mob.isInFluidType(ModFluids.BOSS_WATER_TYPE.get());
+        return mob instanceof WaterSheeperEntity boss && boss.isInArenaWater();
     }
 
     /**

@@ -33,7 +33,6 @@ public final class WaterEnvironmentGameTests {
         tests.add(new Scenario("water_spawn_respects_world_and_water_bounds", WaterEnvironmentGameTests::spawnBounds));
         tests.add(new Scenario("water_spawn_requires_clear_scaled_body", WaterEnvironmentGameTests::spawnSpace));
         tests.add(new Scenario("water_invalid_saved_volumes_are_not_synchronized", WaterEnvironmentGameTests::invalidVolumes));
-        tests.add(new Scenario("water_volume_generation_and_owned_cleanup", WaterEnvironmentGameTests::generation));
         tests.add(new Scenario("water_native_breathing_and_floor_sliding", WaterEnvironmentGameTests::breathingAndFloor));
         tests.add(new Scenario("water_swim_bounds_and_config_relationships", WaterEnvironmentGameTests::swimming));
         tests.add(new Scenario("water_swimming_approaches_target", WaterEnvironmentGameTests::movement));
@@ -50,7 +49,6 @@ public final class WaterEnvironmentGameTests {
         c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 4);
         c.set(WaterSheeperConfig.WATER_SPAWN_PUSH_SPEED, 0.0D);
         c.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, 20);
-        c.set(WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, 20);
     }
 
     private static WaterSheeperEntity spawnAt(GameTestContext c, Vec3 point) {
@@ -156,37 +154,6 @@ public final class WaterEnvironmentGameTests {
         c.pass();
     }
 
-    private static void generation(GameTestContext c) {
-        var boss = WaterTestScene.boss(c);
-        boss.discard();
-        c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 3.0D);
-        c.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, 20480);
-        c.set(WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND, 20480);
-        c.setBlock(11, 2, 10, Blocks.WATER);
-        c.setBlock(9, 2, 10, Blocks.STONE);
-        var real = c.spawn(ModEntities.WATER_SHEEPER.get(), 10, 1, 10);
-        real.setNoAi(true);
-        c.expect(!real.isCombatReady(), "New arena must not permit combat before water generation");
-        for (int tick = 0; tick < 30 && !real.isCombatReady(); tick++) {
-            real.tick();
-        }
-        WaterArenaData data = WaterArenaData.get(c.level);
-        c.expect(real.isCombatReady(), "A small loaded volume must finish generation within its budget");
-        BlockPos upper = c.pos(10, 5, 10);
-        c.expect(data.isOwnedBy(real.getUUID(), upper) && c.level.getFluidState(upper).isSource(),
-                "Generation must fill upper volume cells with tracked source water");
-        c.expect(!data.isOwnedBy(real.getUUID(), c.pos(11, 2, 10)), "Natural water must not be claimed");
-        c.expect(c.level.getBlockState(c.pos(9, 2, 10)).is(Blocks.STONE), "Generation must preserve solid terrain");
-        WaterArenaData restored = WaterArenaData.load(data.save(new CompoundTag()));
-        restored.release(real.getUUID());
-        restored.advanceCleanup(c.level, 10000);
-        c.expect(c.level.getFluidState(upper).isEmpty(), "Restored cleanup must remove owned upper water");
-        c.expect(c.level.getFluidState(c.pos(11, 2, 10)).getType().isSame(Fluids.WATER),
-                "Cleanup must preserve original natural water");
-        c.expect(c.level.getBlockState(c.pos(9, 2, 10)).is(Blocks.STONE), "Cleanup must preserve terrain");
-        c.pass();
-    }
-
     private static void breathingAndFloor(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
         var player = WaterTestScene.player(c, 13, 1, 10);
@@ -270,8 +237,7 @@ public final class WaterEnvironmentGameTests {
         BlockPos first = new BlockPos(boss.getEyePosition()).east(2);
         BlockPos second = first.east();
         c.level.setBlock(first, leaf, 3);
-        // Model leaves that already contained natural water before arena flooding.
-        WaterArenaData.get(c.level).forget(second);
+        // Model leaves that already contained natural water.
         c.level.setBlock(second, leaf.setValue(BlockStateProperties.WATERLOGGED, true), 3);
         c.expect(WaterAttackBlocks.hasLineOfSight(boss, target), "Arena foliage must not prevent aiming");
         c.rule(GameRules.RULE_MOBGRIEFING, false);
@@ -284,18 +250,16 @@ public final class WaterEnvironmentGameTests {
         c.level.addFreshEntity(shot);
         shot.tick();
         c.expect(!shot.isRemoved() && shot.getX() > second.getX(), "A projectile must continue through consecutive leaves");
-        WaterArenaData data = WaterArenaData.get(c.level);
-        c.expect(data.isOwnedBy(boss.getUUID(), first) && c.level.getFluidState(first).isSource(),
-                "Cleared dry leaves must immediately become tracked source water, without an air gap");
-        c.expect(!data.isOwnedBy(boss.getUUID(), second)
-                && c.level.getFluidState(second).getType().isSame(Fluids.WATER),
-                "Waterlogged leaves must retain natural water ownership");
+        c.expect(c.level.getBlockState(first).isAir(),
+                "Cleared dry leaves must leave air without placing water blocks");
+        c.expect(c.level.getFluidState(second).getType().isSame(Fluids.WATER),
+                "Waterlogged leaves must retain natural water");
         c.level.setBlock(first, leaf, 3);
         BlockPos wall = second.east();
         c.level.setBlock(wall, Blocks.STONE.defaultBlockState(), 3);
         var hit = WaterAttackBlocks.clipBeam(boss, boss.getEyePosition(), boss.getEyePosition().add(7, 0, 0));
         c.expect(hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(wall)
-                && c.level.getFluidState(first).isSource(), "A beam must clear leaves and stop at the next solid wall");
+                && c.level.getBlockState(first).isAir(), "A beam must clear leaves and stop at the next solid wall");
         c.pass();
     }
 
