@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
@@ -36,11 +37,15 @@ import net.minecraft.world.phys.Vec3;
  */
 final class WaterFountainAttack {
     private static final int SAVE_VERSION = 2;
+    // Counts warning and erupted cells together; active columns always finish
+    // normally.
+    private static final int MAX_ACTIVE_COLUMN_CELLS = 512;
     private final WaterSheeperEntity boss;
     private final WaterFountainTransport transports;
     private final Map<UUID, Integer> playerDelays = new HashMap<>();
     private final List<Fountain> fountains = new ArrayList<>();
     private int arenaDelay;
+    private boolean budgetWarningLogged;
 
     private static final class Fountain {
         private final BlockPos pos;
@@ -161,6 +166,12 @@ final class WaterFountainAttack {
             int delay = playerDelays.computeIfAbsent(player.getUUID(), ignored -> initialDelay()) - 1;
             if (delay <= 0) {
                 BlockPos floor = findFloor(player.blockPosition());
+                if (floor != null && !hasColumnCapacity(1)) {
+                    // Retry the expired announcement without losing its place in
+                    // the player's cycle or cancelling an already running column.
+                    playerDelays.put(player.getUUID(), 0);
+                    continue;
+                }
                 if (floor != null) {
                     announce(floor, player.getUUID());
                 }
@@ -171,6 +182,10 @@ final class WaterFountainAttack {
         if (--arenaDelay <= 0) {
             List<BlockPos> selected = new ArrayList<>();
             int limit = WaterSheeperConfig.WATER_FOUNTAIN_ARENA_COUNT.get();
+            if (!hasColumnCapacity(limit)) {
+                arenaDelay = 0;
+                return;
+            }
             int count = 0;
             for (BlockPos pos : boss.getArenaSurfacePositions()) {
                 if (!suitable(pos, WaterSheeperConfig.WATER_FOUNTAIN_SIZE.get()) || occupied(pos)) {
@@ -209,6 +224,23 @@ final class WaterFountainAttack {
 
     private boolean occupied(BlockPos pos) {
         return fountains.stream().anyMatch(fountain -> fountain.pos.equals(pos));
+    }
+
+    /**
+     * Defers whole announcements when their cell emitters would exceed the shared
+     * budget.
+     */
+    private boolean hasColumnCapacity(int count) {
+        int size = WaterSheeperConfig.WATER_FOUNTAIN_SIZE.get();
+        int used = fountains.stream().mapToInt(fountain -> fountain.size * fountain.size).sum();
+        boolean available = used + count * size * size <= MAX_ACTIVE_COLUMN_CELLS;
+        if (!available && !budgetWarningLogged) {
+            budgetWarningLogged = true;
+            SheeperMod.LOGGER.warn("Water Sheeper {}: fountain announcements deferred at the internal limit of {} "
+                    + "active column cells (used={}, size={}, requested={}). Running fountains are preserved.",
+                    boss.getUUID(), MAX_ACTIVE_COLUMN_CELLS, used, size, count);
+        }
+        return available;
     }
 
     private void announce(BlockPos pos, @Nullable UUID playerId) {

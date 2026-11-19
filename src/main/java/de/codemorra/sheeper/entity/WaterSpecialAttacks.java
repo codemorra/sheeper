@@ -15,6 +15,7 @@ import net.minecraft.world.phys.Vec3;
  * default combat; stationary specials own quiet and default-only recovery.
  */
 final class WaterSpecialAttacks {
+    private static final int BEAM_EYE_FADE_TICKS = 10;
     private final WaterSheeperEntity boss;
     private final WaterBeamAttack beam;
     private final WaterFountainAttack fountains;
@@ -50,7 +51,7 @@ final class WaterSpecialAttacks {
     void tickTimers(List<ServerPlayer> participants, WaterDefaultAttack defaultAttack) {
         if (!beamActive) {
             boss.setBeamEyeIntensity(Mth.approach(boss.getBeamEyeIntensity(1), 0,
-                    1.0F / SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_EYE_FADE.get())));
+                    1.0F / BEAM_EYE_FADE_TICKS));
         }
         if (participants.isEmpty()) {
             if (maelstrom.isActive()) {

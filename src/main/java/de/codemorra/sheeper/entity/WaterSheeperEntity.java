@@ -55,6 +55,9 @@ import net.minecraftforge.fluids.FluidType;
  * A separate special scheduler owns beam timing and stationary movement locks.
  */
 public class WaterSheeperEntity extends ElementalSheeperEntity {
+    // Counteracts vanilla sheep water slowdown; user tuning uses navigation speed.
+    private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
+    private static final int SURFACE_DISCOVERY_STEP_HEIGHT = 1;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -78,6 +81,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Nullable
     private WaterArenaData.VolumeBounds arenaVolume;
     private boolean volumeInitialized;
+    private boolean arenaConfigurationValid = true;
     @Nullable
     private Queue<BlockPos> waterPlacement;
     private int placementWave = -1;
@@ -85,6 +89,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final Set<UUID> waterWaveContacts = new HashSet<>();
     private final Map<UUID, Integer> waterWaveDelays = new HashMap<>();
 
+    private final WaterCombatSettings combatSettings = new WaterCombatSettings(this);
     private final WaterDefaultAttack defaultAttack = new WaterDefaultAttack(this);
     private final WaterProximityPush proximityPush = new WaterProximityPush(this);
     private final WaterArenaCombat arenaCombat = new WaterArenaCombat(this);
@@ -102,7 +107,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // This boss lives in water; ordinary sheep water avoidance must not apply.
         setPathfindingMalus(BlockPathTypes.WATER, 0.0F);
         setPathfindingMalus(BlockPathTypes.WATER_BORDER, 0.0F);
-        getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(WaterSheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
+        getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(SWIM_SPEED_MULTIPLIER);
     }
 
     /**
@@ -213,6 +218,22 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      */
     public double getCombatRadius() {
         return WaterSheeperConfig.WATER_COMBAT_RADIUS.get();
+    }
+
+    /**
+     * @return a stopping distance compatible with melee entry and enabled proximity
+     *         pushes
+     */
+    public double getMeleeStopDistance() {
+        return combatSettings.meleeStopDistance();
+    }
+
+    /**
+     * @return the safe outer width while retaining at least half the radius as
+     *         dangerous
+     */
+    double getMaelstromSafeOuterWidth() {
+        return combatSettings.safeOuterWidth();
     }
 
     /**
@@ -508,8 +529,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public boolean isCombatReady() {
-        return entityData.get(DATA_COMBAT_READY)
-                || level instanceof ServerLevel server && WaterArenaData.get(server).isGenerated(getUUID());
+        return arenaConfigurationValid && (entityData.get(DATA_COMBAT_READY)
+                || level instanceof ServerLevel server && WaterArenaData.get(server).isGenerated(getUUID()));
     }
 
     /**
@@ -644,26 +665,35 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                     volumeInitialized = true;
                     entityData.set(DATA_COMBAT_READY, false);
                 }
-                if (arenaSearch == null) {
-                    arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
-                            WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                            WaterSheeperConfig.WATER_ARENA_STEP_HEIGHT.get());
+                boolean valid = combatSettings.hasArenaRoom(arenaVolume);
+                if (arenaConfigurationValid && !valid) {
+                    specialAttacks.reset();
+                    defaultAttack.reset();
+                    proximityPush.reset();
                 }
-                int searchBudget = WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20;
-                int surfaceBudget = arenaSearch.isComplete() ? 0
-                        : volumeSearch == null ? searchBudget : Math.max(1, searchBudget / 4);
-                arenaSearch.advance(surfaceBudget);
-                if (volumeSearch != null) {
-                    volumeSearch.advance(searchBudget - surfaceBudget);
-                    placeArenaWater((ServerLevel) level);
+                arenaConfigurationValid = valid;
+                if (arenaConfigurationValid) {
+                    if (arenaSearch == null) {
+                        arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
+                                WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
+                                SURFACE_DISCOVERY_STEP_HEIGHT);
+                    }
+                    int searchBudget = WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20;
+                    int surfaceBudget = arenaSearch.isComplete() ? 0
+                            : volumeSearch == null ? searchBudget : Math.max(1, searchBudget / 4);
+                    arenaSearch.advance(surfaceBudget);
+                    if (volumeSearch != null) {
+                        volumeSearch.advance(searchBudget - surfaceBudget);
+                        placeArenaWater((ServerLevel) level);
+                    }
+                    tickWaterWave(preparing);
                 }
-                tickWaterWave(preparing);
                 entityData.set(DATA_COMBAT_READY, isCombatReady());
                 if (!isCombatReady()) {
                     stopMovement();
                 }
             }
-            getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(WaterSheeperConfig.WATER_MOVEMENT_SWIM_SPEED.get());
+            getAttribute(ForgeMod.SWIM_SPEED.get()).setBaseValue(SWIM_SPEED_MULTIPLIER);
             updateMovementTarget();
         }
         super.tick();

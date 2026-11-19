@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
-import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -23,6 +22,9 @@ import net.minecraft.world.phys.Vec3;
  * wave-limited damage.
  */
 final class WaterMaelstromWave {
+    // Half-second pulses respect vanilla damage immunity and keep armor scaling
+    // stable.
+    private static final int DAMAGE_INTERVAL_TICKS = 10;
     private final WaterSheeperEntity boss;
     private final WaterMaelstromTransport transports;
     private final Map<UUID, Double> pending = new HashMap<>();
@@ -94,7 +96,7 @@ final class WaterMaelstromWave {
                     arrivals.remove();
                 }
             }
-            int interval = damageInterval();
+            int interval = DAMAGE_INTERVAL_TICKS;
             float amount = (float) (WaterSheeperConfig.WATER_MAELSTROM_DAMAGE.get() * interval / 20.0D);
             var damage = damageDelays.entrySet().iterator();
             while (damage.hasNext()) {
@@ -123,16 +125,12 @@ final class WaterMaelstromWave {
         transports.tick(players.stream().filter(ServerPlayer::isAlive).toList());
     }
 
-    private int damageInterval() {
-        return SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_DAMAGE_INTERVAL.get());
-    }
-
     /**
      * @return the inner edge of the configurable safe ring, measured from the arena
      *         origin
      */
     static double dangerRadius(WaterSheeperEntity boss) {
-        return Math.max(0, boss.getCombatRadius() - WaterSheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH.get());
+        return Math.max(0, boss.getCombatRadius() - boss.getMaelstromSafeOuterWidth());
     }
 
     /**
@@ -249,7 +247,7 @@ final class WaterMaelstromWave {
         for (Tag value : tag.getList("Exposures", Tag.TAG_COMPOUND)) {
             CompoundTag entry = (CompoundTag) value;
             if (entry.hasUUID("Player") && (tag.getInt("Version") >= 2 || entry.getInt("Ticks") > 0)) {
-                damageDelays.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Delay"), 0, damageInterval()));
+                damageDelays.put(entry.getUUID("Player"), Mth.clamp(entry.getInt("Delay"), 0, DAMAGE_INTERVAL_TICKS));
             }
         }
         if (radius >= maximumRadius) {
