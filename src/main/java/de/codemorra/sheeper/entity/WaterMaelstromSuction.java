@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -51,7 +52,7 @@ final class WaterMaelstromSuction {
             if (impulse <= 0) {
                 continue;
             }
-            player.setDeltaMovement(motion.add(direction.scale(impulse)));
+            WaterArenaPushProtection.apply(player, motion.add(direction.scale(impulse)));
             player.connection.send(new ClientboundSetEntityMotionPacket(player));
             player.hurtMarked = false;
         }

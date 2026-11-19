@@ -76,7 +76,7 @@ public final class WaterArenaSpawnWave {
             double upward = Mth.clamp((Math.min(lift, ceiling) - player.getY()) * 0.2D, 0, 0.15D);
             // Send the intended motion again even after a wall clipped the previous tick.
             // Vanilla collision remains responsible for preventing movement through blocks.
-            player.setDeltaMovement(direction.x * step, upward, direction.z * step);
+            WaterArenaPushProtection.apply(player, new Vec3(direction.x * step, upward, direction.z * step));
             WaterArenaFallProtection.protect(player);
             sync(player);
         }
@@ -99,6 +99,7 @@ public final class WaterArenaSpawnWave {
 
     private static void stop(ServerPlayer player) {
         player.setDeltaMovement(Vec3.ZERO);
+        WaterArenaPushProtection.stop(player);
         sync(player);
     }
 

@@ -3,6 +3,7 @@ package de.codemorra.sheeper.event;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -29,6 +30,9 @@ public final class WaterArenaEvents {
                 }
             }
             WaterArenaData.tick(level);
+            for (var player : level.players()) {
+                WaterArenaPushProtection.enforce(player);
+            }
             if (level.getGameTime() % 10 == 0) {
                 sendSnapshot(level);
             }
@@ -47,10 +51,10 @@ public final class WaterArenaEvents {
     }
     /** Starts visible drainage immediately; periodic snapshots also cover login and missed updates. */
     private static void sendSnapshot(ServerLevel level) {
-        WaterArenaPacket snapshot = new WaterArenaPacket(level.dimension().location(),
-                WaterArenaData.animatedVolumes(level));
+        var volumes = WaterArenaData.animatedVolumes(level);
         for (var player : level.players()) {
-            ModNetwork.sendWaterArenas(player, snapshot);
+            ModNetwork.sendWaterArenas(player, new WaterArenaPacket(level.dimension().location(), volumes,
+                    WaterArenaPushProtection.protectedUntil(player)));
         }
     }
 

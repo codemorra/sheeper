@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -94,7 +95,7 @@ final class WaterFountainTransport {
             }
             double dx = Mth.clamp((lift.x() - player.getX()) * 0.3D, -0.15D, 0.15D);
             double dz = Mth.clamp((lift.z() - player.getZ()) * 0.3D, -0.15D, 0.15D);
-            player.setDeltaMovement(dx, rise, dz);
+            WaterArenaPushProtection.apply(player, new Vec3(dx, rise, dz));
             sync(player);
             entry.setValue(new Lift(lift.x(), lift.z(), ceiling, lift.remainingTicks() - 1));
         }
@@ -120,6 +121,7 @@ final class WaterFountainTransport {
     private void stop(ServerPlayer player) {
         Vec3 velocity = player.getDeltaMovement();
         player.setDeltaMovement(velocity.x, 0, velocity.z);
+        WaterArenaPushProtection.stop(player);
         sync(player);
     }
 

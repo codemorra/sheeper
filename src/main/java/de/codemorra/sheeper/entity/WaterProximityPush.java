@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -98,7 +99,7 @@ final class WaterProximityPush {
             away = new Vec3(1, 0, 0);
         }
         Vec3 velocity = away.normalize().scale(horizontal);
-        player.setDeltaMovement(velocity.x, upward, velocity.z);
+        WaterArenaPushProtection.apply(player, new Vec3(velocity.x, upward, velocity.z));
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.hurtMarked = false;
     }

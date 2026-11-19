@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -127,7 +128,7 @@ final class WaterMaelstromTransport {
             }
             double dy = Mth.clamp((ride.target().y - player.getY()) * 0.3D, -0.2D, 0.2D);
             Vec3 motion = clip(player, new Vec3(horizontal.x, dy, horizontal.z));
-            player.setDeltaMovement(motion);
+            WaterArenaPushProtection.apply(player, motion);
             sync(player);
             entry.setValue(new Ride(ride.target(), ride.direction(), ride.remainingTicks() - 1));
         }
@@ -174,6 +175,7 @@ final class WaterMaelstromTransport {
 
     private void stop(ServerPlayer player) {
         player.setDeltaMovement(Vec3.ZERO);
+        WaterArenaPushProtection.stop(player);
         sync(player);
     }
 
