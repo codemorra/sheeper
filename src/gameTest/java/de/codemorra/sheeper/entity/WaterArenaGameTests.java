@@ -93,13 +93,13 @@ public final class WaterArenaGameTests {
         c.expect(boss.getCombatParticipants().contains(player) && !boss.isInvulnerableTo(arrow),
                 "Crossing the inner edge must enable targeting and indirect damage");
 
-        player.standAt(c.point(19, 1, 10).add(0.1D, 0, 0));
+        player.standAt(c.point(18, 1, 10).add(-0.1D, 0, 0));
         c.expect(boss.getCombatParticipants().contains(player) && !boss.isInvulnerableTo(melee),
-                "The outgoing player must retain permission while part of the body overlaps the outer edge");
+                "The outgoing player must retain permission until their center crosses the actual water edge");
 
-        player.standAt(c.point(19, 1, 10).add(0.5D, 0, 0));
+        player.standAt(c.point(18, 1, 10).add(0.1D, 0, 0));
         c.expect(boss.isInvulnerableTo(arrow) && boss.getCombatParticipants().isEmpty(),
-                "Leaving the outer edge must revoke permission even when a previously fired arrow hits first");
+                "Crossing into the outer transition must revoke permission even when a previously fired arrow hits first");
 
         player.standAt(c.point(17, 1, 10));
         c.expect(boss.getCombatParticipants().isEmpty() && boss.isInvulnerableTo(melee),

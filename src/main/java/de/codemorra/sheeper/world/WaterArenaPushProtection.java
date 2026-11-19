@@ -52,8 +52,7 @@ public final class WaterArenaPushProtection {
         if (!eligible(player)) {
             return;
         }
-        // Qualified opponents can remain in combat in the outer transition,
-        // beyond the actual water. Boss damage must not make that exit a fatal fall.
+        // Preserve fall protection even when the swimmer's body crosses a vertical water face.
         WaterArenaFallProtection.protect(player);
         if (!WaterArenaBoundary.containsBody(ArenaWater.activeVolumes(player.level),
                 player.position(), player.getBbHeight())) {
