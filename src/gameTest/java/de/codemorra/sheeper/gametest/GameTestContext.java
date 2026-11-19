@@ -35,8 +35,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.ExplosionEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.config.ConfigTracker;
 import net.minecraftforge.fml.config.ModConfig;
@@ -188,8 +188,10 @@ public final class GameTestContext implements AutoCloseable {
     public TestPlayer player(int x, int y, int z) {
         TestPlayer player = new TestPlayer(level, point(x, y, z));
         players.add(player);
+        player.registerServerPlayer();
         level.addNewPlayer(player);
-        expect(level.players().contains(player), "Test player must participate in the world's player list");
+        expect(level.players().contains(player) && level.getServer().getPlayerList().getPlayer(player.getUUID()) == player,
+                "Test player must participate in both world ticks and server UUID lookups");
         return player;
     }
 
@@ -281,6 +283,7 @@ public final class GameTestContext implements AutoCloseable {
         for (TestPlayer player : players) {
             MinecraftForge.EVENT_BUS.post(new PlayerEvent.PlayerLoggedOutEvent(player));
             level.removePlayerImmediately(player, Entity.RemovalReason.DISCARDED);
+            player.unregisterServerPlayer();
         }
         originalConfigs.forEach((spec, original) -> spec.setConfig(original));
         for (int index = ruleRestorers.size() - 1; index >= 0; index--) {
