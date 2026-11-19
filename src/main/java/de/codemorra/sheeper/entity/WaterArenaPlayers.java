@@ -58,7 +58,7 @@ final class WaterArenaPlayers {
         if (!players.containsKey(player.getUUID())
                 && player.getY() >= boss.getArenaWaterMinimumY()
                 && player.getBoundingBox().maxY <= boss.getArenaWaterSurfaceY() - SURFACE_MARGIN
-                && boss.level.getFluidState(new BlockPos(player.getEyePosition())).is(FluidTags.WATER)) {
+                && ArenaWater.contains(boss.level, player.getEyePosition())) {
             players.put(player.getUUID(), player.position());
         }
         return players.containsKey(player.getUUID());
@@ -96,10 +96,6 @@ final class WaterArenaPlayers {
             } else {
                 if (isClear(player, player.position())) {
                     players.put(player.getUUID(), player.position());
-                }
-                if (player.getDeltaMovement().y > 0
-                        && player.getY() + player.getDeltaMovement().y > maximumY) {
-                    stopVerticalExit(player, false);
                 }
             }
         }

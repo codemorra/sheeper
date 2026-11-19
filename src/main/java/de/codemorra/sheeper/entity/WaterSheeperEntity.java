@@ -21,6 +21,7 @@ import de.codemorra.sheeper.entity.navigation.WaterSwimMoveControl;
 import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.registry.ModFluids;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.ArenaWater;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -253,7 +254,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      *         physics
      */
     public boolean isInArenaWater() {
-        return isInWaterOrBubble() || isInFluidType(ModFluids.BOSS_WATER_TYPE.get());
+        return ArenaWater.waterHeight(this) > 0 || isInWaterOrBubble()
+                || isInFluidType(ModFluids.BOSS_WATER_TYPE.get());
     }
 
     /**
@@ -338,11 +340,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             if (!WaterArenaData.isLoaded(server, cell)) {
                 return false;
             }
-            var fluid = level.getFluidState(cell);
-            // Only the head cell needs a surface-height check. Stacked ordinary
-            // and boss water can report different heights at their shared seam.
-            if (!fluid.is(FluidTags.WATER) || body.maxY <= cell.getY() + 1
-                    && cell.getY() + fluid.getHeight(level, cell) < body.maxY - 0.01D) {
+            if (!arenaVolume.contains(cell)) {
                 return false;
             }
         }
@@ -683,16 +681,15 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             return false;
         }
         arenaVolume = bounds;
-        if (!data.isGenerated(getUUID())) {
-            volumeSearch = new WaterArenaVolumeSearch((ServerLevel) level, bounds);
-        }
+        // A virtual water volume is usable immediately; terrain blocks stay intact.
+        data.finishGeneration(getUUID());
         volumeInitialized = true;
         entityData.set(DATA_COMBAT_READY, false);
         return true;
     }
 
-    /** Advances terrain discovery and the current physical-water preparation. */
-    private void advanceArenaPreparation(boolean preparing) {
+    /** Advances optional floor discovery without filling or changing terrain. */
+    private void advanceArenaPreparation() {
         boolean valid = combatSettings.hasArenaRoom(arenaVolume);
         if (arenaConfigurationValid && !valid) {
             specialAttacks.reset();
@@ -706,15 +703,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                         WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
                         SURFACE_DISCOVERY_STEP_HEIGHT, getArenaWaterMinimumY());
             }
-            int searchBudget = WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20;
-            int surfaceBudget = arenaSearch.isComplete() ? 0
-                    : volumeSearch == null ? searchBudget : Math.max(1, searchBudget / 4);
-            arenaSearch.advance(surfaceBudget);
-            if (volumeSearch != null) {
-                volumeSearch.advance(searchBudget - surfaceBudget);
-                placeArenaWater((ServerLevel) level);
-            }
-            tickWaterWave(preparing);
+            arenaSearch.advance(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20);
         }
     }
 
@@ -726,11 +715,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             // Capture placement before gravity or future AI can move the boss.
             getArenaCenter();
             if (isAlive()) {
-                boolean preparing = !isCombatReady();
                 if (!initializeArenaVolume()) {
                     return;
                 }
-                advanceArenaPreparation(preparing);
+                advanceArenaPreparation();
                 entityData.set(DATA_COMBAT_READY, isCombatReady());
                 if (!isCombatReady()) {
                     stopMovement();
