@@ -644,6 +644,80 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return arenaSearch == null ? Set.of() : arenaSearch.getSurfacePositions();
     }
 
+    /**
+     * Captures and validates encounter geometry independently of water placement.
+     * Existing captured bounds survive unloading and retain their original origin.
+     *
+     * @return whether this boss has a usable captured volume
+     */
+    private boolean initializeArenaVolume() {
+        if (volumeInitialized) {
+            return true;
+        }
+        ServerLevel server = (ServerLevel) level;
+        WaterArenaData data = WaterArenaData.get(server);
+        WaterArenaData.VolumeBounds existing = data.getVolume(getUUID());
+        WaterArenaData.VolumeBounds proposed = existing == null ? WaterArenaData.VolumeBounds.capture(
+                server, getArenaCenter(), getCombatRadius(),
+                WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
+                WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()) : existing;
+        // Validate before creating saved arena state or placing any water.
+        // A loaded encounter may occupy terrain changed after its initial spawn.
+        if (!proposed.isValidFor(server)) {
+            SheeperMod.LOGGER.warn(
+                    "Water Sheeper {}: spawn rejected at {} because its arena bounds are outside the world.",
+                    getUUID(), getArenaCenter());
+            discard();
+            return false;
+        }
+        if (existing == null && !combatSettings.canSpawn(proposed)) {
+            discard();
+            return false;
+        }
+        WaterArenaData.VolumeBounds bounds = data.prepareVolume(server, getUUID(), getArenaCenter(),
+                getCombatRadius(), WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
+                WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get());
+        if (bounds == null) {
+            // prepareVolume also protects callers that do not perform spawn checks.
+            discard();
+            return false;
+        }
+        arenaVolume = bounds;
+        if (!data.isGenerated(getUUID())) {
+            volumeSearch = new WaterArenaVolumeSearch((ServerLevel) level, bounds);
+        }
+        volumeInitialized = true;
+        entityData.set(DATA_COMBAT_READY, false);
+        return true;
+    }
+
+    /** Advances terrain discovery and the current physical-water preparation. */
+    private void advanceArenaPreparation(boolean preparing) {
+        boolean valid = combatSettings.hasArenaRoom(arenaVolume);
+        if (arenaConfigurationValid && !valid) {
+            specialAttacks.reset();
+            defaultAttack.reset();
+            proximityPush.reset();
+        }
+        arenaConfigurationValid = valid;
+        if (arenaConfigurationValid) {
+            if (arenaSearch == null) {
+                arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
+                        WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
+                        SURFACE_DISCOVERY_STEP_HEIGHT, getArenaWaterMinimumY());
+            }
+            int searchBudget = WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20;
+            int surfaceBudget = arenaSearch.isComplete() ? 0
+                    : volumeSearch == null ? searchBudget : Math.max(1, searchBudget / 4);
+            arenaSearch.advance(surfaceBudget);
+            if (volumeSearch != null) {
+                volumeSearch.advance(searchBudget - surfaceBudget);
+                placeArenaWater((ServerLevel) level);
+            }
+            tickWaterWave(preparing);
+        }
+    }
+
     @Override
     public void tick() {
         previousBeamEyeIntensity = entityData.get(DATA_BEAM_EYES);
@@ -653,65 +727,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             getArenaCenter();
             if (isAlive()) {
                 boolean preparing = !isCombatReady();
-                if (!volumeInitialized) {
-                    ServerLevel server = (ServerLevel) level;
-                    WaterArenaData data = WaterArenaData.get(server);
-                    WaterArenaData.VolumeBounds existing = data.getVolume(getUUID());
-                    WaterArenaData.VolumeBounds proposed = existing == null ? WaterArenaData.VolumeBounds.capture(
-                            server, getArenaCenter(), getCombatRadius(),
-                            WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                            WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()) : existing;
-                    // Validate before creating saved arena state or placing any water.
-                    // A loaded encounter may occupy terrain changed after its initial spawn.
-                    if (!proposed.isValidFor(server)) {
-                        SheeperMod.LOGGER.warn(
-                                "Water Sheeper {}: spawn rejected at {} because its arena bounds are outside the world.",
-                                getUUID(), getArenaCenter());
-                        discard();
-                        return;
-                    }
-                    if (existing == null && !combatSettings.canSpawn(proposed)) {
-                        discard();
-                        return;
-                    }
-                    WaterArenaData.VolumeBounds bounds = data.prepareVolume(server, getUUID(), getArenaCenter(),
-                            getCombatRadius(), WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                            WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get());
-                    if (bounds == null) {
-                        // prepareVolume also protects callers that do not perform spawn checks.
-                        discard();
-                        return;
-                    }
-                    arenaVolume = bounds;
-                    if (!data.isGenerated(getUUID())) {
-                        volumeSearch = new WaterArenaVolumeSearch((ServerLevel) level, bounds);
-                    }
-                    volumeInitialized = true;
-                    entityData.set(DATA_COMBAT_READY, false);
+                if (!initializeArenaVolume()) {
+                    return;
                 }
-                boolean valid = combatSettings.hasArenaRoom(arenaVolume);
-                if (arenaConfigurationValid && !valid) {
-                    specialAttacks.reset();
-                    defaultAttack.reset();
-                    proximityPush.reset();
-                }
-                arenaConfigurationValid = valid;
-                if (arenaConfigurationValid) {
-                    if (arenaSearch == null) {
-                        arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
-                                WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                                SURFACE_DISCOVERY_STEP_HEIGHT, getArenaWaterMinimumY());
-                    }
-                    int searchBudget = WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20;
-                    int surfaceBudget = arenaSearch.isComplete() ? 0
-                            : volumeSearch == null ? searchBudget : Math.max(1, searchBudget / 4);
-                    arenaSearch.advance(surfaceBudget);
-                    if (volumeSearch != null) {
-                        volumeSearch.advance(searchBudget - surfaceBudget);
-                        placeArenaWater((ServerLevel) level);
-                    }
-                    tickWaterWave(preparing);
-                }
+                advanceArenaPreparation(preparing);
                 entityData.set(DATA_COMBAT_READY, isCombatReady());
                 if (!isCombatReady()) {
                     stopMovement();
