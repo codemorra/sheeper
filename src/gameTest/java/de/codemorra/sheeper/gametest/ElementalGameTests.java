@@ -9,6 +9,7 @@ import de.codemorra.sheeper.config.LavaSheeperConfig;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
+import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -84,7 +85,12 @@ final class ElementalGameTests {
             ElementalSheeperEntity boss = bosses.get(index);
             checkSize(context, boss, sizes[index]);
             checkHealth(context, boss, health[index], health[index]);
-            boss.hurt(DamageSource.GENERIC, health[index] * 0.25F);
+            if (boss instanceof WaterSheeperEntity) {
+                // Arena damage permission has its own tests; this scene checks attributes.
+                boss.setHealth(health[index] * 0.75F);
+            } else {
+                boss.hurt(DamageSource.GENERIC, health[index] * 0.25F);
+            }
             checkHealth(context, boss, health[index], health[index] * 0.75F);
         }
         // Exercise both shrinking and growing maxima while one element stays unchanged.

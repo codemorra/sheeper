@@ -11,6 +11,10 @@ import java.util.function.Consumer;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import de.codemorra.sheeper.entity.WaterArenaGameTests;
+import de.codemorra.sheeper.entity.WaterAttackGameTests;
+import de.codemorra.sheeper.entity.WaterEnvironmentGameTests;
+
 import net.minecraft.gametest.framework.GameTestGenerator;
 import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GlobalTestReporter;
@@ -34,8 +38,8 @@ public final class SheeperGameTests {
     }
 
     /** A named behavioral contract and its maximum time in game ticks. */
-    record Scenario(String name, int timeout, Consumer<GameTestContext> test) {
-        Scenario(String name, Consumer<GameTestContext> test) {
+    public record Scenario(String name, int timeout, Consumer<GameTestContext> test) {
+        public Scenario(String name, Consumer<GameTestContext> test) {
             this(name, 240, test);
         }
     }
@@ -57,16 +61,9 @@ public final class SheeperGameTests {
         LightningProximityGameTests.add(scenarios);
         LightningSpawnGameTests.add(scenarios);
         LightningWeatherGameTests.add(scenarios);
-        WaterGameTests.add(scenarios);
-        WaterCombatGameTests.add(scenarios);
-        WaterPreparationGameTests.add(scenarios);
-        WaterProximityGameTests.add(scenarios);
-        WaterProjectileGameTests.add(scenarios);
+        WaterArenaGameTests.add(scenarios);
         WaterAttackGameTests.add(scenarios);
-        WaterSalvoGameTests.add(scenarios);
-        WaterFountainGameTests.add(scenarios);
-        BossWaterGameTests.add(scenarios);
-        WaterWaveGameTests.add(scenarios);
+        WaterEnvironmentGameTests.add(scenarios);
         DataGameTests.add(scenarios);
         ConfigUnitGameTests.add(scenarios);
 
