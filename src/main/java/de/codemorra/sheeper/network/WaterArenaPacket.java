@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.WaterArenaVisuals;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
+import de.codemorra.sheeper.world.WaterArenaData.ExpandingVolume;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -17,15 +18,18 @@ import net.minecraftforge.network.NetworkEvent;
  * Full dimension snapshot, independent of whether clients currently track the
  * boss.
  */
-public record WaterArenaPacket(ResourceLocation dimension, List<VolumeBounds> arenas) {
+public record WaterArenaPacket(ResourceLocation dimension, List<ExpandingVolume> arenas) {
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeVarInt(arenas.size());
-        for (VolumeBounds arena : arenas) {
+        for (ExpandingVolume volume : arenas) {
+            VolumeBounds arena = volume.bounds();
             buffer.writeBlockPos(arena.center());
             buffer.writeDouble(arena.radius());
             buffer.writeInt(arena.minimumY());
             buffer.writeInt(arena.maximumY());
+            buffer.writeLong(volume.startTick());
+            buffer.writeVarInt(volume.durationTicks());
         }
     }
 
@@ -36,17 +40,19 @@ public record WaterArenaPacket(ResourceLocation dimension, List<VolumeBounds> ar
         if (count < 0 || count > 4096) {
             throw new IllegalArgumentException("Invalid water arena snapshot size: " + count);
         }
-        List<VolumeBounds> arenas = new ArrayList<>();
+        List<ExpandingVolume> arenas = new ArrayList<>();
         for (int index = 0; index < count; index++) {
             BlockPos center = buffer.readBlockPos();
             double radius = buffer.readDouble();
             int minimum = buffer.readInt();
             int maximum = buffer.readInt();
             VolumeBounds bounds = new VolumeBounds(center, radius, minimum, maximum);
-            if (!bounds.isValid()) {
+            long startTick = buffer.readLong();
+            int duration = buffer.readVarInt();
+            if (!bounds.isValid() || startTick < 0 || duration < 0 || duration > 600) {
                 throw new IllegalArgumentException("Invalid water arena geometry");
             }
-            arenas.add(bounds);
+            arenas.add(new ExpandingVolume(bounds, startTick, duration));
         }
         return new WaterArenaPacket(dimension, List.copyOf(arenas));
     }

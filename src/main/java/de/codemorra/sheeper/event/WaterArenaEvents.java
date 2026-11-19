@@ -32,7 +32,7 @@ public final class WaterArenaEvents {
             WaterArenaData.tick(level, WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
             if (level.getGameTime() % 10 == 0) {
                 WaterArenaPacket snapshot = new WaterArenaPacket(level.dimension().location(),
-                        WaterArenaData.activeVolumes(level));
+                        WaterArenaData.expandingVolumes(level));
                 for (var player : level.players()) {
                     ModNetwork.sendWaterArenas(player, snapshot);
                 }

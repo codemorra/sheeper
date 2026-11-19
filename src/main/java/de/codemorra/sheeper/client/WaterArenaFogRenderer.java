@@ -126,7 +126,7 @@ public final class WaterArenaFogRenderer {
         RenderSystem.setShader(() -> shader);
         try {
             double renderDistance = minecraft.options.getEffectiveRenderDistance() * 16.0D;
-            for (var bounds : WaterArenaVisuals.activeVolumes(minecraft.level)) {
+            for (var bounds : WaterArenaVisuals.renderVolumes(minecraft.level, event.getPartialTick())) {
                 // Camera-relative coordinates retain precision far from world origin.
                 double x = bounds.center().getX() + 0.5D - camera.x;
                 double z = bounds.center().getZ() + 0.5D - camera.z;

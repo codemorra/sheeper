@@ -138,7 +138,8 @@ public final class WaterEnvironmentGameTests {
                     "Out-of-world saved volumes must not enter snapshots or player protection");
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             try {
-                var packet = new WaterArenaPacket(c.level.dimension().location(), volumes);
+                var packet = new WaterArenaPacket(c.level.dimension().location(),
+                        WaterArenaData.expandingVolumes(c.level));
                 packet.encode(buffer);
                 c.expect(packet.equals(WaterArenaPacket.decode(buffer)),
                         "Filtered server snapshots must round-trip through the client decoder");

@@ -5,6 +5,7 @@ import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -34,12 +35,15 @@ public final class WaterArenaBoundaryEffects {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (event.phase != TickEvent.Phase.END || minecraft.level == null || minecraft.isPaused()
-                || minecraft.level.getGameTime() % 4 != 0) {
+        if (event.phase != TickEvent.Phase.END || minecraft.level == null || minecraft.isPaused()) {
             return;
         }
         var level = minecraft.level;
         Vec3 camera = minecraft.gameRenderer.getMainCamera().getPosition();
+        emitStartupFront(minecraft, camera);
+        if (level.getGameTime() % 4 != 0) {
+            return;
+        }
         int[] remaining = { 96 };
         for (VolumeBounds bounds : WaterArenaVisuals.activeVolumes(level)) {
             faces(bounds, camera, (a, b, c, d, normal, fade) -> {
@@ -50,6 +54,30 @@ public final class WaterArenaBoundaryEffects {
                         .lerp(d.lerp(c, level.random.nextDouble()), level.random.nextDouble());
                 level.addParticle(ModParticles.WATER_ARENA_SIDE.get(), true,
                         point.x, point.y, point.z, 0, 0, 0);
+                remaining[0]--;
+            });
+        }
+    }
+
+    /** A denser moving wall of bubbles makes the growing water volume visible from either side. */
+    private static void emitStartupFront(Minecraft minecraft, Vec3 camera) {
+        var level = minecraft.level;
+        int[] remaining = { 192 };
+        for (var volume : WaterArenaVisuals.expandingVolumes(level)) {
+            if (!volume.isExpanding(level.getGameTime())) {
+                continue;
+            }
+            VolumeBounds bounds = volume.at(level.getGameTime());
+            faces(bounds, camera, (a, b, c, d, normal, fade) -> {
+                if (normal.y != 0 || remaining[0] <= 0 || level.random.nextFloat() > fade * 0.8F) {
+                    return;
+                }
+                // Spawn just inside the advancing wall, where virtual water sustains the bubbles.
+                Vec3 point = a.lerp(b, level.random.nextDouble())
+                        .lerp(d.lerp(c, level.random.nextDouble()), level.random.nextDouble())
+                        .subtract(normal.scale(0.25D));
+                level.addParticle(ParticleTypes.BUBBLE, true, point.x, point.y, point.z,
+                        normal.x * 0.15D, 0.08D, normal.z * 0.15D);
                 remaining[0]--;
             });
         }
