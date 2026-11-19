@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.world.WaterArenaData;
 import de.codemorra.sheeper.world.ArenaWater;
-import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -16,11 +15,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.level.material.Fluids;
 
 /**
  * Remembers submerged arena entry until a lateral exit and enforces vertical
@@ -28,9 +25,6 @@ import net.minecraft.world.level.material.Fluids;
  */
 final class WaterArenaPlayers {
     private static final double SURFACE_MARGIN = ArenaWater.BOUNDARY_MARGIN;
-    private static final double BOUNDARY_VISIBILITY_DISTANCE = 8.0D;
-    private static final double BOUNDARY_HALF_EXTENT = 6.0D;
-    private static final int BOUNDARY_PARTICLE_INTERVAL = 8;
     private final WaterSheeperEntity boss;
     private final Map<UUID, Vec3> players = new HashMap<>();
 
@@ -83,8 +77,6 @@ final class WaterArenaPlayers {
             double minimumY = boss.getArenaWaterMinimumY() + SURFACE_MARGIN;
             double maximumY = boss.getArenaWaterSurfaceY() - SURFACE_MARGIN - player.getBbHeight();
             boolean below = player.getY() < minimumY - 1.0E-5D;
-            showLowerBoundary(player, minimumY);
-            showSideBoundary(player);
             if (below || player.getY() > maximumY) {
                 Vec3 destination = correctionPosition(player, minimumY, maximumY, below);
                 if (destination != null) {
@@ -99,86 +91,6 @@ final class WaterArenaPlayers {
                 }
             }
         }
-    }
-
-    /**
-     * Shows only the nearby lower plane to its approaching participant. Density
-     * follows the same distance thresholds and surface coverage as the side marker.
-     */
-    private void showLowerBoundary(ServerPlayer player, double minimumY) {
-        ServerLevel level = (ServerLevel) boss.level;
-        double distance = Math.max(0, player.getY() - minimumY);
-        if (distance > BOUNDARY_VISIBILITY_DISTANCE || level.getGameTime() % BOUNDARY_PARTICLE_INTERVAL != 0) {
-            return;
-        }
-        double spacing = boundarySpacing(distance);
-        int extent = (int) Math.ceil(BOUNDARY_HALF_EXTENT / spacing);
-        for (int x = -extent; x <= extent; x++) {
-            for (int z = -extent; z <= extent; z++) {
-                if (x * x + z * z > extent * extent) {
-                    continue;
-                }
-                double px = player.getX() + x * spacing;
-                double pz = player.getZ() + z * spacing;
-                BlockPos cell = new BlockPos(px, minimumY, pz);
-                if (boss.isArenaWaterCell(cell) && WaterArenaData.isLoaded(level, cell)
-                        && level.getFluidState(cell).is(FluidTags.WATER)
-                        && level.getBlockState(cell).getCollisionShape(level, cell).isEmpty()) {
-                    level.sendParticles(player, ModParticles.WATER_ARENA_FLOOR.get(), false,
-                            px, minimumY, pz, 0, 0, 0, 0, 0);
-                }
-            }
-        }
-    }
-
-    /**
-     * Marks the lateral exit only in natural water, where no boss-water wall is
-     * visible. Each viewer receives the nearby arc around their swimming height.
-     */
-    private void showSideBoundary(ServerPlayer player) {
-        ServerLevel level = (ServerLevel) boss.level;
-        double centerX = boss.getArenaCenter().getX() + 0.5D;
-        double centerZ = boss.getArenaCenter().getZ() + 0.5D;
-        double dx = player.getX() - centerX;
-        double dz = player.getZ() - centerZ;
-        double radius = boss.getCombatRadius();
-        double distance = radius - Math.sqrt(dx * dx + dz * dz);
-        if (distance > BOUNDARY_VISIBILITY_DISTANCE || level.getGameTime() % BOUNDARY_PARTICLE_INTERVAL != 0) {
-            return;
-        }
-        double spacing = boundarySpacing(distance);
-        double angle = Math.atan2(dz, dx);
-        double halfArc = Math.min(BOUNDARY_HALF_EXTENT / radius, Math.PI);
-        int columns = (int) Math.ceil(halfArc * 2 * radius / spacing);
-        double bottom = Math.max(boss.getArenaWaterMinimumY() + SURFACE_MARGIN,
-                player.getEyeY() - BOUNDARY_HALF_EXTENT);
-        double top = Math.min(boss.getArenaWaterSurfaceY() - SURFACE_MARGIN,
-                player.getEyeY() + BOUNDARY_HALF_EXTENT);
-        if (top < bottom) {
-            return;
-        }
-        int rows = Math.max(1, (int) Math.ceil((top - bottom) / spacing));
-        for (int column = 0; column <= columns; column++) {
-            double theta = angle - halfArc + halfArc * 2 * column / columns;
-            // A small inset keeps the bubbles on the arena side of the exit.
-            double px = centerX + Math.cos(theta) * (radius - 0.08D);
-            double pz = centerZ + Math.sin(theta) * (radius - 0.08D);
-            for (int row = 0; row <= rows; row++) {
-                double py = Mth.lerp((double) row / rows, bottom, top);
-                BlockPos cell = new BlockPos(px, py, pz);
-                if (WaterArenaData.isLoaded(level, cell)
-                        && level.getFluidState(cell).getType().isSame(Fluids.WATER)
-                        && level.getBlockState(cell).getCollisionShape(level, cell).isEmpty()) {
-                    level.sendParticles(player, ModParticles.WATER_ARENA_SIDE.get(), false,
-                            px, py, pz, 0, 0, 0, 0, 0);
-                }
-            }
-        }
-    }
-
-    /** Uses identical particle density steps for horizontal and vertical marker surfaces. */
-    private static double boundarySpacing(double distance) {
-        return distance < 2 ? 0.75D : distance < 4 ? 1.0D : 1.5D;
     }
 
     /**

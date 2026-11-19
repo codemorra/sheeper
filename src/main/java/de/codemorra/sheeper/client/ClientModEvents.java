@@ -1,5 +1,11 @@
 package de.codemorra.sheeper.client;
 
+import java.io.IOException;
+
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.event.RegisterShadersEvent;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.registry.ModFluids;
@@ -40,6 +46,14 @@ public class ClientModEvents {
             ItemBlockRenderTypes.setRenderLayer(ModFluids.BOSS_WATER.get(), RenderType.translucent());
             ItemBlockRenderTypes.setRenderLayer(ModFluids.FLOWING_BOSS_WATER.get(), RenderType.translucent());
         });
+    }
+
+    /** Registers the bounded water-fog shader through the resource-pack reload lifecycle. */
+    @SubscribeEvent
+    public static void registerShaders(RegisterShadersEvent event) throws IOException {
+        event.registerShader(new ShaderInstance(event.getResourceManager(),
+                ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, "arena_water_fog"),
+                DefaultVertexFormat.POSITION_TEX), WaterArenaFogRenderer::setShader);
     }
 
     /** Binds the vapor provider to the shared vanilla smoke sprite animation. */

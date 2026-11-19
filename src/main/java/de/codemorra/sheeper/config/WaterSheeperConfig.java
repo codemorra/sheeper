@@ -363,10 +363,16 @@ public final class WaterSheeperConfig {
             .comment("Controlled ascent speed in blocks per second toward the captured arena ceiling.")
             .defineInRange("elemental.water.fountain.liftSpeedBlocksPerSecond", 6.0, 2.0, 12.0);
 
-    /** Visibility inside boss water (elemental.water.visuals). */
+    /** Arena water visibility (elemental.water.visuals). */
     public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
-            .comment("Underwater fog distance in boss water, capped by the client's render distance.")
+            .comment(
+                    "Base distance in blocks over which arena water fog becomes dense. Higher values improve visibility.")
             .defineInRange("elemental.water.visuals.fogDistance", 32.0, 16.0, 96.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_FOG_INTENSITY = BUILDER
+            .comment(
+                    "Arena water fog density multiplier: 0 disables fog, 1 keeps the base density; higher values make it denser.")
+            .defineInRange("elemental.water.visuals.fogIntensity", 1.0, 0.0, 3.0);
 
     /** Water arena discovery, flooding and cleanup (elemental.water.arena). */
     public static final ForgeConfigSpec.IntValue WATER_ARENA_WATER_HEIGHT = BUILDER
