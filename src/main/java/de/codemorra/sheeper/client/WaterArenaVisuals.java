@@ -4,9 +4,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import com.mojang.blaze3d.shaders.FogShape;
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
@@ -27,6 +25,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.client.event.RenderBlockScreenEffectEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -41,6 +40,10 @@ public final class WaterArenaVisuals {
     }
 
     private static volatile Snapshot snapshot = new Snapshot(null, List.of(), 0);
+    private static final double TRANSITION_WIDTH = 1.0D;
+    private static ClientLevel fogLevel;
+    private static float previousFogBlend;
+    private static float fogBlend;
 
     private WaterArenaVisuals() {
     }
@@ -80,7 +83,8 @@ public final class WaterArenaVisuals {
             return;
         }
         Snapshot current = snapshot;
-        ClientLevel level = Minecraft.getInstance().level;
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientLevel level = minecraft.level;
         if (current.level() != null && (current.level() != level
                 || level.getGameTime() - current.receivedAt() > 60)) {
             snapshot = new Snapshot(null, List.of(), 0);
@@ -88,6 +92,34 @@ public final class WaterArenaVisuals {
                 current.arenas().forEach(bounds -> rebuild(level, bounds));
             }
         }
+        if (fogLevel != level) {
+            fogLevel = level;
+            previousFogBlend = 0;
+            fogBlend = 0;
+        }
+        if (level != null && !minecraft.isPaused()) {
+            previousFogBlend = fogBlend;
+            float target = transitionAt(level, minecraft.gameRenderer.getMainCamera().getPosition());
+            // FOV smoothing also softens a newly received arena snapshot,
+            // teleport or encounter removal.
+            fogBlend = Mth.lerp(0.5F, fogBlend, target);
+        }
+    }
+
+    /** Blends the underwater FOV over a short entry band, retaining it at every interior boundary. */
+    private static float transitionAt(ClientLevel level, Vec3 point) {
+        double intensity = 0;
+        for (VolumeBounds bounds : activeVolumes(level)) {
+            double width = Math.min(TRANSITION_WIDTH,
+                    Math.min(bounds.radius() * 0.5D, (bounds.maximumY() + 1.0D - bounds.minimumY()) * 0.25D));
+            double progress = Mth.clamp(1 + bounds.interiorDistance(point) / width, 0, 1);
+            intensity = Math.max(intensity, progress * progress * (3 - 2 * progress));
+        }
+        return (float) intensity;
+    }
+
+    private static float fogBlend(double partialTick) {
+        return Mth.lerp(Mth.clamp((float) partialTick, 0, 1), previousFogBlend, fogBlend);
     }
 
     /** Shared client lookup for the breathing hook and chunk tinting. */
@@ -121,41 +153,46 @@ public final class WaterArenaVisuals {
                 || second instanceof BossWaterFluid && first.isSame(Fluids.WATER);
     }
 
+    /** Virtual water supplies its own depth-based fog, without the coarse vanilla camera texture. */
     @SubscribeEvent
-    public static void onFogColor(ViewportEvent.ComputeFogColor event) {
-        if (usesArenaFog(event.getCamera())) {
-            event.setRed(0.12F);
-            event.setGreen(0.38F);
-            event.setBlue(0.52F);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onFogRender(ViewportEvent.RenderFog event) {
-        if (usesArenaFog(event.getCamera())) {
-            event.setNearPlaneDistance(0);
-            event.setFarPlaneDistance(Math.min(Minecraft.getInstance().options.getEffectiveRenderDistance() * 16.0F,
-                    WaterSheeperConfig.WATER_FOG_DISTANCE.get().floatValue()));
-            event.setFogShape(FogShape.SPHERE);
+    public static void onWaterOverlay(RenderBlockScreenEffectEvent event) {
+        if (event.getOverlayType() == RenderBlockScreenEffectEvent.OverlayType.WATER
+                && de.codemorra.sheeper.world.ArenaWater.contains(event.getPlayer().level,
+                        event.getPlayer().getEyePosition())) {
             event.setCanceled(true);
         }
     }
 
-    /**
-     * Keeps vision effects intact while using the same water classification as the
-     * camera.
-     */
-    private static boolean usesArenaFog(Camera camera) {
+    /** Matches vanilla's underwater FOV gradually without forcing an instant water camera state. */
+    @SubscribeEvent
+    public static void onFov(ViewportEvent.ComputeFov event) {
+        if (canBlendFog(event.getCamera()) && event.getCamera().getFluidInCamera() == FogType.NONE) {
+            double scale = Minecraft.getInstance().options.fovEffectScale().get() * fogBlend(event.getPartialTick());
+            event.setFOV(event.getFOV() * Mth.lerp(scale, 1.0D, (double) 0.85714287F));
+        }
+    }
+
+    /** Preserves vision restrictions and the appearance of non-water fluids. */
+    static boolean canBlendFog(Camera camera) {
         if (camera.getEntity() instanceof LivingEntity living
                 && (living.hasEffect(MobEffects.BLINDNESS) || living.hasEffect(MobEffects.DARKNESS))) {
             return false;
         }
-        return cameraFluid(camera) == FogType.WATER;
+        FogType type = camera.getFluidInCamera();
+        return type == FogType.NONE || type == FogType.WATER;
+    }
+
+    /** Hides physical water interfaces inside the virtual volume without changing their blocks. */
+    public static boolean hideWaterCell(BlockPos pos, FluidState fluid) {
+        ClientLevel level = Minecraft.getInstance().level;
+        return level != null && fluid.is(FluidTags.WATER)
+                && activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(Vec3.atCenterOf(pos)));
     }
 
     /**
-     * Camera hook: treats the virtual seam as water for fog and underwater FOV.
-     * Null delegates to vanilla, preserving real air surfaces and other fluids.
+     * Keeps virtual and physical water on one vanilla fog baseline inside the
+     * arena. The bounded fog renderer supplies underwater color and attenuation;
+     * null delegates to vanilla outside the volume and for non-water fluids.
      */
     @Nullable
     public static FogType cameraFluid(Camera camera) {
@@ -166,11 +203,13 @@ public final class WaterArenaVisuals {
         Vec3 point = camera.getPosition();
         BlockPos pos = new BlockPos(point);
         FluidState fluid = level.getFluidState(pos);
-        // The visual interface is full-height when any water continues above,
-        // including the narrow seam between two different physical fluid types.
-        double height = level.getFluidState(pos.above()).is(FluidTags.WATER) ? 1 : fluid.getHeight(level, pos);
-        return contains(level, pos) && fluid.is(FluidTags.WATER)
-                && point.y < pos.getY() + height ? FogType.WATER : null;
+        // Keep a common air baseline for virtual and physical water inside the
+        // arena. The spatial fog pass adds only the submerged part of each ray.
+        if ((fluid.isEmpty() || fluid.is(FluidTags.WATER))
+                && activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(point))) {
+            return FogType.NONE;
+        }
+        return null;
     }
 
     /**

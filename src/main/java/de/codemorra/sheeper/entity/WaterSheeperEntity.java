@@ -25,7 +25,6 @@ import de.codemorra.sheeper.world.ArenaWater;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -59,6 +58,8 @@ import net.minecraftforge.fluids.FluidType;
 public class WaterSheeperEntity extends ElementalSheeperEntity {
     // Counteracts vanilla sheep water slowdown; user tuning uses navigation speed.
     private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
+    // Keep attacks disabled until their physical-water dependencies are migrated.
+    private static final boolean ATTACKS_ENABLED = false;
     private static final int SURFACE_DISCOVERY_STEP_HEIGHT = 1;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
@@ -505,13 +506,18 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             return;
         }
         List<ServerPlayer> participants = getCombatParticipants();
-        specialAttacks.tickTimers(participants, defaultAttack);
-        ServerPlayer target = defaultAttack.tickTarget(participants, !specialAttacks.suppressesDefault());
+        if (ATTACKS_ENABLED) {
+            specialAttacks.tickTimers(participants, defaultAttack);
+        }
+        ServerPlayer target = defaultAttack.tickTarget(participants,
+                !ATTACKS_ENABLED || !specialAttacks.suppressesDefault());
         setTarget(target);
         // An empty arena leaves navigation to the idle goal instead of cancelling
         // its current route every tick. Goal priorities handle combat transitions.
         if (target != null) {
-            specialAttacks.tryStart(target, defaultAttack);
+            if (ATTACKS_ENABLED) {
+                specialAttacks.tryStart(target, defaultAttack);
+            }
             if (isPerformingMaelstrom()) {
                 return;
             }
@@ -683,6 +689,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         arenaVolume = bounds;
         // A virtual water volume is usable immediately; terrain blocks stay intact.
         data.finishGeneration(getUUID());
+        if (!ATTACKS_ENABLED) {
+            // Saved attacks must not retain immunity or movement locks during the migration.
+            specialAttacks.reset();
+            proximityPush.reset();
+        }
         volumeInitialized = true;
         entityData.set(DATA_COMBAT_READY, false);
         return true;
@@ -731,8 +742,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (!level.isClientSide && isAlive() && isCombatReady()) {
             if (!isNoAi()) {
                 arenaCombat.tick(getCombatParticipants());
-                specialAttacks.tickAttack();
-                if (!specialAttacks.suppressesDefault()) {
+                if (ATTACKS_ENABLED) {
+                    specialAttacks.tickAttack();
+                }
+                if (ATTACKS_ENABLED && !specialAttacks.suppressesDefault()) {
                     defaultAttack.tickProjectiles();
                     proximityPush.tick(getCombatParticipants());
                 }

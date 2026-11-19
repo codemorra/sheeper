@@ -195,8 +195,22 @@ function initializeCoreMod() {
       transformer: function (node) {
         var comparisons = 0;
         var tints = 0;
+        var hiddenCells = 0;
         for (var i = 0; i < node.methods.size(); i++) {
           var m = node.methods.get(i);
+          if (String(m.desc) === "(" + getter + pos +
+              "Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/world/level/block/state/BlockState;" + state + ")V") {
+            var skip = new List();
+            var physical = new Label();
+            skip.add(new Var(O.ALOAD, 2));
+            skip.add(new Var(O.ALOAD, 5));
+            skip.add(invoke(client, "hideWaterCell", "(" + pos + state + ")Z"));
+            skip.add(new Jump(O.IFEQ, physical));
+            skip.add(new Insn(O.RETURN));
+            skip.add(physical);
+            m.instructions.insert(skip);
+            hiddenCells++;
+          }
           var instructions = m.instructions.toArray();
           for (var j = 0; j < instructions.length; j++) {
             var insn = instructions[j];
@@ -224,6 +238,7 @@ function initializeCoreMod() {
         }
         check(comparisons, 3, "LiquidBlockRenderer fluid comparisons");
         check(tints, 1, "LiquidBlockRenderer water tint");
+        check(hiddenCells, 1, "LiquidBlockRenderer virtual water interfaces");
         return node;
       }
     }
