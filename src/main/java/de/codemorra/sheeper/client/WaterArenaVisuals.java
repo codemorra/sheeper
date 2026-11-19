@@ -9,6 +9,7 @@ import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import net.minecraft.client.Camera;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -180,6 +181,19 @@ public final class WaterArenaVisuals {
         }
         FogType type = camera.getFluidInCamera();
         return type == FogType.NONE || type == FogType.WATER;
+    }
+
+    /**
+     * Lets vanilla bubbles survive in virtual water. Only the particle's fluid
+     * lookup is substituted; world blocks and actual fluid simulation are intact.
+     */
+    public static FluidState bubbleFluid(FluidState physical, Particle particle) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null && physical.isEmpty()
+                && de.codemorra.sheeper.world.ArenaWater.contains(level, particle.getBoundingBox().getCenter())) {
+            return Fluids.WATER.defaultFluidState();
+        }
+        return physical;
     }
 
     /** Hides physical water interfaces inside the virtual volume without changing their blocks. */

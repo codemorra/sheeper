@@ -225,9 +225,9 @@ public final class WaterArenaData extends SavedData {
     }
 
     /**
-     * Atomically replaces attack-cleared leaves with still source water. Ownership
-     * is registered before neighbor updates, avoiding an air gap or untracked flow.
-     * Existing natural water in waterlogged leaves stays natural after cleanup.
+     * Clears attack-hit leaves without introducing physical arena water. Existing
+     * natural water in waterlogged leaves remains a source; dry leaves leave air.
+     * Stale ownership from a former physical arena is removed after replacement.
      *
      * @param attacker boss whose active captured arena must contain the block
      * @return whether leaves were replaced; permission checks belong to the attack
@@ -245,19 +245,12 @@ public final class WaterArenaData extends SavedData {
         }
         boolean naturalWater = state.getFluidState().is(FluidTags.WATER)
                 && !(state.getFluidState().getType() instanceof BossWaterFluid);
-        boolean previouslyOwned = isOwnedBy(boss, pos);
-        if (!naturalWater) {
-            addOwners(pos, Map.of(boss, pos.distManhattan(arena.volume.center())));
-        }
         var blockEntity = level.getBlockEntity(pos);
-        BlockState source = naturalWater ? Blocks.WATER.defaultBlockState()
-                : ModBlocks.BOSS_WATER.get().defaultBlockState();
-        if (!level.setBlock(pos, source, Block.UPDATE_ALL)) {
-            if (!naturalWater && !previouslyOwned) {
-                removeOwnedCell(level, boss, arena, pos);
-            }
+        BlockState replacement = naturalWater ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState();
+        if (!level.setBlock(pos, replacement, Block.UPDATE_ALL)) {
             return false;
         }
+        forget(pos);
         Block.dropResources(state, level, pos, blockEntity, attacker, ItemStack.EMPTY);
         level.levelEvent(2001, pos, Block.getId(state));
         return true;

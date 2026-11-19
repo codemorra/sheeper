@@ -16,8 +16,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.event.ForgeEventFactory;
 
 /**
- * Shared leaf penetration for water attacks, without opening temporary air
- * pockets.
+ * Shared leaf penetration for water attacks within the virtual arena.
  */
 final class WaterAttackBlocks {
     private WaterAttackBlocks() {
@@ -60,8 +59,8 @@ final class WaterAttackBlocks {
     }
 
     /**
-     * Honors mob griefing and block protection before replacing leaves with owned
-     * source water.
+     * Honors mob griefing and block protection before clearing arena leaves.
+     * Naturally waterlogged leaves retain their water; no boss water is placed.
      */
     static boolean clearLeaves(WaterSheeperEntity boss, BlockPos pos) {
         if (!(boss.level instanceof ServerLevel level) || !boss.isArenaWaterCell(pos)
