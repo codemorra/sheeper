@@ -38,7 +38,7 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LightningWeatherVisuals {
-    private static final ResourceLocation RAIN = ResourceLocation.fromNamespaceAndPath("minecraft",
+    private static final ResourceLocation RAIN = new ResourceLocation("minecraft",
             "textures/environment/rain.png");
     private static ClientLevel snapshotLevel;
     private static List<LightningWeatherPacket.Arena> arenas = List.of();

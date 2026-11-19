@@ -31,7 +31,7 @@ public final class ModSounds {
      */
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name,
-                () -> new SoundEvent(ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, name)));
+                () -> new SoundEvent(new ResourceLocation(SheeperMod.MODID, name)));
     }
 
     /** Connects sound registration to the mod bus on both physical sides. */

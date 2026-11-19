@@ -19,7 +19,7 @@ import net.minecraft.world.entity.animal.Sheep;
 public class SheeperEyesLayer extends RenderLayer<Sheep, SheepModel<Sheep>> {
 
     private static final RenderType EYES = RenderType.eyes(
-            ResourceLocation.fromNamespaceAndPath(
+            new ResourceLocation(
                     SheeperMod.MODID, "textures/entity/sheeper_eyes.png"));
 
     /**

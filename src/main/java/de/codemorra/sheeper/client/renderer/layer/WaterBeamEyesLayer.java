@@ -17,7 +17,7 @@ import net.minecraft.world.entity.animal.Sheep;
 
 /** Uses the existing red eye texture without the elemental body's blue tint. */
 public final class WaterBeamEyesLayer extends RenderLayer<Sheep, SheepModel<Sheep>> {
-    private static final RenderType EYES = RenderType.eyes(ResourceLocation.fromNamespaceAndPath(
+    private static final RenderType EYES = RenderType.eyes(new ResourceLocation(
             SheeperMod.MODID, "textures/entity/sheeper_eyes.png"));
     private final SheepModel<Sheep> eyes;
 
