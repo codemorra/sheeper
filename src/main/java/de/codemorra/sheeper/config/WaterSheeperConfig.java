@@ -46,7 +46,7 @@ public final class WaterSheeperConfig {
 
     /** Water boss movement (elemental.water.movement). */
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_EDGE_DISTANCE = BUILDER
-            .comment("Minimum horizontal clearance between the boss body and the flooded arena boundary.",
+            .comment("Minimum horizontal clearance between the boss body and the virtual arena boundary.",
                     "The movement radius adapts automatically to arena radius and boss size; 0 keeps body clearance only.")
             .defineInRange("elemental.water.movement.edgeDistance", 2.0, 0.0, 16.0);
 
@@ -69,7 +69,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_HEIGHT_OFFSET = BUILDER
             .comment("Preferred boss center height above the selected player's center while circling underwater.",
-                    "Clamped to the flooded volume; melee approaches use closeRange.stopDistance instead.")
+                    "Clamped to the arena volume; melee approaches use closeRange.stopDistance instead.")
             .defineInRange("elemental.water.movement.heightOffset", 1.0, -2.0, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_CHANCE = BUILDER
@@ -110,7 +110,8 @@ public final class WaterSheeperConfig {
             .defineInRange("elemental.water.spawnPush.speedBlocksPerSecond", 20.0, 0.0, 40.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_EDGE_DISTANCE = BUILDER
-            .comment("Distance from the arena edge where spawn transport stops; players already in this outer ring are spared.")
+            .comment(
+                    "Distance from the arena edge where spawn transport stops; players already in this outer ring are spared.")
             .defineInRange("elemental.water.spawnPush.edgeDistance", 8.0, 0.0, 32.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_LIFT_HEIGHT = BUILDER
@@ -285,7 +286,7 @@ public final class WaterSheeperConfig {
             .defineInRange("elemental.water.maelstrom.slamSpeedBlocksPerSecond", 24.0, 4.0, 64.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_WAVE_SPEED = BUILDER
-            .comment("Outward pressure-wave speed in blocks per second across the flooded arena.")
+            .comment("Outward pressure-wave speed in blocks per second across the arena.")
             .defineInRange("elemental.water.maelstrom.waveSpeedBlocksPerSecond", 20.0, 5.0, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_TRANSPORT_SPEED = BUILDER
@@ -375,36 +376,23 @@ public final class WaterSheeperConfig {
                     "Arena water fog density multiplier: 0 disables fog, 1 keeps the base density; higher values make it denser.")
             .defineInRange("elemental.water.visuals.fogIntensity", 1.0, 0.0, 3.0);
 
-    /** Water arena discovery, flooding and cleanup (elemental.water.arena). */
+    /**
+     * Virtual water arena geometry and surface discovery (elemental.water.arena).
+     */
     public static final ForgeConfigSpec.IntValue WATER_ARENA_WATER_HEIGHT = BUILDER
-            .comment("Water surface height in blocks above the saved arena origin.",
-                    "Captured per arena; connected open cells below this common surface are flooded.")
+            .comment("Virtual water height in blocks above the saved arena origin.",
+                    "Captured per arena; terrain and existing fluid blocks remain unchanged.")
             .defineInRange("elemental.water.arena.waterHeight", 12, 4, 24);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
-            .comment("Maximum flooded depth below the saved arena origin; also bounds ground-surface discovery.",
+            .comment("Maximum arena depth below the saved origin; also bounds ground-surface discovery.",
                     "Captured when arena discovery starts.")
             .defineInRange("elemental.water.arena.heightRange", 10, 0, 32);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
-            .comment("Maximum volume and ground surface candidates examined per water Sheeper per second.",
+            .comment("Maximum ground-surface candidates examined per water Sheeper per second.",
                     "Unloaded chunks are deferred without being force-loaded.")
             .defineInRange("elemental.water.arena.searchCandidatesPerSecond", 40960, 20, 81920);
-
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_BLOCK_BUDGET_PER_SECOND = BUILDER
-            .comment(
-                    "Limits block positions processed per second when placing or removing arena water to reduce server load spikes.")
-            .defineInRange("elemental.water.arena.blockUpdatesPerSecond", 20480, 20, 40960);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_FLOOD_WAVE_SECONDS = BUILDER
-            .comment("Seconds between outward flood layers through connected open space.",
-                    "0 disables layer timing and uses only blockUpdatesPerSecond. Large layers still respect blockUpdatesPerSecond.")
-            .defineInRange("elemental.water.arena.floodWaveIntervalSeconds", 0.0, 0.0, 10.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_WAVE_SECONDS = BUILDER
-            .comment("Seconds between cleanup layers, from the outermost descendants back toward the spawn.",
-                    "0 disables layer timing. Unloaded cells are retried without blocking loaded cleanup.")
-            .defineInRange("elemental.water.arena.drainWaveIntervalSeconds", 0.1, 0.0, 10.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

@@ -27,7 +27,7 @@ final class WaterTestScene {
         context.set(WaterSheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE, 1.0D);
         var boss = context.spawn(ModEntities.WATER_SHEEPER.get(), 10, 1, 10);
         boss.setNoAi(true);
-        // Capture bounds with AI disabled, then bypass the remaining flood work.
+        // Capture bounds with AI disabled, then bypass the remaining startup delay.
         boss.tick();
         context.readyForCombat(boss);
         return boss;

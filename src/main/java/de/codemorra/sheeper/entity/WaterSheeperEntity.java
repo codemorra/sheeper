@@ -1,20 +1,16 @@
 package de.codemorra.sheeper.entity;
 
-import java.util.ArrayDeque;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
-import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.goal.WaterOrbitGoal;
 import de.codemorra.sheeper.entity.goal.WaterIdleSwimGoal;
 import de.codemorra.sheeper.entity.navigation.WaterArenaNavigation;
 import de.codemorra.sheeper.entity.navigation.WaterSwimMoveControl;
-import de.codemorra.sheeper.registry.ModFluids;
 import de.codemorra.sheeper.world.WaterArenaData;
 import de.codemorra.sheeper.world.ArenaWater;
 
@@ -44,7 +40,7 @@ import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fluids.FluidType;
 
 /**
- * Owns arena discovery, tracked water placement and the shared movement/attack
+ * Owns virtual arena discovery and the shared movement/attack
  * target. Dedicated controllers handle projectile timing and proximity pushes.
  * A separate special scheduler owns beam timing and stationary movement locks.
  */
@@ -71,15 +67,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Nullable
     private WaterArenaSearch arenaSearch;
     @Nullable
-    private WaterArenaVolumeSearch volumeSearch;
-    @Nullable
     private WaterArenaData.VolumeBounds arenaVolume;
     private boolean volumeInitialized;
     private boolean arenaConfigurationValid = true;
-    @Nullable
-    private Queue<BlockPos> waterPlacement;
-    private int placementWave = -1;
-    private long nextFloodWaveTick;
 
     private final WaterCombatSettings combatSettings = new WaterCombatSettings(this);
     private final WaterDefaultAttack defaultAttack = new WaterDefaultAttack(this);
@@ -244,8 +234,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      *         physics
      */
     public boolean isInArenaWater() {
-        return ArenaWater.waterHeight(this) > 0 || isInWaterOrBubble()
-                || isInFluidType(ModFluids.BOSS_WATER_TYPE.get());
+        return ArenaWater.waterHeight(this) > 0 || isInWaterOrBubble();
     }
 
     /**
@@ -338,7 +327,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Ignores currents in ordinary water and boss water while preserving other
+     * Ignores currents in ordinary water while preserving other
      * fluids' push behavior. Fluid drag and collision handling remain unchanged.
      *
      * @param type fluid attempting to push this entity
@@ -347,12 +336,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public boolean isPushedByFluid(FluidType type) {
         // Arena currents must not push the boss back down flooded steps.
-        return type != ModFluids.BOSS_WATER_TYPE.get() && type != ForgeMod.WATER_TYPE.get()
-                && super.isPushedByFluid(type);
+        return type != ForgeMod.WATER_TYPE.get() && super.isPushedByFluid(type);
     }
 
     /**
-     * Provides at least one block of step clearance in boss water, shared by
+     * Provides at least one block of step clearance in arena water, shared by
      * collision movement and pathfinding. Larger attribute bonuses are retained.
      *
      * @return effective step height in blocks
@@ -360,7 +348,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public float getStepHeight() {
         float height = super.getStepHeight();
-        return isInFluidType(ModFluids.BOSS_WATER_TYPE.get()) ? Math.max(1.0F, height) : height;
+        return isInArenaWater() ? Math.max(1.0F, height) : height;
     }
 
     @Override
@@ -465,11 +453,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                         && player.getEyeY() < getArenaWaterSurfaceY() : arenaPlayers.contains(player));
     }
 
-    private boolean isActivePlayer(ServerPlayer player) {
-        return player.level == level && player.isAlive() && !player.isRemoved()
-                && !player.isCreative() && !player.isSpectator();
-    }
-
     /**
      * Current server-side participants after submerged entry, independent of
      * subsequent height changes or sight.
@@ -519,7 +502,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Override
     public boolean isCombatReady() {
         return arenaConfigurationValid && (entityData.get(DATA_COMBAT_READY)
-                || level instanceof ServerLevel server && WaterArenaData.get(server).isGenerated(getUUID()));
+                || level instanceof ServerLevel server && WaterArenaData.get(server).isReady(getUUID()));
     }
 
     /**
@@ -538,7 +521,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     /**
      * Restores attack and movement controllers after full empty-arena recovery.
-     * Arena origin, discovered terrain and existing water remain intact.
+     * Arena origin, discovered terrain and the virtual water volume remain intact.
      */
     void resetArenaEncounter() {
         defaultAttack.reset();
@@ -578,7 +561,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 server, getArenaCenter(), getCombatRadius(),
                 WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
                 WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()) : existing;
-        // Validate before creating saved arena state or placing any water.
+        // Validate before creating saved arena state.
         // A loaded encounter may occupy terrain changed after its initial spawn.
         if (!proposed.isValidFor(server)) {
             SheeperMod.LOGGER.warn(
@@ -704,51 +687,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
     }
 
-    private void placeArenaWater(ServerLevel level) {
-        WaterArenaData data = WaterArenaData.get(level);
-        if (data.isGenerated(getUUID())) {
-            return;
-        }
-        if (waterPlacement == null) {
-            waterPlacement = new ArrayDeque<>();
-        }
-        BlockPos discovered;
-        while ((discovered = volumeSearch.pollDiscoveredCell()) != null) {
-            waterPlacement.add(discovered);
-        }
-        int interval = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS.get());
-        long now = level.getGameTime();
-        if (interval > 0 && !waterPlacement.isEmpty()
-                && volumeSearch.getDistance(waterPlacement.peek()) != placementWave) {
-            if (now < nextFloodWaveTick) {
-                return;
-            }
-            placementWave = volumeSearch.getDistance(waterPlacement.peek());
-        }
-        int candidates = Math.min(waterPlacement.size(),
-                WaterSheeperConfig.WATER_ARENA_BLOCK_BUDGET_PER_SECOND.get() / 20);
-        for (int examined = 0; examined < candidates; examined++) {
-            BlockPos pos = waterPlacement.peek();
-            int distance = volumeSearch.getDistance(pos);
-            if (interval > 0 && distance != placementWave || !WaterArenaData.isLoaded(level, pos)) {
-                break;
-            }
-            waterPlacement.remove();
-            data.claim(level, getUUID(), pos, distance);
-        }
-        if (interval > 0 && !waterPlacement.isEmpty()
-                && volumeSearch.getDistance(waterPlacement.peek()) != placementWave) {
-            nextFloodWaveTick = now + interval;
-        }
-        if (waterPlacement.isEmpty() && volumeSearch.isComplete()) {
-            data.finishGeneration(getUUID());
-            waterPlacement = null;
-            // The large volume search is only needed during generation, not throughout
-            // combat.
-            volumeSearch = null;
-        }
-    }
-
     @Override
     public void die(DamageSource source) {
         super.die(source);
@@ -792,11 +730,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         // Derived surface data is rediscovered from the saved origin after loading.
         arenaSearch = null;
-        volumeSearch = null;
         arenaVolume = null;
         volumeInitialized = false;
-        waterPlacement = null;
-        placementWave = -1;
-        nextFloodWaveTick = 0;
     }
 }

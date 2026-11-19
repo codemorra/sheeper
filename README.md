@@ -37,11 +37,11 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 #### Water Sheeper encounter
 
-- **Flooded arena:** The Water Sheeper fills a bounded volume of connected open space before combat begins. Both boss water and natural water inside the arena allow breathing and share its underwater appearance. Boss water recedes after defeat, preserving existing natural water. Players can enter from above but must leave sideways; creative and spectator players bypass the upper barrier.
+- **Water arena:** A bubble front expands a bounded underwater arena before combat begins, gently carrying players outward without damage. Swimming, breathing and underwater fog work without placing water blocks or washing away terrain and objects. Natural water inside the arena allows breathing and keeps its visible surface. The virtual water disappears after defeat. Players can enter from above but must leave sideways; creative and spectator players bypass the upper barrier.
 - **Water beam:** A stationary, warned stream with gradual tracking and fixed reach replaces projectile support briefly, followed by a recovery window.
 - **Maelstrom:** An immune, rotating ascent draws players inward before a downward impact releases a pressure wave. Contact starts damage and outward transport; reaching the protected outer ring ends both. Damage stops when the wave finishes. The boss becomes briefly vulnerable as the wave spreads.
 - **Fountains:** Warned bubble columns rise from the floor to the arena ceiling, dealing damage once per player and column and carrying victims upward while ordinary combat continues.
-- **Movement:** The Water Sheeper swims toward and around players throughout the flooded volume, following height changes and navigating around terrain, with occasional short water sprints. Without participants, it roams the arena at a relaxed pace.
+- **Movement:** The Water Sheeper swims toward and around players throughout the virtual water volume, following height changes and navigating around terrain, with occasional short water sprints. Without participants, it roams the arena at a relaxed pace.
 - **Default attack:** Fires water projectiles while circling, with brief firing pauses before randomly selecting its next target. At close range, it pauses shooting and approaches for a melee opening. When any player stays too close, everyone within reach takes damage and is pushed away, independently of its selected target.
 - **Arena rules:** Only players inside the arena and their attributable attacks can damage the boss. Creative players may deal damage but do not join combat or stop regeneration. Without combat participants, the boss blocks other damage and regenerates after a grace period; full recovery resets the encounter.
 - **Multiplayer health:** Maximum health scales with peak simultaneous participation, preserving the remaining health percentage. Leaving does not lower it until the encounter fully resets.
@@ -106,7 +106,7 @@ Eating durations and normal wool fuses are captured when eating/igniting. New in
 Each element has its own common config file, with settings under `elemental.<element>`.
 
 - **Shared options:** Each element has independent `size` and `maxHealth` settings. Size changes also affect hitboxes; health changes preserve the remaining health percentage. The server synchronizes boss size to clients.
-- **Water:** `elemental.water` controls the flooded arena, movement, attacks, proximity defense, and recovery.
+- **Water:** `elemental.water` controls the virtual water arena, movement, attacks, proximity defense, and recovery.
 - **Lightning:** `elemental.lightning` controls arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather.
 
 **Presentation: `config/sheeper-client.toml`**

@@ -92,10 +92,6 @@ public final class GameTestContext implements AutoCloseable {
         set(LightningSheeperConfig.LIGHTNING_STORM_ENABLED, false);
         set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
         set(LightningSheeperConfig.LIGHTNING_STORM_AWAKENING, 0.0D);
-        // Other scenarios isolate gameplay from timing; wave scenarios opt in
-        // explicitly.
-        set(WaterSheeperConfig.WATER_ARENA_FLOOD_WAVE_SECONDS, (0) / 20.0D);
-        set(WaterSheeperConfig.WATER_ARENA_DRAIN_WAVE_SECONDS, (0) / 20.0D);
         rule(GameRules.RULE_MOBGRIEFING, false);
         rule(GameRules.RULE_DOMOBLOOT, true);
         rule(GameRules.RULE_DOBLOCKDROPS, true);
@@ -181,11 +177,11 @@ public final class GameTestContext implements AutoCloseable {
     }
 
     /**
-     * Combat-only scenes bypass flooding; preparation scenarios use the real
+     * Combat-only scenes bypass startup; preparation scenarios use the real
      * lifecycle.
      */
     public WaterSheeperEntity readyForCombat(WaterSheeperEntity boss) {
-        WaterArenaData.get(level).finishGeneration(boss.getUUID());
+        WaterArenaData.get(level).finishStartup(boss.getUUID());
         return boss;
     }
 

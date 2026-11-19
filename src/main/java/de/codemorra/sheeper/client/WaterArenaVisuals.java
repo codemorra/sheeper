@@ -5,7 +5,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import de.codemorra.sheeper.world.WaterArenaData.ExpandingVolume;
@@ -18,9 +17,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
@@ -37,7 +34,7 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class WaterArenaVisuals {
-    // Chunk workers only read immutable snapshots published by the client thread.
+    // Physics and rendering share immutable snapshots published by the client thread.
     private record Snapshot(ClientLevel level, List<ExpandingVolume> arenas, long receivedAt) {
     }
 
@@ -59,24 +56,7 @@ public final class WaterArenaVisuals {
         if (level == null || !level.dimension().location().equals(packet.dimension())) {
             return;
         }
-        Snapshot previous = snapshot;
         snapshot = new Snapshot(level, packet.arenas(), level.getGameTime());
-        List<VolumeBounds> oldBounds = previous.arenas().stream()
-                .map(volume -> volume.at(previous.receivedAt())).toList();
-        List<VolumeBounds> newBounds = packet.arenas().stream()
-                .map(volume -> volume.at(level.getGameTime())).toList();
-        if (previous.level() == level) {
-            for (VolumeBounds bounds : oldBounds) {
-                if (!newBounds.contains(bounds)) {
-                    rebuild(level, bounds);
-                }
-            }
-        }
-        for (VolumeBounds bounds : newBounds) {
-            if (previous.level() != level || !oldBounds.contains(bounds)) {
-                rebuild(level, bounds);
-            }
-        }
     }
 
     /**
@@ -94,9 +74,6 @@ public final class WaterArenaVisuals {
         if (current.level() != null && (current.level() != level
                 || level.getGameTime() - current.receivedAt() > 60)) {
             snapshot = new Snapshot(null, List.of(), 0);
-            if (current.level() == level) {
-                current.arenas().forEach(volume -> rebuild(level, volume.bounds()));
-            }
         }
         if (fogLevel != level) {
             fogLevel = level;
@@ -128,11 +105,6 @@ public final class WaterArenaVisuals {
         return Mth.lerp(Mth.clamp((float) partialTick, 0, 1), previousFogBlend, fogBlend);
     }
 
-    /** Shared client lookup for the breathing hook and chunk tinting. */
-    public static boolean contains(Level level, BlockPos pos) {
-        return activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(pos));
-    }
-
     /** Supplies the same captured floor geometry used by the server for local movement prediction. */
     public static List<VolumeBounds> activeVolumes(Level level) {
         Snapshot current = snapshot;
@@ -150,24 +122,6 @@ public final class WaterArenaVisuals {
     public static List<ExpandingVolume> expandingVolumes(Level level) {
         Snapshot current = snapshot;
         return current.level() == level ? current.arenas() : List.of();
-    }
-
-    /** Tints legacy boss water only; natural water retains its normal biome appearance. */
-    public static int tintColor(int vanilla, BlockAndTintGetter getter, BlockPos pos, FluidState fluid) {
-        ClientLevel level = Minecraft.getInstance().level;
-        return level != null && fluid.getType() instanceof BossWaterFluid && contains(level, pos)
-                ? 0xFF5AB9D8 : vanilla;
-    }
-
-    /**
-     * Render-only fluid equivalence removes inner faces and fixes shared corner
-     * heights. Boss water is bounded by its arena; ordinary water versus air is
-     * unchanged.
-     */
-    public static boolean sameFluid(Fluid first, Fluid second) {
-        return first.isSame(second)
-                || first instanceof BossWaterFluid && second.isSame(Fluids.WATER)
-                || second instanceof BossWaterFluid && first.isSame(Fluids.WATER);
     }
 
     /** Virtual water supplies its own depth-based fog, without the coarse vanilla camera texture. */
@@ -212,13 +166,6 @@ public final class WaterArenaVisuals {
         return physical;
     }
 
-    /** Hides legacy boss-water meshes only; natural water surfaces remain visible inside the arena. */
-    public static boolean hideWaterCell(BlockPos pos, FluidState fluid) {
-        ClientLevel level = Minecraft.getInstance().level;
-        return level != null && fluid.getType() instanceof BossWaterFluid
-                && activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(Vec3.atCenterOf(pos)));
-    }
-
     /**
      * Keeps virtual and physical water on one vanilla fog baseline inside the
      * arena. The bounded fog renderer supplies underwater color and attenuation;
@@ -242,23 +189,4 @@ public final class WaterArenaVisuals {
         return null;
     }
 
-    /**
-     * Marks sections once per geometry change rather than rebuilding each block or
-     * each snapshot.
-     */
-    private static void rebuild(ClientLevel level, VolumeBounds bounds) {
-        int minimumX = Mth.floor(bounds.center().getX() - bounds.radius() - 1) >> 4;
-        int maximumX = Mth.ceil(bounds.center().getX() + bounds.radius() + 1) >> 4;
-        int minimumZ = Mth.floor(bounds.center().getZ() - bounds.radius() - 1) >> 4;
-        int maximumZ = Mth.ceil(bounds.center().getZ() + bounds.radius() + 1) >> 4;
-        int minimumY = Math.max(level.getMinSection(), (bounds.minimumY() - 1) >> 4);
-        int maximumY = Math.min(level.getMaxSection() - 1, (bounds.maximumY() + 1) >> 4);
-        for (int x = minimumX; x <= maximumX; x++) {
-            for (int z = minimumZ; z <= maximumZ; z++) {
-                for (int y = minimumY; y <= maximumY; y++) {
-                    Minecraft.getInstance().levelRenderer.setSectionDirty(x, y, z);
-                }
-            }
-        }
-    }
 }
