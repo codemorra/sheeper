@@ -28,6 +28,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -157,6 +161,45 @@ public final class WaterArenaData extends SavedData {
         }
         arena.distances.put(cell, distance);
         setDirty();
+        return true;
+    }
+
+    /**
+     * Atomically replaces attack-cleared leaves with still source water. Ownership
+     * is registered before neighbor updates, avoiding an air gap or untracked flow.
+     * Existing natural water in waterlogged leaves stays natural after cleanup.
+     *
+     * @param attacker boss whose active captured arena must contain the block
+     * @return whether leaves were replaced; permission checks belong to the attack
+     */
+    public boolean replaceAttackLeaves(ServerLevel level, LivingEntity attacker, BlockPos pos) {
+        UUID boss = attacker.getUUID();
+        Arena arena = arenas.get(boss);
+        if (arena == null || arena.cleaning || arena.volume == null || !arena.volume.contains(pos)
+                || !isLoaded(level, pos)) {
+            return false;
+        }
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(BlockTags.LEAVES)) {
+            return false;
+        }
+        boolean naturalWater = state.getFluidState().is(FluidTags.WATER)
+                && !(state.getFluidState().getType() instanceof BossWaterFluid);
+        boolean previouslyOwned = isOwnedBy(boss, pos);
+        if (!naturalWater) {
+            addOwners(pos, Map.of(boss, pos.distManhattan(arena.volume.center())));
+        }
+        var blockEntity = level.getBlockEntity(pos);
+        BlockState source = naturalWater ? Blocks.WATER.defaultBlockState()
+                : ModBlocks.BOSS_WATER.get().defaultBlockState();
+        if (!level.setBlock(pos, source, Block.UPDATE_ALL)) {
+            if (!naturalWater && !previouslyOwned) {
+                removeOwnedCell(level, boss, arena, pos);
+            }
+            return false;
+        }
+        Block.dropResources(state, level, pos, blockEntity, attacker, ItemStack.EMPTY);
+        level.levelEvent(2001, pos, Block.getId(state));
         return true;
     }
 

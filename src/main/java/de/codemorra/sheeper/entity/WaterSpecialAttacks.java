@@ -101,7 +101,7 @@ final class WaterSpecialAttacks {
             return;
         }
         boolean beamReady = beamCooldown == 0
-                && !defaultAttack.isClosingOnTarget() && boss.hasLineOfSight(target);
+                && !defaultAttack.isClosingOnTarget() && WaterAttackBlocks.hasLineOfSight(boss, target);
         boolean fountainReady = fountainCooldown == 0;
         boolean maelstromReady = maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
                 || defaultAttack.getMeleeTicks() >= SheeperConfig

@@ -156,7 +156,7 @@ final class WaterDefaultAttack {
         if (shotTicks > 0) {
             shotTicks--;
         }
-        if (!closingOnTarget && shotTicks == 0 && boss.hasLineOfSight(target)) {
+        if (!closingOnTarget && shotTicks == 0 && WaterAttackBlocks.hasLineOfSight(boss, target)) {
             WaterProjectile projectile = new WaterProjectile(ModEntities.WATER_PROJECTILE.get(), boss.level);
             projectile.setOwner(boss);
             projectile.setPos(boss.getEyePosition());

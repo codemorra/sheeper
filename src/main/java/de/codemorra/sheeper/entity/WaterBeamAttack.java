@@ -17,7 +17,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -85,7 +84,7 @@ final class WaterBeamAttack {
         // Cooldowns advance even while a player is outside the beam or arena.
         damageCooldowns.replaceAll((id, ticks) -> ticks - 1);
         damageCooldowns.values().removeIf(ticks -> ticks <= 0);
-        boolean visible = boss.hasLineOfSight(target);
+        boolean visible = WaterAttackBlocks.hasLineOfSight(boss, target);
         sightLossTicks = visible ? 0 : sightLossTicks + 1;
         if (sightLossTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_SIGHT_TIMEOUT.get())) {
             return false;
@@ -116,8 +115,7 @@ final class WaterBeamAttack {
         }
         // Target movement controls direction only; length grows to a fixed range.
         Vec3 tip = loadedTip(start, direction.normalize(), beamLength);
-        Vec3 end = boss.level.clip(new ClipContext(start, tip,
-                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, boss)).getLocation();
+        Vec3 end = WaterAttackBlocks.clipBeam(boss, start, tip).getLocation();
         boss.setBeamOffset(end.subtract(start));
         // Continuous flight audio follows the synchronized segment on each client;
         // only the distinct terrain-hit cue needs a server-side pulse.
