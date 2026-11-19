@@ -3,10 +3,13 @@ package de.codemorra.sheeper.entity;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -33,6 +36,9 @@ public final class WaterArenaSearch {
     private final int minimumY;
     private final int maximumY;
     private final int stepHeight;
+    private final boolean hasVirtualFloor;
+    private final Iterator<BlockPos> floorCandidates;
+    private final Queue<BlockPos> deferredFloor = new ArrayDeque<>();
     private final Queue<BlockPos> pending = new ArrayDeque<>();
     private final Map<BlockPos, Integer> visited = new HashMap<>();
     // Preserve breadth-first discovery order for an outward-moving source front.
@@ -46,13 +52,29 @@ public final class WaterArenaSearch {
      * Captures the search bounds; later config changes do not alter this search.
      */
     public WaterArenaSearch(Level level, BlockPos origin, double radius, int heightRange, int stepHeight) {
+        this(level, origin, radius, heightRange, stepHeight, null);
+    }
+
+    /**
+     * Also discovers an optional captured lower boundary, including sections
+     * disconnected from the real ground by cliffs. Null retains terrain-only discovery.
+     */
+    public WaterArenaSearch(Level level, BlockPos origin, double radius, int heightRange, int stepHeight,
+            @Nullable Integer lowerBoundaryY) {
         this.level = level;
         this.origin = origin.immutable();
         this.radiusSquared = radius * radius;
-        minimumY = Math.max(level.getMinBuildHeight() + 1, origin.getY() - heightRange);
+        minimumY = lowerBoundaryY == null ? Math.max(level.getMinBuildHeight() + 1, origin.getY() - heightRange)
+                : lowerBoundaryY;
         maximumY = Math.min(level.getMaxBuildHeight() - 1, origin.getY() + heightRange);
         seedY = Math.min(origin.getY(), maximumY);
         this.stepHeight = stepHeight;
+        hasVirtualFloor = lowerBoundaryY != null;
+        int extent = (int) Math.ceil(radius);
+        floorCandidates = hasVirtualFloor ? BlockPos.betweenClosed(
+                new BlockPos(origin.getX() - extent, minimumY, origin.getZ() - extent),
+                new BlockPos(origin.getX() + extent, minimumY, origin.getZ() + extent)).iterator()
+                : Collections.emptyIterator();
     }
 
     /**
@@ -62,6 +84,11 @@ public final class WaterArenaSearch {
      * @param budget maximum candidate cells to examine in this call
      */
     public void advance(int budget) {
+        if (budget > 0 && (floorCandidates.hasNext() || !deferredFloor.isEmpty())) {
+            int floorBudget = Math.max(1, budget / 2);
+            advanceFloor(floorBudget);
+            budget -= floorBudget;
+        }
         if (complete) {
             return;
         }
@@ -75,7 +102,7 @@ public final class WaterArenaSearch {
                 return;
             }
             budget--;
-            if (isSurface(level, candidate)) {
+            if (isSurfaceCandidate(candidate)) {
                 seedFound = true;
                 enqueue(candidate, 0);
             } else if (!isOpen(candidate)) {
@@ -96,7 +123,7 @@ public final class WaterArenaSearch {
                 deferred.add(candidate);
                 continue;
             }
-            if (!isSurface(level, candidate)) {
+            if (!isSurfaceCandidate(candidate)) {
                 continue;
             }
             surfaces.add(candidate);
@@ -108,6 +135,29 @@ public final class WaterArenaSearch {
         }
         pending.addAll(deferred);
         complete = seedFound && pending.isEmpty();
+    }
+
+    /** Scans the bounded plane incrementally and retries unloaded cells without loading chunks. */
+    private void advanceFloor(int budget) {
+        Queue<BlockPos> retry = new ArrayDeque<>();
+        while (budget-- > 0 && (floorCandidates.hasNext() || !deferredFloor.isEmpty())) {
+            BlockPos pos = floorCandidates.hasNext() ? floorCandidates.next().immutable() : deferredFloor.remove();
+            double dx = (double) pos.getX() - origin.getX();
+            double dz = (double) pos.getZ() - origin.getZ();
+            if (dx * dx + dz * dz > radiusSquared) {
+                continue;
+            }
+            if (!isChunkLoaded(pos)) {
+                retry.add(pos);
+            } else if (isOpen(pos)) {
+                surfaces.add(pos);
+            }
+        }
+        deferredFloor.addAll(retry);
+    }
+
+    private boolean isSurfaceCandidate(BlockPos pos) {
+        return hasVirtualFloor ? isSurface(level, pos, minimumY) : isSurface(level, pos);
     }
 
     private boolean isChunkLoaded(BlockPos pos) {
@@ -167,8 +217,13 @@ public final class WaterArenaSearch {
                 && support.isFaceSturdy(level, floor, Direction.UP);
     }
 
+    /** A captured lower boundary supports fountains even when no solid block lies below it. */
+    public static boolean isSurface(Level level, BlockPos pos, int lowerBoundaryY) {
+        return pos.getY() == lowerBoundaryY ? isOpen(level, pos) : isSurface(level, pos);
+    }
+
     public boolean isComplete() {
-        return complete;
+        return complete && !floorCandidates.hasNext() && deferredFloor.isEmpty();
     }
 
     /** Read-only live view in discovery order; final only after completion. */
@@ -176,11 +231,11 @@ public final class WaterArenaSearch {
         return surfaceView;
     }
 
-    /** Returns the discovered path length from the initial ground cell. */
+    /** Returns discovered path length, or Manhattan distance for independently scanned floor cells. */
     public int getSurfaceDistance(BlockPos pos) {
         if (!surfaces.contains(pos)) {
             throw new IllegalArgumentException("Position is not a discovered arena surface: " + pos);
         }
-        return visited.get(pos);
+        return visited.getOrDefault(pos, pos.distManhattan(origin));
     }
 }
