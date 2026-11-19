@@ -99,6 +99,22 @@ public final class WaterArenaData extends SavedData {
         }
     }
 
+    /** Fixed geometry and a world-time clock keep startup consistent across saves and clients. */
+    public record ExpandingVolume(VolumeBounds bounds, long startTick, int durationTicks) {
+        /** Returns the currently usable cylinder without changing the captured arena bounds. */
+        public VolumeBounds at(double gameTime) {
+            double progress = durationTicks == 0 ? 1
+                    : Math.max(0, Math.min(1, (gameTime - startTick) / durationTicks));
+            return new VolumeBounds(bounds.center(), Math.max(1, bounds.radius() * progress),
+                    bounds.minimumY(), bounds.maximumY());
+        }
+
+        /** Whether the one-time arena startup is still in progress at the supplied world time. */
+        public boolean isExpanding(double gameTime) {
+            return durationTicks > 0 && gameTime - startTick < durationTicks;
+        }
+    }
+
     private static final class Arena {
         private final Set<BlockPos> positions = new LinkedHashSet<>();
         private final Map<BlockPos, Integer> distances = new HashMap<>();
@@ -106,6 +122,8 @@ public final class WaterArenaData extends SavedData {
         private long nextDrainWaveTick;
         private boolean legacyVanilla;
         private boolean generated;
+        private long startupTick;
+        private int startupDuration;
         private boolean cleaning;
         @Nullable
         private VolumeBounds volume;
@@ -119,6 +137,13 @@ public final class WaterArenaData extends SavedData {
     public static void tick(ServerLevel level, int budget) {
         WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
         if (data != null) {
+            for (Arena arena : data.arenas.values()) {
+                if (!arena.cleaning && !arena.generated && arena.volume != null
+                        && !data.expansion(arena).isExpanding(level.getGameTime())) {
+                    arena.generated = true;
+                    data.setDirty();
+                }
+            }
             data.advanceCleanup(level, budget);
         }
     }
@@ -128,11 +153,20 @@ public final class WaterArenaData extends SavedData {
      * excluded immediately.
      */
     public static List<VolumeBounds> activeVolumes(ServerLevel level) {
+        return expandingVolumes(level).stream().map(volume -> volume.at(level.getGameTime())).toList();
+    }
+
+    /** Synchronizes the startup clock as well as bounds, so clients can animate between packets. */
+    public static List<ExpandingVolume> expandingVolumes(ServerLevel level) {
         WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
         return data == null ? List.of()
                 : data.arenas.values().stream()
                         .filter(arena -> !arena.cleaning && arena.volume != null && arena.volume.isValidFor(level))
-                        .map(arena -> arena.volume).toList();
+                        .map(data::expansion).toList();
+    }
+
+    private ExpandingVolume expansion(Arena arena) {
+        return new ExpandingVolume(arena.volume, arena.startupTick, arena.generated ? 0 : arena.startupDuration);
     }
 
     public boolean isGenerated(UUID boss) {
@@ -148,8 +182,8 @@ public final class WaterArenaData extends SavedData {
     }
 
     /**
-     * Captures a common water level once. Existing shallow arenas are marked for
-     * refilling while retaining their owned water and normal cleanup behavior.
+     * Captures the arena bounds and starts expansion once. Existing arenas retain
+     * their geometry and startup clock, including after the boss reloads.
      *
      * @param level  world supplying valid build-height limits
      * @param boss   arena owner
@@ -173,6 +207,8 @@ public final class WaterArenaData extends SavedData {
         if (arena.volume == null) {
             arena.volume = captured;
             arena.generated = false;
+            arena.startupTick = level.getGameTime();
+            arena.startupDuration = (int) Math.round(WaterSheeperConfig.WATER_ARENA_BUILD_DURATION.get() * 20);
             setDirty();
         }
         return arena.volume;
@@ -463,6 +499,8 @@ public final class WaterArenaData extends SavedData {
             Arena arena = new Arena();
             arena.legacyVanilla = !entry.getBoolean("BossWater");
             arena.generated = entry.getBoolean("Generated");
+            arena.startupTick = Math.max(0, entry.getLong("StartupTick"));
+            arena.startupDuration = Math.max(0, Math.min(600, entry.getInt("StartupDuration")));
             arena.cleaning = entry.getBoolean("Cleaning");
             arena.nextDrainWaveTick = entry.getLong("NextDrainWaveTick");
             CompoundTag volume = entry.getCompound("Volume");
@@ -499,6 +537,8 @@ public final class WaterArenaData extends SavedData {
             entry.putUUID("Boss", boss);
             entry.putBoolean("BossWater", !arena.legacyVanilla);
             entry.putBoolean("Generated", arena.generated);
+            entry.putLong("StartupTick", arena.startupTick);
+            entry.putInt("StartupDuration", arena.startupDuration);
             entry.putBoolean("Cleaning", arena.cleaning);
             entry.putLongArray("Positions", arena.positions.stream().mapToLong(BlockPos::asLong).toArray());
             entry.putIntArray("Distances",

@@ -29,6 +29,10 @@ public final class WaterSheeperConfig {
                     "Surface discovery captures this radius when it starts; combat uses the current value.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_BUILD_DURATION = BUILDER
+            .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
+            .defineInRange("elemental.water.arenaBuild.durationSeconds", 5.0, 0.5, 30.0);
+
     /** Empty-arena grace and recovery (elemental.water.arenaRecovery). */
     public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = BUILDER
             .comment("Seconds without arena participants before regeneration begins.",

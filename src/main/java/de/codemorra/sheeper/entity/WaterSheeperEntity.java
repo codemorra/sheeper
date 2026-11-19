@@ -680,8 +680,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             return false;
         }
         arenaVolume = bounds;
-        // A virtual water volume is usable immediately; terrain blocks stay intact.
-        data.finishGeneration(getUUID());
+        // Combat stays paused until the saved startup clock has filled the virtual arena.
         volumeInitialized = true;
         entityData.set(DATA_COMBAT_READY, false);
         return true;

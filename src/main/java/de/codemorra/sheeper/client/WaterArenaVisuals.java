@@ -8,6 +8,7 @@ import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.fluid.BossWaterFluid;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
+import de.codemorra.sheeper.world.WaterArenaData.ExpandingVolume;
 import net.minecraft.client.Camera;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.Minecraft;
@@ -37,7 +38,7 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class WaterArenaVisuals {
     // Chunk workers only read immutable snapshots published by the client thread.
-    private record Snapshot(ClientLevel level, List<VolumeBounds> arenas, long receivedAt) {
+    private record Snapshot(ClientLevel level, List<ExpandingVolume> arenas, long receivedAt) {
     }
 
     private static volatile Snapshot snapshot = new Snapshot(null, List.of(), 0);
@@ -60,15 +61,19 @@ public final class WaterArenaVisuals {
         }
         Snapshot previous = snapshot;
         snapshot = new Snapshot(level, packet.arenas(), level.getGameTime());
+        List<VolumeBounds> oldBounds = previous.arenas().stream()
+                .map(volume -> volume.at(previous.receivedAt())).toList();
+        List<VolumeBounds> newBounds = packet.arenas().stream()
+                .map(volume -> volume.at(level.getGameTime())).toList();
         if (previous.level() == level) {
-            for (VolumeBounds bounds : previous.arenas()) {
-                if (!packet.arenas().contains(bounds)) {
+            for (VolumeBounds bounds : oldBounds) {
+                if (!newBounds.contains(bounds)) {
                     rebuild(level, bounds);
                 }
             }
         }
-        for (VolumeBounds bounds : packet.arenas()) {
-            if (previous.level() != level || !previous.arenas().contains(bounds)) {
+        for (VolumeBounds bounds : newBounds) {
+            if (previous.level() != level || !oldBounds.contains(bounds)) {
                 rebuild(level, bounds);
             }
         }
@@ -90,7 +95,7 @@ public final class WaterArenaVisuals {
                 || level.getGameTime() - current.receivedAt() > 60)) {
             snapshot = new Snapshot(null, List.of(), 0);
             if (current.level() == level) {
-                current.arenas().forEach(bounds -> rebuild(level, bounds));
+                current.arenas().forEach(volume -> rebuild(level, volume.bounds()));
             }
         }
         if (fogLevel != level) {
@@ -130,6 +135,19 @@ public final class WaterArenaVisuals {
 
     /** Supplies the same captured floor geometry used by the server for local movement prediction. */
     public static List<VolumeBounds> activeVolumes(Level level) {
+        Snapshot current = snapshot;
+        return current.level() == level ? current.arenas().stream()
+                .map(volume -> volume.at(level.getGameTime())).toList() : List.of();
+    }
+
+    /** Interpolates only the visual front; collision prediction remains aligned with server ticks. */
+    static List<VolumeBounds> renderVolumes(Level level, float partialTick) {
+        return expandingVolumes(level).stream()
+                .map(volume -> volume.at(level.getGameTime() + partialTick)).toList();
+    }
+
+    /** Startup clocks are immutable and shared by fog, local physics and the bubble front. */
+    public static List<ExpandingVolume> expandingVolumes(Level level) {
         Snapshot current = snapshot;
         return current.level() == level ? current.arenas() : List.of();
     }
