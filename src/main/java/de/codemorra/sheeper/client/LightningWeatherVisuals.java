@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
@@ -38,7 +39,7 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LightningWeatherVisuals {
-    private static final ResourceLocation RAIN = new ResourceLocation("minecraft",
+    private static final ResourceLocation RAIN = ResourceLocations.create("minecraft",
             "textures/environment/rain.png");
     private static ClientLevel snapshotLevel;
     private static List<LightningWeatherPacket.Arena> arenas = List.of();

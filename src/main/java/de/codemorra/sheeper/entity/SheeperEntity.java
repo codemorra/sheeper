@@ -9,6 +9,7 @@ import de.codemorra.sheeper.entity.goal.RetaliatePlayerGoal;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.registry.ModBlocks;
 import de.codemorra.sheeper.registry.ModSounds;
+import de.codemorra.sheeper.util.ResourceLocations;
 import de.codemorra.sheeper.util.SheeperBurst;
 import de.codemorra.sheeper.SheeperMod;
 import net.minecraft.core.BlockPos;
@@ -169,11 +170,11 @@ public class SheeperEntity extends Sheep {
     @Override
     public ResourceLocation getDefaultLootTable() {
         if (isSheared()) {
-            return new ResourceLocation(
+            return ResourceLocations.create(
                     SheeperMod.MODID, "entities/sheeper");
         }
 
-        return new ResourceLocation(
+        return ResourceLocations.create(
                 SheeperMod.MODID,
                 "entities/sheeper/" + getColor().getName());
     }

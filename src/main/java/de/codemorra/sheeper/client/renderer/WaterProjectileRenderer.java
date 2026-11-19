@@ -2,6 +2,7 @@ package de.codemorra.sheeper.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import de.codemorra.sheeper.entity.WaterProjectile;
+import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -21,7 +22,7 @@ import net.minecraft.world.inventory.InventoryMenu;
  * Small translucent water cube using the animated resource-pack water sprite.
  */
 public class WaterProjectileRenderer extends EntityRenderer<WaterProjectile> {
-    private static final ResourceLocation WATER = new ResourceLocation("minecraft",
+    private static final ResourceLocation WATER = ResourceLocations.create("minecraft",
             "block/water_still");
     private final ModelPart model;
 
