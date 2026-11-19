@@ -7,6 +7,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.registry.ModParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -26,7 +27,7 @@ import net.minecraft.world.level.material.Fluids;
  * water bounds. Players may enter from above but cannot leave vertically.
  */
 final class WaterArenaPlayers {
-    private static final double SURFACE_MARGIN = 0.15D;
+    private static final double SURFACE_MARGIN = ArenaWater.BOUNDARY_MARGIN;
     private static final double BOUNDARY_VISIBILITY_DISTANCE = 8.0D;
     private static final double BOUNDARY_HALF_EXTENT = 6.0D;
     private static final int BOUNDARY_PARTICLE_INTERVAL = 8;
@@ -64,8 +65,9 @@ final class WaterArenaPlayers {
     }
 
     /**
-     * Runs after entity movement so client-controlled swimming cannot leave the
-     * captured water bounds. Horizontal velocity and view direction are preserved.
+     * Repairs vertical escapes after movement, including teleports or missing
+     * client snapshots. Normal floor contact uses predicted collision instead.
+     * Horizontal velocity and view direction are preserved.
      */
     void enforceVerticalBounds() {
         ServerLevel level = (ServerLevel) boss.level;
@@ -80,7 +82,7 @@ final class WaterArenaPlayers {
             }
             double minimumY = boss.getArenaWaterMinimumY() + SURFACE_MARGIN;
             double maximumY = boss.getArenaWaterSurfaceY() - SURFACE_MARGIN - player.getBbHeight();
-            boolean below = player.getY() < minimumY;
+            boolean below = player.getY() < minimumY - 1.0E-5D;
             showLowerBoundary(player, minimumY);
             showSideBoundary(player);
             if (below || player.getY() > maximumY) {
@@ -98,9 +100,6 @@ final class WaterArenaPlayers {
                 if (player.getDeltaMovement().y > 0
                         && player.getY() + player.getDeltaMovement().y > maximumY) {
                     stopVerticalExit(player, false);
-                } else if (player.getDeltaMovement().y < 0
-                        && player.getY() + player.getDeltaMovement().y < minimumY) {
-                    stopVerticalExit(player, true);
                 }
             }
         }

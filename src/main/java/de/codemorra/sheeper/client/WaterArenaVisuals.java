@@ -92,8 +92,13 @@ public final class WaterArenaVisuals {
 
     /** Shared client lookup for the breathing hook and chunk tinting. */
     public static boolean contains(Level level, BlockPos pos) {
+        return activeVolumes(level).stream().anyMatch(bounds -> bounds.contains(pos));
+    }
+
+    /** Supplies the same captured floor geometry used by the server for local movement prediction. */
+    public static List<VolumeBounds> activeVolumes(Level level) {
         Snapshot current = snapshot;
-        return current.level() == level && current.arenas().stream().anyMatch(bounds -> bounds.contains(pos));
+        return current.level() == level ? current.arenas() : List.of();
     }
 
     /**

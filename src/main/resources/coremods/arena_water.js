@@ -1,4 +1,4 @@
-// Keep arena breathing positional and unify water only in the client liquid renderer.
+// Keep arena breathing and floor collision positional; unify water in the client renderer.
 // Physics comparisons in Fluid/WaterFluid are deliberately left untouched.
 function initializeCoreMod() {
   var O = Java.type("org.objectweb.asm.Opcodes");
@@ -24,6 +24,35 @@ function initializeCoreMod() {
     }
   }
   return {
+    arena_water_floor_collision: {
+      target: { type: "CLASS", name: "net.minecraft.world.entity.Entity" },
+      transformer: function (node) {
+        var count = 0;
+        var vector = "Lnet/minecraft/world/phys/Vec3;";
+        var entity = "Lnet/minecraft/world/entity/Entity;";
+        for (var i = 0; i < node.methods.size(); i++) {
+          var m = node.methods.get(i);
+          if (String(m.desc) !== "(" + vector + ")" + vector ||
+              (m.access & O.ACC_PRIVATE) === 0) continue;
+          var instructions = m.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if ((insn.getOpcode() === O.INVOKEVIRTUAL || insn.getOpcode() === O.INVOKEINTERFACE) &&
+                String(insn.desc) === "(" + entity + "Lnet/minecraft/world/phys/AABB;)Ljava/util/List;") {
+              var code = new List();
+              code.add(new Var(O.ALOAD, 0));
+              code.add(new Var(O.ALOAD, 1));
+              code.add(invoke("de/codemorra/sheeper/world/ArenaWater", "floorCollisions",
+                  "(Ljava/util/List;" + entity + vector + ")Ljava/util/List;"));
+              m.instructions.insert(insn, code);
+              count++;
+            }
+          }
+        }
+        check(count, 1, "Entity.collide entity collision shapes");
+        return node;
+      }
+    },
     arena_water_breathing: {
       target: { type: "CLASS", name: "net.minecraftforge.common.extensions.IForgeLivingEntity" },
       transformer: function (node) {
