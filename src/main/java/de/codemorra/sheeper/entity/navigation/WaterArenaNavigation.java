@@ -13,6 +13,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.SwimNodeEvaluator;
+import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 
@@ -99,7 +100,7 @@ public final class WaterArenaNavigation extends WaterBoundPathNavigation {
                 .expandTowards(to.subtract(from)).deflate(0.01D);
         for (BlockPos pos : BlockPos.betweenClosed(new BlockPos(swept.minX, swept.minY, swept.minZ),
                 new BlockPos(swept.maxX, swept.maxY, swept.maxZ))) {
-            if (!WaterArenaData.isLoaded(server, pos) || !level.getFluidState(pos).is(FluidTags.WATER)) {
+            if (!WaterArenaData.isLoaded(server, pos)) {
                 return false;
             }
         }
@@ -111,6 +112,16 @@ public final class WaterArenaNavigation extends WaterBoundPathNavigation {
             super(false);
         }
 
+        /** Virtual water has no air-breaching surcharge in vanilla's swim evaluator. */
+        @Override
+        protected Node getNode(int x, int y, int z) {
+            Node node = super.getNode(x, y, z);
+            if (node != null) {
+                node.costMalus = mob.getPathfindingMalus(BlockPathTypes.WATER);
+            }
+            return node;
+        }
+
         @Override
         public BlockPathTypes getBlockPathType(BlockGetter level, int x, int y, int z, Mob mob,
                 int width, int height, int depth, boolean openDoors, boolean passDoors) {
@@ -118,7 +129,7 @@ public final class WaterArenaNavigation extends WaterBoundPathNavigation {
             if (!(mob instanceof WaterSheeperEntity boss) || !boss.canSwimAt(new Vec3(x + offset, y, z + offset))) {
                 return BlockPathTypes.BLOCKED;
             }
-            return super.getBlockPathType(level, x, y, z, mob, width, height, depth, openDoors, passDoors);
+            return BlockPathTypes.WATER;
         }
     }
 }
