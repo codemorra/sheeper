@@ -27,9 +27,9 @@ import net.minecraft.world.phys.Vec3;
  * A damageable server player whose normal player ticks run without a connected
  * client. Forge's FakePlayer deliberately disables ticking, damage, and death.
  */
-final class TestPlayer extends ServerPlayer {
+public final class TestPlayer extends ServerPlayer {
     private Vec3 anchor;
-    final List<String> damageEvents = new ArrayList<>();
+    public final List<String> damageEvents = new ArrayList<>();
     final List<ClientboundSetEntityMotionPacket> motionPackets = new ArrayList<>();
     final List<ClientboundBossEventPacket> bossPackets = new ArrayList<>();
     final List<ClientboundLevelParticlesPacket> particlePackets = new ArrayList<>();
@@ -85,7 +85,7 @@ final class TestPlayer extends ServerPlayer {
     }
 
     /** Moves the stationary test client to another position for range tests. */
-    void standAt(Vec3 position) {
+    public void standAt(Vec3 position) {
         anchor = position;
         setPos(position.x, position.y, position.z);
     }

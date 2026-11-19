@@ -53,7 +53,7 @@ public final class GameTestContext implements AutoCloseable {
     private static GameTestContext active;
 
     final GameTestHelper helper;
-    final ServerLevel level;
+    public final ServerLevel level;
     final List<Explosion> explosions = new ArrayList<>();
     private final List<TestPlayer> players = new ArrayList<>();
     private final Map<ForgeConfigSpec, CommentedConfig> originalConfigs = new LinkedHashMap<>();
@@ -143,32 +143,32 @@ public final class GameTestContext implements AutoCloseable {
         }
     }
 
-    <T> void set(ForgeConfigSpec.ConfigValue<T> value, T replacement) {
+    public <T> void set(ForgeConfigSpec.ConfigValue<T> value, T replacement) {
         value.set(replacement);
     }
 
-    void rule(GameRules.Key<GameRules.BooleanValue> key, boolean value) {
+    public void rule(GameRules.Key<GameRules.BooleanValue> key, boolean value) {
         boolean old = level.getGameRules().getBoolean(key);
         ruleRestorers.add(() -> level.getGameRules().getRule(key).set(old, level.getServer()));
         level.getGameRules().getRule(key).set(value, level.getServer());
     }
 
     /** Restores difficulty even when the scenario fails or times out. */
-    void difficulty(Difficulty difficulty) {
+    public void difficulty(Difficulty difficulty) {
         Difficulty old = level.getDifficulty();
         ruleRestorers.add(() -> level.getServer().setDifficulty(old, true));
         level.getServer().setDifficulty(difficulty, true);
     }
 
-    BlockPos pos(int x, int y, int z) {
+    public BlockPos pos(int x, int y, int z) {
         return helper.absolutePos(new BlockPos(x, y + 1, z));
     }
 
-    void setBlock(int x, int y, int z, Block block) {
+    public void setBlock(int x, int y, int z, Block block) {
         setBlock(x, y, z, block.defaultBlockState());
     }
 
-    void setBlock(int x, int y, int z, BlockState state) {
+    public void setBlock(int x, int y, int z, BlockState state) {
         helper.setBlock(x, y + 1, z, state);
     }
 
@@ -176,7 +176,7 @@ public final class GameTestContext implements AutoCloseable {
         helper.assertBlockPresent(block, x, y + 1, z);
     }
 
-    Vec3 point(int x, int y, int z) {
+    public Vec3 point(int x, int y, int z) {
         return Vec3.atBottomCenterOf(pos(x, y, z));
     }
 
@@ -184,12 +184,12 @@ public final class GameTestContext implements AutoCloseable {
      * Combat-only scenes bypass flooding; preparation scenarios use the real
      * lifecycle.
      */
-    WaterSheeperEntity readyForCombat(WaterSheeperEntity boss) {
+    public WaterSheeperEntity readyForCombat(WaterSheeperEntity boss) {
         WaterArenaData.get(level).finishGeneration(boss.getUUID());
         return boss;
     }
 
-    TestPlayer player(int x, int y, int z) {
+    public TestPlayer player(int x, int y, int z) {
         TestPlayer player = new TestPlayer(level, point(x, y, z));
         players.add(player);
         level.addNewPlayer(player);
@@ -204,7 +204,7 @@ public final class GameTestContext implements AutoCloseable {
         return sheeper;
     }
 
-    <E extends Entity> E spawn(EntityType<E> type, int x, int y, int z) {
+    public <E extends Entity> E spawn(EntityType<E> type, int x, int y, int z) {
         E entity = helper.spawn(type, x, y + 1, z);
         if (entity instanceof Mob mob) {
             mob.setPersistenceRequired();
@@ -236,12 +236,12 @@ public final class GameTestContext implements AutoCloseable {
         }).toList();
     }
 
-    <T extends Entity> List<T> entities(Class<T> type) {
+    public <T extends Entity> List<T> entities(Class<T> type) {
         return level.getEntitiesOfClass(type, bounds, entity -> !entity.isRemoved());
     }
 
     /** Schedules an assertion relative to the prepared scene's first tick. */
-    void at(int tick, Runnable action) {
+    public void at(int tick, Runnable action) {
         helper.runAtTickTime(startTick + tick, guarded(action));
     }
 
@@ -258,18 +258,18 @@ public final class GameTestContext implements AutoCloseable {
         };
     }
 
-    void expect(boolean condition, String message) {
+    public void expect(boolean condition, String message) {
         if (!condition) {
             helper.fail(message);
         }
     }
 
-    void near(double actual, double expected, String message) {
+    public void near(double actual, double expected, String message) {
         expect(Math.abs(actual - expected) < 0.0001,
                 message + ": expected " + expected + ", got " + actual);
     }
 
-    void pass() {
+    public void pass() {
         close();
         helper.succeed();
     }
