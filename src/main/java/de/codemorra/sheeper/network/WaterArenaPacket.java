@@ -42,11 +42,11 @@ public record WaterArenaPacket(ResourceLocation dimension, List<VolumeBounds> ar
             double radius = buffer.readDouble();
             int minimum = buffer.readInt();
             int maximum = buffer.readInt();
-            if (!Double.isFinite(radius) || radius < 1 || radius > 128 || minimum > maximum
-                    || (long) maximum - minimum > 128 || minimum < -2032 || maximum > 2031) {
+            VolumeBounds bounds = new VolumeBounds(center, radius, minimum, maximum);
+            if (!bounds.isValid()) {
                 throw new IllegalArgumentException("Invalid water arena geometry");
             }
-            arenas.add(new VolumeBounds(center, radius, minimum, maximum));
+            arenas.add(bounds);
         }
         return new WaterArenaPacket(dimension, List.copyOf(arenas));
     }
