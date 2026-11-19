@@ -29,6 +29,11 @@ public final class WaterSheeperConfig {
                     "Surface discovery captures this radius when it starts; combat uses the current value.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_BOSS_BAR_DISTANCE = BUILDER
+            .comment("Maximum distance in blocks beyond the arena where the Water Sheeper health bar is visible.",
+                    "Set to 0 to show it only inside the arena.")
+            .defineInRange("elemental.water.bossBarDistance", 10.0, 0.0, 64.0);
+
     public static final ForgeConfigSpec.DoubleValue WATER_ARENA_BUILD_DURATION = BUILDER
             .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
             .defineInRange("elemental.water.arenaBuild.durationSeconds", 5.0, 0.5, 30.0);
