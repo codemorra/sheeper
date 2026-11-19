@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -86,6 +87,18 @@ public final class WaterArenaData extends SavedData {
         if (data != null) {
             data.advanceCleanup(level, budget);
         }
+    }
+
+    /**
+     * Captured arenas retain protection while unloaded; retiring arenas are
+     * excluded immediately.
+     */
+    public static List<VolumeBounds> activeVolumes(ServerLevel level) {
+        WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
+        return data == null ? List.of()
+                : data.arenas.values().stream()
+                        .filter(arena -> !arena.cleaning && arena.volume != null)
+                        .map(arena -> arena.volume).toList();
     }
 
     public boolean isGenerated(UUID boss) {

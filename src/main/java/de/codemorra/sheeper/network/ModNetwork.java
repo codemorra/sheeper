@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "3";
+    private static final String VERSION = "4";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -38,6 +38,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningWeatherPacket.class, 1, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningWeatherPacket::encode).decoder(LightningWeatherPacket::decode)
                 .consumerMainThread(LightningWeatherPacket::handle).add();
+        CHANNEL.messageBuilder(WaterArenaPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(WaterArenaPacket::encode).decoder(WaterArenaPacket::decode)
+                .consumerMainThread(WaterArenaPacket::handle).add();
     }
 
     /**
@@ -73,6 +76,13 @@ public final class ModNetwork {
     }
 
     public static void sendWeather(ServerPlayer observer, LightningWeatherPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /**
+     * Sends captured arena bounds for water rendering and the local air display.
+     */
+    public static void sendWaterArenas(ServerPlayer observer, WaterArenaPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 }

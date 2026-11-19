@@ -1,4 +1,5 @@
 {
   "boss_waterlogging": "coremods/boss_waterlogging.js",
-  "arena_weather": "coremods/arena_weather.js"
+  "arena_weather": "coremods/arena_weather.js",
+  "arena_water": "coremods/arena_water.js"
 }
