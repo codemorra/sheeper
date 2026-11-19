@@ -306,7 +306,7 @@ public final class WaterOrbitGoal extends Goal {
      * @return three-dimensional center-to-center stopping distance in blocks
      */
     private double closeRangeDistance() {
-        return WaterSheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE.get();
+        return boss.getMeleeStopDistance();
     }
 
     /**

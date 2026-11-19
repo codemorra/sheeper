@@ -48,11 +48,11 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds between local circling waypoints.")
-            .defineInRange("elemental.water.movement.intervalMinSeconds", 1.0, 0.05, 600.0);
+            .defineInRange("elemental.water.movement.intervalMinSeconds", 1.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MAX = BUILDER
             .comment("Maximum seconds between local circling waypoints; capped below by the minimum.")
-            .defineInRange("elemental.water.movement.intervalMaxSeconds", 2.0, 0.05, 600.0);
+            .defineInRange("elemental.water.movement.intervalMaxSeconds", 2.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPEED = BUILDER
             .comment("Navigation speed multiplier for approaching and circling players. 0 disables movement.")
@@ -62,10 +62,6 @@ public final class WaterSheeperConfig {
             .comment("Preferred distance for circling the selected player in blocks.",
                     "Approaching players shrink the circle instead of making the boss retreat.")
             .defineInRange("elemental.water.movement.orbitDistance", 10.0, 1.0, 64.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SWIM_SPEED = BUILDER
-            .comment("Water boss swim acceleration multiplier; offsets ordinary sheep water slowdown.")
-            .defineInRange("elemental.water.movement.swimSpeedMultiplier", 4.0, 0.1, 16.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_HEIGHT_OFFSET = BUILDER
             .comment("Preferred boss center height above the selected player's center while circling underwater.",
@@ -106,11 +102,11 @@ public final class WaterSheeperConfig {
     /** Water-contact spawn wave (elemental.water.spawnPush). */
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_RADIUS = BUILDER
             .comment("Maximum distance from the boss for contact and launch of the spawn water wave; 0 disables it.")
-            .defineInRange("elemental.water.spawnPush.radius", 15.0, 0.0, 128.0);
+            .defineInRange("elemental.water.spawnPush.radius", 15.0, 0.0, 64.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_DELAY = BUILDER
             .comment("Seconds after first contact with this boss's water during flooding before the one-time push.")
-            .defineInRange("elemental.water.spawnPush.delaySeconds", 0.15, 0.0, 60.0);
+            .defineInRange("elemental.water.spawnPush.delaySeconds", 0.15, 0.0, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_WAVE_HEIGHT = BUILDER
             .comment("Maximum rise of the spawn water wave in blocks; water drag and ceilings may reduce it.")
@@ -128,7 +124,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_STOP_DISTANCE = BUILDER
             .comment("Fixed distance between body centers where the boss stops approaching in melee mode.",
-                    "Independent of boss size, orbitDistance and the proximity push radius; approaching players cause no retreat.")
+                    "Limited below melee entry distance and within enabled proximity push reach; approaching players cause no retreat.")
             .defineInRange("elemental.water.closeRange.stopDistance", 2.0, 0.1, 10.0);
 
     /** Water boss proximity push (elemental.water.proximityPush). */
@@ -153,12 +149,12 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_UPWARD_STRENGTH = BUILDER
             .comment("Upward launch velocity for proximity knockback.")
-            .defineInRange("elemental.water.proximityPush.upwardStrength", 1.0, 0.0, 5.0);
+            .defineInRange("elemental.water.proximityPush.upwardStrength", 1.0, 0.0, 3.9);
 
     /** Water projectiles (elemental.water.projectile). */
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
             .comment("Base damage per water projectile in health points (2 = one heart); difficulty and armor apply.")
-            .defineInRange("elemental.water.projectile.damage", 4.88, 0.0, 1024.0);
+            .defineInRange("elemental.water.projectile.damage", 4.88, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_SPEED_PER_SECOND = BUILDER
             .comment("Constant water projectile speed in blocks per second, including underwater.")
@@ -170,7 +166,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_INTERVAL = BUILDER
             .comment("Seconds between default projectile shots while moving around the selected player.")
-            .defineInRange("elemental.water.projectile.intervalSeconds", 1.25, 0.05, 600.0);
+            .defineInRange("elemental.water.projectile.intervalSeconds", 1.25, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MIN = BUILDER
             .comment("Minimum default attack phase seconds before a two-second target-selection pause.",
@@ -184,7 +180,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_LIFETIME = BUILDER
             .comment("Maximum flight duration in seconds; range is speedBlocksPerSecond multiplied by lifetimeSeconds.")
-            .defineInRange("elemental.water.projectile.lifetimeSeconds", 5.0, 0.05, 600.0);
+            .defineInRange("elemental.water.projectile.lifetimeSeconds", 5.0, 0.05, 10.0);
 
     /** Continuous water beam (elemental.water.beam). */
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_COOLDOWN = BUILDER
@@ -224,10 +220,6 @@ public final class WaterSheeperConfig {
             .comment("Consecutive seconds without sight before aborting; collision still stops the visible beam.")
             .defineInRange("elemental.water.beam.sightTimeoutSeconds", 1.0, 0.1, 5.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_EYE_FADE = BUILDER
-            .comment("Seconds for warning eyes to fade after the beam ends.")
-            .defineInRange("elemental.water.beam.eyeFadeSeconds", 0.5, 0.05, 2.0);
-
     /** Maelstrom preparation (elemental.water.maelstrom). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_COOLDOWN = BUILDER
             .comment("Seconds before Maelstrom becomes ready, both at encounter start and after each use.",
@@ -249,10 +241,6 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ROTATION_DURATION = BUILDER
             .comment("Initial stationary rotation seconds before ascent and suction begin.")
             .defineInRange("elemental.water.maelstrom.rotationSeconds", 2.0, 0.1, 5.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ROTATION_SPEED = BUILDER
-            .comment("Initial visual rotation speed in degrees per second.")
-            .defineInRange("elemental.water.maelstrom.rotationDegreesPerSecond", 180.0, 30.0, 720.0);
 
     /** Maelstrom ascent and staged horizontal pull. */
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_ASCENT_DURATION = BUILDER
@@ -305,16 +293,12 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_DAMAGE = BUILDER
             .comment("Normal mob damage per second from wave contact until the wave ends; 2 = one heart.",
-                    "Each hit scales with damageIntervalSeconds; armor and shields apply normally.")
+                    "Damage is applied every 0.5 seconds; armor and shields apply normally.")
             .defineInRange("elemental.water.maelstrom.damagePerSecond", 7.32, 0.0, 20.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_DAMAGE_INTERVAL = BUILDER
-            .comment("Seconds between wave damage pulses; minimum respects ordinary Minecraft damage immunity.")
-            .defineInRange("elemental.water.maelstrom.damageIntervalSeconds", 0.5, 0.5, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_SAFE_OUTER_WIDTH = BUILDER
             .comment("Width of the outer arena ring protected from wave damage and forced transport, in blocks.",
-                    "Checked against current player position; reaching the ring releases affected players. 0 disables it.")
+                    "Limited to half the arena radius. Reaching the ring releases affected players; 0 disables protection.")
             .defineInRange("elemental.water.maelstrom.safeOuterWidth", 8.0, 0.0, 32.0);
 
     /** Shared recovery after stationary specials (elemental.water.special). */
@@ -359,8 +343,9 @@ public final class WaterSheeperConfig {
             .defineInRange("elemental.water.fountain.intervalMaxSeconds", 4.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_ARENA_COUNT = BUILDER
-            .comment("Random arena fountains announced per interval, in addition to each player's fountains.")
-            .defineInRange("elemental.water.fountain.arenaCount", 3, 1, 16);
+            .comment("Random arena fountains announced per interval, in addition to each player's fountains.",
+                    "Announcements wait when the internal active-column budget is full; running fountains finish normally.")
+            .defineInRange("elemental.water.fountain.arenaCount", 3, 1, 8);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WARNING = BUILDER
             .comment("Bubble warning seconds before a fixed floor-to-ceiling fountain erupts.")
@@ -368,7 +353,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_SIZE = BUILDER
             .comment("Width and depth of a fountain in blocks.")
-            .defineInRange("elemental.water.fountain.size", 3, 1, 9);
+            .defineInRange("elemental.water.fountain.size", 3, 1, 5);
 
     public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_ACTIVE = BUILDER
             .comment("Seconds a fully erupted bubble column can hit players. Each player is hit once per column.")
@@ -392,12 +377,7 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
             .comment("Maximum flooded depth below the saved arena origin; also bounds ground-surface discovery.",
                     "Captured when arena discovery starts.")
-            .defineInRange("elemental.water.arena.heightRange", 10, 0, 64);
-
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_STEP_HEIGHT = BUILDER
-            .comment("Maximum height step when discovering adjacent ground positions for arena effects.",
-                    "Captured when surface discovery starts. 0 restricts discovery to one level.")
-            .defineInRange("elemental.water.arena.stepHeight", 1, 0, 4);
+            .defineInRange("elemental.water.arena.heightRange", 10, 0, 32);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
             .comment("Maximum volume and ground surface candidates examined per water Sheeper per second.",

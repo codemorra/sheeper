@@ -27,6 +27,7 @@ import net.minecraft.world.phys.shapes.Shapes;
  * vulnerable recovery. Outgoing wave effects continue independently afterward.
  */
 final class WaterMaelstromAttack {
+    private static final float INITIAL_ROTATION_DEGREES_PER_SECOND = 180.0F;
     private static final double PREPARATION_RADIUS = 6.0D;
     private static final double PREPARATION_HEIGHT_RANGE = 2.0D;
 
@@ -248,7 +249,7 @@ final class WaterMaelstromAttack {
             pullPlayers();
         }
         int rotationMultiplier = phase == Phase.STRONG_PULL ? 4 : phase == Phase.MEDIUM_PULL ? 2 : 1;
-        rotationDegrees += WaterSheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue()
+        rotationDegrees += INITIAL_ROTATION_DEGREES_PER_SECOND
                 * rotationMultiplier / 20;
         boss.setMaelstromRotation(rotationDegrees);
         if (phaseTicks % 4 == 0) {
@@ -550,7 +551,7 @@ final class WaterMaelstromAttack {
             return;
         }
         float savedRotation = tag.contains("RotationDegrees", Tag.TAG_FLOAT) ? tag.getFloat("RotationDegrees")
-                : phaseTicks * WaterSheeperConfig.WATER_MAELSTROM_ROTATION_SPEED.get().floatValue() / 20;
+                : phaseTicks * INITIAL_ROTATION_DEGREES_PER_SECOND / 20;
         rotationDegrees = Float.isFinite(savedRotation) ? Mth.clamp(savedRotation, 0, 1000000) : 0;
         boss.setMaelstromRotation(rotationDegrees);
     }
