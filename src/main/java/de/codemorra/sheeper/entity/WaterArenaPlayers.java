@@ -6,9 +6,10 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
-import de.codemorra.sheeper.world.WaterArenaData;
-import de.codemorra.sheeper.world.WaterArenaBoundary;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.world.ArenaWater;
+import de.codemorra.sheeper.world.WaterArenaBoundary;
+import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -21,8 +22,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Remembers submerged arena entry until a lateral exit and enforces vertical
- * water bounds. Players may enter from above but cannot leave vertically.
+ * Qualifies entry behind the inner transition edge and retains permission until
+ * the outer edge is cleared. Physical water bounds remain separate from combat.
  */
 final class WaterArenaPlayers {
     private static final double SURFACE_MARGIN = ArenaWater.BOUNDARY_MARGIN;
@@ -36,32 +37,75 @@ final class WaterArenaPlayers {
         this.boss = boss;
     }
 
-    /**
-     * Registers entry only after the whole body is submerged. Existing members
-     * remain eligible at any height until death, a game-mode change or lateral
-     * exit.
-     *
-     * @param player potential combat participant
-     * @return whether the player has entered and still belongs to this arena
-     */
+    /** Combat and damage share qualification; creative players retain only the damage permission. */
     boolean contains(ServerPlayer player) {
+        return updateMembership(player) && !player.isCreative();
+    }
+
+    /** Resolves current qualification at hit time, including arrows and other attributable attacks. */
+    boolean canDamage(ServerPlayer player) {
+        return updateMembership(player);
+    }
+
+    /**
+     * A new participant must be fully past the inner edge and submerged. Once
+     * qualified, crossing either half of the transition does not toggle combat;
+     * the entire body must clear the outer edge before qualification is lost.
+     */
+    private boolean updateMembership(ServerPlayer player) {
         if (!boss.isAlive() || !boss.isCombatReady() || !player.isAlive() || player.isRemoved()
-                || player.isCreative() || player.isSpectator() || !boss.isInsideArenaColumn(player)) {
+                || player.isSpectator() || player.level != boss.level || isOutsideExit(player)) {
             players.remove(player.getUUID());
             return false;
         }
-        if ((player.getY() < boss.getArenaWaterMinimumY()
-                || player.getBoundingBox().maxY > boss.getArenaWaterSurfaceY()) && isBodyInWater(player)) {
+        boolean outsideHeight = player.getY() < boss.getArenaWaterMinimumY()
+                || player.getBoundingBox().maxY > boss.getArenaWaterSurfaceY();
+        // Creative players bypass vertical confinement. A different water arena
+        // can also legitimately receive a survival player through a shared face.
+        if (outsideHeight && (player.isCreative() || isBodyInWater(player))) {
             players.remove(player.getUUID());
             return false;
         }
-        if (!players.containsKey(player.getUUID())
+        if (!players.containsKey(player.getUUID()) && isInsideEntry(player)
                 && player.getY() >= boss.getArenaWaterMinimumY()
                 && player.getBoundingBox().maxY <= boss.getArenaWaterSurfaceY() - SURFACE_MARGIN
                 && ArenaWater.contains(boss.level, player.getEyePosition())) {
             players.put(player.getUUID(), player.position());
         }
         return players.containsKey(player.getUUID());
+    }
+
+    private double transitionWidth() {
+        return WaterArenaBoundary.slowdownWidth(WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_WIDTH.get(),
+                boss.getArenaRadius());
+    }
+
+    /** The farthest horizontal body corner must fit behind the inner circular edge. */
+    private boolean isInsideEntry(ServerPlayer player) {
+        AABB body = player.getBoundingBox();
+        double x = boss.getArenaCenter().getX() + 0.5D;
+        double z = boss.getArenaCenter().getZ() + 0.5D;
+        double dx = Math.max(Math.abs(body.minX - x), Math.abs(body.maxX - x));
+        double dz = Math.max(Math.abs(body.minZ - z), Math.abs(body.maxZ - z));
+        double radius = Math.max(0, boss.getArenaRadius() - transitionWidth());
+        return dx * dx + dz * dz <= radius * radius;
+    }
+
+    /** Keeps partial body overlap with the outer edge eligible, without extending water physics there. */
+    private boolean isOutsideExit(ServerPlayer player) {
+        AABB body = player.getBoundingBox();
+        double x = boss.getArenaCenter().getX() + 0.5D;
+        double z = boss.getArenaCenter().getZ() + 0.5D;
+        double dx = x - Mth.clamp(x, body.minX, body.maxX);
+        double dz = z - Mth.clamp(z, body.minZ, body.maxZ);
+        double radius = boss.getArenaRadius() + transitionWidth();
+        if (dx * dx + dz * dz > radius * radius) {
+            return true;
+        }
+        // Outside the water column, a player can also leave the finite-height
+        // transition by walking down a slope; do not teleport them back inside.
+        return !boss.isInsideArenaColumn(player) && (body.maxY < boss.getArenaWaterMinimumY()
+                || body.minY > boss.getArenaWaterSurfaceY());
     }
 
     /**
@@ -74,10 +118,10 @@ final class WaterArenaPlayers {
         players.keySet().removeIf(id -> {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
             return player != null && (player.level != level || !player.isAlive() || player.isRemoved()
-                    || player.isCreative() || player.isSpectator() || !boss.isInsideArenaColumn(player));
+                    || player.isSpectator() || isOutsideExit(player));
         });
         for (ServerPlayer player : level.players()) {
-            if (!contains(player)) {
+            if (player.isCreative() || !contains(player) || !boss.isInsideArenaColumn(player)) {
                 continue;
             }
             double minimumY = boss.getArenaWaterMinimumY() + SURFACE_MARGIN;

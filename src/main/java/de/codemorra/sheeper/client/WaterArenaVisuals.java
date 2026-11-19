@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaPushProtection;
+import de.codemorra.sheeper.world.WaterArenaBoundaryDrag;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
 import net.minecraft.client.Camera;
@@ -58,6 +59,7 @@ public final class WaterArenaVisuals {
             return;
         }
         snapshot = new Snapshot(level, packet.arenas(), level.getGameTime());
+        WaterArenaBoundaryDrag.receive(packet.boundarySlowdownWidth(), packet.boundarySlowdownStrength());
         var player = Minecraft.getInstance().player;
         if (player != null && player.level == level) {
             WaterArenaPushProtection.receive(player, packet.pushProtectedUntil());
