@@ -47,7 +47,7 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) throws IOException {
         event.registerShader(new ShaderInstance(event.getResourceManager(),
-                ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, "arena_water_fog"),
+                new ResourceLocation(SheeperMod.MODID, "arena_water_fog"),
                 DefaultVertexFormat.POSITION_TEX), WaterArenaFogRenderer::setShader);
     }
 

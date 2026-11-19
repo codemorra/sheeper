@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
  * surface.
  */
 final class WaterBeamRenderer {
-    private static final ResourceLocation WATER = ResourceLocation.fromNamespaceAndPath("minecraft",
+    private static final ResourceLocation WATER = new ResourceLocation("minecraft",
             "block/water_flow");
 
     private WaterBeamRenderer() {

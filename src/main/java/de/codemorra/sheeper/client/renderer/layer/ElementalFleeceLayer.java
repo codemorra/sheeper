@@ -22,10 +22,10 @@ import net.minecraft.world.inventory.InventoryMenu;
 
 /** Elemental fleece colors and animated surfaces for lava and lightning. */
 public class ElementalFleeceLayer extends SheepFurLayer {
-    private static final ResourceLocation MAGMA = ResourceLocation.fromNamespaceAndPath("minecraft", "block/magma");
-    private static final ResourceLocation FLEECE = ResourceLocation.fromNamespaceAndPath("minecraft",
+    private static final ResourceLocation MAGMA = new ResourceLocation("minecraft", "block/magma");
+    private static final ResourceLocation FLEECE = new ResourceLocation("minecraft",
             "textures/entity/sheep/sheep_fur.png");
-    private static final ResourceLocation LIGHTNING = ResourceLocation.fromNamespaceAndPath("minecraft",
+    private static final ResourceLocation LIGHTNING = new ResourceLocation("minecraft",
             "textures/entity/creeper/creeper_armor.png");
 
     private final SheepFurModel<Sheep> fleece;

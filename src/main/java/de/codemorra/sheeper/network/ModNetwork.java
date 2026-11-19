@@ -18,7 +18,7 @@ public final class ModNetwork {
     // version.
     private static final String VERSION = "8";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            ResourceLocation.fromNamespaceAndPath(SheeperMod.MODID, "main"),
+            new ResourceLocation(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
 
     private ModNetwork() {

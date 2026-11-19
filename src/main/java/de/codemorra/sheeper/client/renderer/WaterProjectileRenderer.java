@@ -21,7 +21,7 @@ import net.minecraft.world.inventory.InventoryMenu;
  * Small translucent water cube using the animated resource-pack water sprite.
  */
 public class WaterProjectileRenderer extends EntityRenderer<WaterProjectile> {
-    private static final ResourceLocation WATER = ResourceLocation.fromNamespaceAndPath("minecraft",
+    private static final ResourceLocation WATER = new ResourceLocation("minecraft",
             "block/water_still");
     private final ModelPart model;
 

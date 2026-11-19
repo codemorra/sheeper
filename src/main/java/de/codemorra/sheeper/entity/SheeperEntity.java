@@ -169,11 +169,11 @@ public class SheeperEntity extends Sheep {
     @Override
     public ResourceLocation getDefaultLootTable() {
         if (isSheared()) {
-            return ResourceLocation.fromNamespaceAndPath(
+            return new ResourceLocation(
                     SheeperMod.MODID, "entities/sheeper");
         }
 
-        return ResourceLocation.fromNamespaceAndPath(
+        return new ResourceLocation(
                 SheeperMod.MODID,
                 "entities/sheeper/" + getColor().getName());
     }

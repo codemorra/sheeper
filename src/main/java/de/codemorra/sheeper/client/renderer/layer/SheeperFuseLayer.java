@@ -20,7 +20,7 @@ import net.minecraft.world.entity.animal.Sheep;
  */
 public class SheeperFuseLayer extends RenderLayer<Sheep, SheepModel<Sheep>> {
 
-    private static final ResourceLocation FUR_TEXTURE = ResourceLocation.fromNamespaceAndPath("minecraft",
+    private static final ResourceLocation FUR_TEXTURE = new ResourceLocation("minecraft",
             "textures/entity/sheep/sheep_fur.png");
 
     private final SheepFurModel<Sheep> furModel;
