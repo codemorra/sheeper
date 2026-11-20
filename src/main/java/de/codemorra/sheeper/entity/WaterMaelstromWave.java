@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,15 +8,18 @@ import java.util.UUID;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.particle.MaelstromWaveOptions;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.ForgeEventFactory;
 
 /**
  * Expanding pressure wave with live contact checks, a safe outer ring and
@@ -75,6 +79,7 @@ final class WaterMaelstromWave {
         if (radius < maximumRadius) {
             double previousRadius = radius;
             radius = Math.min(maximumRadius, radius + WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D);
+            clearFrontLeaves(previousRadius);
             if (visualTicks++ % 2 == 0 || radius == maximumRadius) {
                 showFront(players);
             }
@@ -129,6 +134,69 @@ final class WaterMaelstromWave {
             damageDelays.clear();
         }
         transports.tick(List.copyOf(current.values()));
+    }
+
+    /** Visits leaf-bearing sections along the cylindrical front at all arena heights. */
+    private void clearFrontLeaves(double previousRadius) {
+        var volume = boss.getAttackVolume();
+        if (volume == null || !(boss.level instanceof ServerLevel level)
+                || !ForgeEventFactory.getMobGriefingEvent(level, boss)) {
+            return;
+        }
+        int minY = volume.minimumY();
+        int maxY = Mth.floor(volume.maximumY());
+        double innerSquared = previousRadius * previousRadius;
+        double outerSquared = radius * radius;
+        var leaves = new ArrayList<BlockPos>();
+        var pos = new BlockPos.MutableBlockPos();
+        for (int chunkX = Mth.floor(origin.x - radius) >> 4; chunkX <= Mth.floor(origin.x + radius) >> 4; chunkX++) {
+            for (int chunkZ = Mth.floor(origin.z - radius) >> 4; chunkZ <= Mth.floor(origin.z + radius) >> 4; chunkZ++) {
+                int startX = chunkX << 4;
+                int startZ = chunkZ << 4;
+                if (!intersectsFront(startX + 8, startZ + 8, 8, innerSquared, outerSquared)) {
+                    continue;
+                }
+                var chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+                if (chunk == null) {
+                    continue;
+                }
+                for (int sectionY = minY >> 4; sectionY <= maxY >> 4; sectionY++) {
+                    var section = chunk.getSection(chunk.getSectionIndexFromSectionY(sectionY));
+                    // Palette checks skip stone, air and water sections before visiting individual blocks.
+                    if (!section.maybeHas(state -> state.is(BlockTags.LEAVES))) {
+                        continue;
+                    }
+                    int fromY = Math.max(minY, sectionY << 4);
+                    int toY = Math.min(maxY, (sectionY << 4) + 15);
+                    for (int x = 0; x < 16; x++) {
+                        for (int z = 0; z < 16; z++) {
+                            if (!intersectsFront(startX + x + 0.5, startZ + z + 0.5, 0.5,
+                                    innerSquared, outerSquared)
+                                    || !volume.contains(pos.set(startX + x, minY, startZ + z))) {
+                                continue;
+                            }
+                            for (int y = fromY; y <= toY; y++) {
+                                if (section.getBlockState(x, y & 15, z).is(BlockTags.LEAVES)) {
+                                    leaves.add(new BlockPos(startX + x, y, startZ + z));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        WaterAttackBlocks.clearReachableLeaves(boss, level, origin, leaves, true);
+    }
+
+    /** Tests the nearest and farthest corners of a block column or chunk against the expanding front. */
+    private boolean intersectsFront(double x, double z, double halfWidth, double innerSquared, double outerSquared) {
+        double dx = Math.abs(x - origin.x);
+        double dz = Math.abs(z - origin.z);
+        double nearX = Math.max(0, dx - halfWidth);
+        double nearZ = Math.max(0, dz - halfWidth);
+        double farX = dx + halfWidth;
+        double farZ = dz + halfWidth;
+        return nearX * nearX + nearZ * nearZ <= outerSquared && farX * farX + farZ * farZ >= innerSquared;
     }
 
     /**
