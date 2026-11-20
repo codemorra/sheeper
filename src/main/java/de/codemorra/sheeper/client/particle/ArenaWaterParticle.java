@@ -1,7 +1,10 @@
 package de.codemorra.sheeper.client.particle;
 
+import com.mojang.blaze3d.vertex.VertexConsumer;
+
 import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.registry.ModParticles;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.NoRenderParticle;
@@ -36,42 +39,33 @@ public final class ArenaWaterParticle extends NoRenderParticle {
     }
 
     /**
-     * Keeps rising bubbles visible along the full height of the fountain.
+     * Builds the column from the floor with a steady stream of rising bubbles.
      */
     @Override
     public void tick() {
-        // A blocked base must not stop emission in open sections higher up.
         if (age >= lifetime) {
             remove();
             return;
         }
-        if (age == 0) {
-            int samples = Math.max(1, Mth.ceil(height * (distant ? 1 : 2)));
-            for (int index = 0; index < samples; index++) {
-                emit(y + height * (index + random.nextDouble()) / samples);
-            }
-        }
-        if (age % (distant ? 4 : 2) == 0) {
-            emit(y + random.nextDouble() * height);
-            if (!distant) {
-                emit(y + random.nextDouble() * height);
-            }
+        if (!distant || age % 2 == 0) {
+            emit();
         }
         age++;
     }
 
-    private void emit(double bubbleY) {
+    private void emit() {
         double bubbleX = x + (random.nextDouble() - 0.5D) * 0.8D;
         double bubbleZ = z + (random.nextDouble() - 0.5D) * 0.8D;
-        var point = new Vec3(bubbleX, bubbleY, bubbleZ);
-        if (ArenaWater.contains(level, point) && ArenaWater.isClearWaterPoint(level, point)) {
-            Minecraft.getInstance().particleEngine.add(new Bubble(level, bubbleX, bubbleY, bubbleZ,
+        if (ArenaWater.contains(level, new Vec3(bubbleX, y, bubbleZ))) {
+            Minecraft.getInstance().particleEngine.add(new Bubble(level, bubbleX, y, bubbleZ,
                     speed, y + height, sprites));
         }
     }
 
     private static final class Bubble extends TextureSheetParticle {
         private final double ceiling;
+        private float previousOpacity;
+        private float opacity;
 
         private Bubble(ClientLevel level, double x, double y, double z, double speed,
                 double ceiling, SpriteSet sprites) {
@@ -84,23 +78,40 @@ public final class ArenaWaterParticle extends NoRenderParticle {
             yd = speed;
             zd = 0;
             friction = 1;
-            lifetime = Mth.clamp((int) Math.ceil((ceiling - y) / speed) + 2, 8, 160);
+            // Keep the stream rising through blocked sections and draw only its open portions.
+            hasPhysics = false;
+            lifetime = Mth.ceil((ceiling - y) / speed) + 2;
         }
 
         @Override
         public void tick() {
-            double previousY = y;
             super.tick();
             var point = new Vec3(x, y, z);
-            if (y >= ceiling || !ArenaWater.contains(level, point)
-                    || !ArenaWater.isClearWaterColumn(level, point, previousY)) {
+            if (y >= ceiling || !ArenaWater.contains(level, point)) {
                 remove();
+                return;
+            }
+            if (ArenaWater.isClearWaterPoint(level, point)) {
+                previousOpacity = opacity;
+                opacity = Math.min(1, opacity + 0.25F);
+            } else {
+                previousOpacity = 0;
+                opacity = 0;
+            }
+        }
+
+        /** Fades in across render frames when a bubble starts or reaches open water. */
+        @Override
+        public void render(VertexConsumer buffer, Camera camera, float partialTick) {
+            if (opacity > 0) {
+                alpha = Mth.lerp(partialTick, previousOpacity, opacity);
+                super.render(buffer, camera, partialTick);
             }
         }
 
         @Override
         public ParticleRenderType getRenderType() {
-            return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
+            return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
         }
     }
 
