@@ -26,7 +26,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = BUILDER
             .comment("Horizontal water Sheeper arena and combat radius around its saved spawn position.",
-                    "Surface discovery captures this radius when it starts; combat uses the current value.")
+                    "New arenas capture this radius when they are created.")
             .defineInRange("elemental.water.combatRadius", 50.0, 1.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BOSS_BAR_DISTANCE = BUILDER
@@ -341,53 +341,11 @@ public final class WaterSheeperConfig {
             .comment("Maximum default-only seconds following recovery; capped below by defaultOnlyMinSeconds.")
             .defineInRange("elemental.water.special.defaultOnlyMaxSeconds", 10.0, 0.1, 30.0);
 
-    /** Water fountains (elemental.water.fountain). */
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_COOLDOWN = BUILDER
-            .comment("Seconds after the fountain phase ends before it may start again.")
-            .defineInRange("elemental.water.fountain.cooldownSeconds", 20.0, 1.0, 120.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DAMAGE = BUILDER
-            .comment("One-time damage per player and fountain column in health points; 2 = one heart.")
-            .defineInRange("elemental.water.fountain.damage", 6.10, 0.0, 20.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MIN = BUILDER
-            .comment(
-                    "Minimum fountain announcement duration. Active columns and transports finish before the cooldown starts.")
-            .defineInRange("elemental.water.fountain.durationMinSeconds", 20.0, 0.05, 60.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_DURATION_MAX = BUILDER
-            .comment("Maximum fountain announcement duration; capped below by durationMinSeconds.")
-            .defineInRange("elemental.water.fountain.durationMaxSeconds", 30.0, 0.05, 60.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MIN = BUILDER
-            .comment("Minimum independent delay between fountain announcements for each player and the arena.",
-                    "A player's delay pauses until their previous fixed warning resolves.")
-            .defineInRange("elemental.water.fountain.intervalMinSeconds", 2.0, 0.05, 10.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_INTERVAL_MAX = BUILDER
-            .comment("Maximum fountain delay in seconds; capped below by intervalMinSeconds.")
-            .defineInRange("elemental.water.fountain.intervalMaxSeconds", 4.0, 0.05, 10.0);
-
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_ARENA_COUNT = BUILDER
-            .comment("Random arena fountains announced per interval, in addition to each player's fountains.",
-                    "Announcements wait when the internal active-column budget is full; running fountains finish normally.")
-            .defineInRange("elemental.water.fountain.arenaCount", 3, 1, 8);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_WARNING = BUILDER
-            .comment("Bubble warning seconds before a fixed floor-to-ceiling fountain erupts.")
-            .defineInRange("elemental.water.fountain.warningSeconds", 1.5, 0.05, 5.0);
-
-    public static final ForgeConfigSpec.IntValue WATER_FOUNTAIN_SIZE = BUILDER
-            .comment("Width and depth of a fountain in blocks.")
-            .defineInRange("elemental.water.fountain.size", 3, 1, 5);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_ACTIVE = BUILDER
-            .comment("Seconds a fully erupted bubble column can hit players. Each player is hit once per column.")
-            .defineInRange("elemental.water.fountain.activeSeconds", 3.0, 0.5, 8.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOUNTAIN_LIFT_SPEED = BUILDER
-            .comment("Controlled ascent speed in blocks per second toward the captured arena ceiling.")
-            .defineInRange("elemental.water.fountain.liftSpeedBlocksPerSecond", 6.0, 2.0, 12.0);
+    /** Air fountains (elemental.water.airStations). */
+    public static final ForgeConfigSpec.DoubleValue WATER_AIR_STATIONS_PER_1000_BLOCKS = BUILDER
+            .comment("Air fountain density per 1,000 usable arena floor blocks.",
+                    "Valid arenas receive at least one fountain when space permits, up to 48.")
+            .defineInRange("elemental.water.airStations.per1000Blocks", 2.0D, 0.1D, 8.0D);
 
     /** Arena water visibility (elemental.water.visuals). */
     public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
@@ -409,13 +367,12 @@ public final class WaterSheeperConfig {
             .defineInRange("elemental.water.arena.waterHeight", 12, 4, 24);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
-            .comment("Maximum arena depth below the saved origin; also bounds ground-surface discovery.",
-                    "Captured when arena discovery starts.")
+            .comment("Maximum arena depth below the saved origin, captured when the arena is created.")
             .defineInRange("elemental.water.arena.heightRange", 10, 0, 32);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
-            .comment("Maximum ground-surface candidates examined per water Sheeper per second.",
-                    "Unloaded chunks are deferred without being force-loaded.")
+            .comment("Maximum floor columns examined per second for air fountains.",
+                    "The search also limits work per tick and skips unloaded chunks until a later pass.")
             .defineInRange("elemental.water.arena.searchCandidatesPerSecond", 40960, 20, 81920);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();

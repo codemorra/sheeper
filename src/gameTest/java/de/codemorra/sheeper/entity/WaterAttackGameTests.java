@@ -7,7 +7,6 @@ import de.codemorra.sheeper.gametest.GameTestContext;
 import de.codemorra.sheeper.gametest.SheeperGameTests.Scenario;
 import de.codemorra.sheeper.gametest.TestPlayer;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -21,8 +20,6 @@ public final class WaterAttackGameTests {
         tests.add(new Scenario("water_proximity_discharge_hits_group", WaterAttackGameTests::proximity));
         tests.add(new Scenario("water_beam_extension_contact_and_reload", WaterAttackGameTests::beam));
         tests.add(new Scenario("water_beam_entry_recovery_and_cooldown", WaterAttackGameTests::beamScheduling));
-        tests.add(new Scenario("water_fountain_fixed_warning_single_hit_and_reload", WaterAttackGameTests::fountain));
-        tests.add(new Scenario("water_fountain_keeps_default_attack", WaterAttackGameTests::fountainScheduling));
         tests.add(new Scenario("water_maelstrom_initial_cooldown_and_melee_delay", WaterAttackGameTests::maelstromScheduling));
         tests.add(new Scenario("water_maelstrom_phases_and_immunity", WaterAttackGameTests::maelstrom));
         tests.add(new Scenario("water_wave_contact_safe_ring_and_damage_end", WaterAttackGameTests::wave));
@@ -140,7 +137,6 @@ public final class WaterAttackGameTests {
         WaterSpecialAttacks attacks = new WaterSpecialAttacks(boss);
         CompoundTag state = new CompoundTag();
         state.putInt("BeamCooldown", ready.equals("beam") ? 0 : 1000);
-        state.putInt("FountainCooldown", ready.equals("fountain") ? 0 : 1000);
         state.putInt("MaelstromCooldown", ready.equals("maelstrom") ? -1 : 1000);
         attacks.load(state);
         return attacks;
@@ -190,71 +186,6 @@ public final class WaterAttackGameTests {
         WaterTestScene.ticks(18, () -> restored.tickTimers(List.of(player), normal));
         restored.tryStart(player, normal);
         c.expect(restored.isBeamActive(), "The saved configured cooldown must eventually permit another beam");
-        c.pass();
-    }
-
-    private static void fountain(GameTestContext c) {
-        var boss = WaterTestScene.boss(c);
-        // Remove physical support: this column must start on the virtual arena floor.
-        c.setBlock(14, 0, 10, Blocks.AIR);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_INTERVAL_MIN, 0.05D);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_INTERVAL_MAX, 0.05D);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_SIZE, 1);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_ARENA_COUNT, 1);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_WARNING, 0.2D);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_ACTIVE, 0.5D);
-        c.set(WaterSheeperConfig.WATER_FOUNTAIN_DAMAGE, 3.0D);
-        var player = WaterTestScene.player(c, 14, 2, 10);
-        WaterFountainAttack attack = new WaterFountainAttack(boss);
-        attack.start();
-        // Isolate this single player warning from independently placed arena columns.
-        CompoundTag initial = attack.save();
-        initial.putInt("ArenaDelay", 100);
-        attack.load(initial);
-        attack.tick(List.of(player), 100);
-        CompoundTag announced = attack.save();
-        var columns = announced.getList("Currents", Tag.TAG_COMPOUND);
-        c.expect(!columns.isEmpty(), "A virtual floor must support a warned fountain");
-        long position = columns.getCompound(0).getLong("Pos");
-        player.standAt(c.point(16, 2, 10));
-        WaterTestScene.ticks(4, () -> attack.tick(List.of(player), 0));
-        c.near(player.getHealth(), 20, "Leaving a warning must dodge its fixed column");
-        c.expect(attack.save().getList("Currents", Tag.TAG_COMPOUND).getCompound(0).getLong("Pos") == position,
-                "The warning must not follow its former target");
-        player.standAt(c.point(14, 2, 10));
-        attack.tick(List.of(player), 0);
-        c.near(player.getHealth(), 17, "Column contact must deal its configured one-time damage");
-        c.expect(player.getDeltaMovement().y > 0, "Fountain contact must start upward transport");
-        WaterFountainAttack restored = new WaterFountainAttack(boss);
-        restored.load(attack.save());
-        player.invulnerableTime = 0;
-        WaterTestScene.ticks(10, () -> restored.tick(List.of(player), 0));
-        c.near(player.getHealth(), 17, "Reload and repeated column contact must not repeat damage");
-        double top = boss.getArenaWaterSurfaceY() - player.getBbHeight() - 0.15D;
-        player.standAt(new Vec3(player.getX(), top, player.getZ()));
-        restored.tick(List.of(player), 0);
-        c.expect(!restored.hasActiveEffects() && player.getDeltaMovement().y == 0,
-                "Transport must release at the captured arena ceiling after the column ends");
-        c.pass();
-    }
-
-    private static void fountainScheduling(GameTestContext c) {
-        var boss = WaterTestScene.boss(c);
-        var player = WaterTestScene.player(c, 15, 1, 10);
-        var normal = firing(boss, player);
-        var specials = specials(boss, "fountain");
-        specials.tryStart(player, normal);
-        c.expect(!specials.suppressesDefault() && !specials.locksMovement(),
-                "Fountains must preserve default firing and movement");
-        normal.tickProjectiles();
-        c.expect(c.entities(WaterProjectile.class).size() == 1, "Default fire must actually continue during fountains");
-        CompoundTag state = specials.save();
-        state.putInt("BeamCooldown", 0);
-        state.putInt("MaelstromCooldown", 0);
-        specials.load(state);
-        specials.tryStart(player, normal);
-        c.expect(!specials.isBeamActive() && !specials.isMaelstromActive(),
-                "Active fountains must exclude other ready specials");
         c.pass();
     }
 
