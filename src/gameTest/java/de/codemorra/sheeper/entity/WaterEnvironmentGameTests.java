@@ -35,6 +35,7 @@ public final class WaterEnvironmentGameTests {
         tests.add(new Scenario("water_spawn_uses_nearby_collision_surface", WaterEnvironmentGameTests::spawnSurface));
         tests.add(new Scenario("water_invalid_saved_volumes_are_not_synchronized", WaterEnvironmentGameTests::invalidVolumes));
         tests.add(new Scenario("water_native_breathing_and_floor_sliding", WaterEnvironmentGameTests::breathingAndFloor));
+        tests.add(new Scenario("water_air_fountain_refill_and_lift", WaterEnvironmentGameTests::airFountain));
         tests.add(new Scenario("water_swim_bounds_and_config_relationships", WaterEnvironmentGameTests::swimming));
         tests.add(new Scenario("water_swimming_approaches_target", WaterEnvironmentGameTests::movement));
         tests.add(new Scenario("water_attacks_pierce_leaves_without_air", WaterEnvironmentGameTests::leaves));
@@ -206,6 +207,40 @@ public final class WaterEnvironmentGameTests {
         player.move(MoverType.SELF, new Vec3(0, 0.2D, 0));
         c.near(player.getY(), floor + 0.2D, "The virtual floor must not prevent swimming upward");
         c.pass();
+    }
+
+    private static void airFountain(GameTestContext c) {
+        c.set(WaterSheeperConfig.WATER_AIR_STATIONS_PER_1000_BLOCKS, 0.25);
+        c.set(WaterSheeperConfig.WATER_AIR_DURATION, 30.0);
+        var boss = WaterTestScene.boss(c);
+        // The center column must remain usable on both sides of a solid interruption.
+        c.setBlock(10, 3, 10, Blocks.OAK_LEAVES);
+        var lower = WaterTestScene.player(c, 10, 1, 10);
+        var upper = WaterTestScene.player(c, 10, 4, 10);
+        var outside = WaterTestScene.player(c, 14, 2, 10);
+        c.at(4, () -> {
+            var columns = boss.getArenaAirColumns();
+            c.expect(columns.size() == 1 && columns.get(0).base().equals(c.pos(10, 1, 10)),
+                    "A low-density arena must keep a floor-anchored column despite the leaves");
+            c.expect(!ArenaWater.isClearWaterPoint(c.level, c.point(10, 3, 10).add(0, 0.5, 0)),
+                    "The solid section must not be usable as part of the fountain");
+            lower.setAirSupply(0);
+            upper.setAirSupply(0);
+            outside.setAirSupply(outside.getMaxAirSupply());
+            Vec3 sinking = new Vec3(0.2, -0.005, 0.1);
+            Vec3 lifted = ArenaWater.applyAirFountainLift(sinking, lower);
+            c.expect(lifted.y > 0 && lifted.x == sinking.x && lifted.z == sinking.z,
+                    "The fountain must reverse a gentle sink without changing horizontal velocity");
+            c.expect(ArenaWater.applyAirFountainLift(sinking, outside).equals(sinking),
+                    "A swimmer outside the fountain must keep normal movement");
+        });
+        c.at(14, () -> {
+            c.near(lower.getAirSupply(), lower.getMaxAirSupply(), "The free section below the leaves must refill");
+            c.near(upper.getAirSupply(), upper.getMaxAirSupply(), "The free section above the leaves must refill");
+            c.near(outside.getAirSupply(), outside.getMaxAirSupply() - 5,
+                    "A 30 second air bar must lose only five air units across ten submerged ticks");
+            c.pass();
+        });
     }
 
     private static void swimming(GameTestContext c) {

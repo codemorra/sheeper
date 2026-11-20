@@ -7,6 +7,8 @@ import de.codemorra.sheeper.gametest.GameTestContext;
 import de.codemorra.sheeper.gametest.SheeperGameTests.Scenario;
 import de.codemorra.sheeper.gametest.TestPlayer;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -24,6 +26,8 @@ public final class WaterAttackGameTests {
         tests.add(new Scenario("water_maelstrom_phases_and_immunity", WaterAttackGameTests::maelstrom));
         tests.add(new Scenario("water_wave_contact_safe_ring_and_damage_end", WaterAttackGameTests::wave));
         tests.add(new Scenario("water_wave_transport_steps_and_walls", WaterAttackGameTests::transport));
+        tests.add(new Scenario("water_mine_blast_and_nondamaging_pressure", WaterAttackGameTests::minePressure));
+        tests.add(new Scenario("water_mine_count_scales_without_shortening_attack", WaterAttackGameTests::mineCount));
     }
 
     private static void defaultCycle(GameTestContext c) {
@@ -306,5 +310,78 @@ public final class WaterAttackGameTests {
         c.expect(player.getDeltaMovement().equals(Vec3.ZERO), "Blocked transport must release forced motion");
         c.near(player.fallDistance, 0, "Wave transport must clear fall damage");
         c.pass();
+    }
+
+    private static void minePressure(GameTestContext c) {
+        var boss = WaterTestScene.boss(c);
+        c.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH, 0.6);
+        c.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH, 0.2);
+        var direct = WaterTestScene.player(c, 14, 2, 10);
+        var swept = WaterTestScene.player(c, 16, 2, 10);
+        var sheltered = WaterTestScene.player(c, 12, 2, 14);
+        direct.standAt(c.point(12, 2, 10).add(1.7, 0, 0));
+        Vec3 center = c.point(12, 2, 10).add(0, 0.6, 0);
+        for (int y = 1; y <= 4; y++) {
+            c.setBlock(12, y, 12, Blocks.STONE);
+        }
+        List<net.minecraft.server.level.ServerPlayer> players = List.of(direct, swept, sheltered);
+        players.forEach(player -> player.setDeltaMovement(Vec3.ZERO));
+
+        var state = new CompoundTag();
+        var entries = new ListTag();
+        var mine = new CompoundTag();
+        mine.putDouble("X", center.x);
+        mine.putDouble("Y", center.y);
+        mine.putDouble("Z", center.z);
+        mine.putDouble("Radius", 1.25);
+        mine.putFloat("Damage", 3);
+        mine.putInt("Fuse", 4);
+        mine.putInt("Age", 2);
+        entries.add(mine);
+        state.put("Mines", entries);
+        var attack = new WaterMineAttack(boss);
+        attack.load(state);
+
+        attack.tick(players);
+        c.near(direct.getHealth(), 20, "An announced mine must wait for its fuse");
+        attack.tick(players);
+        c.near(direct.getHealth(), 17, "A player whose body reaches the bubble edge must take damage");
+        c.near(direct.getDeltaMovement().x, 0.6, "A direct hit must push away from the mine");
+        c.expect(swept.getDeltaMovement().equals(Vec3.ZERO), "Pressure must take time to reach distant swimmers");
+        direct.setDeltaMovement(Vec3.ZERO);
+        WaterTestScene.ticks(3, () -> attack.tick(players));
+        c.near(swept.getHealth(), 20, "The outer pressure wave must not deal damage");
+        c.near(swept.getDeltaMovement().x, 0.6, "The pressure wave must push as hard as a direct hit");
+        c.expect(direct.getDeltaMovement().equals(Vec3.ZERO), "The pressure wave must not push a direct victim again");
+        c.expect(sheltered.getDeltaMovement().equals(Vec3.ZERO), "Solid cover must block a mine's pressure");
+        c.pass();
+    }
+
+    private static void mineCount(GameTestContext c) {
+        var boss = WaterTestScene.boss(c);
+        c.set(WaterSheeperConfig.WATER_MINES_DURATION_MIN, 1.0);
+        c.set(WaterSheeperConfig.WATER_MINES_DURATION_MAX, 1.0);
+        c.set(WaterSheeperConfig.WATER_MINES_FUSE_MIN, 5.0);
+        c.set(WaterSheeperConfig.WATER_MINES_FUSE_MAX, 5.0);
+        c.set(WaterSheeperConfig.WATER_MINES_DIAMETER_MIN, 0.75);
+        c.set(WaterSheeperConfig.WATER_MINES_DIAMETER_MAX, 0.75);
+        int sparse = spawnedMines(c, boss, 0.25);
+        int dense = spawnedMines(c, boss, 1.25);
+        c.expect(sparse > 0 && dense > sparse * 2,
+                "A higher count multiplier must place more mines within the same firing window");
+        c.pass();
+    }
+
+    private static int spawnedMines(GameTestContext c, WaterSheeperEntity boss, double multiplier) {
+        c.set(WaterSheeperConfig.WATER_MINES_COUNT_MULTIPLIER, multiplier);
+        var attack = new WaterMineAttack(boss);
+        attack.start();
+        WaterTestScene.ticks(19, () -> attack.tick(List.of()));
+        c.expect(attack.save().getInt("SpawnTicks") > 0, "The multiplier must not end spawning early");
+        attack.tick(List.of());
+        CompoundTag state = attack.save();
+        c.expect(state.getInt("SpawnTicks") == 0 && attack.isActive(),
+                "The configured window must end while announced mines keep their fuses");
+        return state.getList("Mines", Tag.TAG_COMPOUND).size();
     }
 }
