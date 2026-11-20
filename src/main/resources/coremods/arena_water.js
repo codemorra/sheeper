@@ -1,6 +1,7 @@
 // Provide virtual arena swimming, breathing, particles and camera effects without changing fluid blocks.
 // Physics comparisons in Fluid/WaterFluid are deliberately left untouched.
 function initializeCoreMod() {
+  var API = Java.type("net.minecraftforge.coremod.api.ASMAPI");
   var O = Java.type("org.objectweb.asm.Opcodes");
   var List = Java.type("org.objectweb.asm.tree.InsnList");
   var Var = Java.type("org.objectweb.asm.tree.VarInsnNode");
@@ -186,6 +187,40 @@ function initializeCoreMod() {
           }
         }
         check(count, 1, "IForgeLivingEntity.canDrownInFluidType");
+        return node;
+      }
+    },
+    arena_water_air_supply: {
+      target: { type: "CLASS", name: "net.minecraft.world.entity.LivingEntity" },
+      transformer: function (node) {
+        var loss = 0;
+        var recovery = 0;
+        for (var i = 0; i < node.methods.size(); i++) {
+          var method = node.methods.get(i);
+          if (String(method.name) !== API.mapMethod("m_6075_") || String(method.desc) !== "()V") continue;
+          var instructions = method.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if (insn.getOpcode() !== O.INVOKEVIRTUAL || String(insn.desc) !== "(I)I") continue;
+            var hook;
+            if (String(insn.name) === API.mapMethod("m_7302_")) {
+              loss++;
+              hook = "adjustAirLoss";
+            } else if (String(insn.name) === API.mapMethod("m_7305_")) {
+              recovery++;
+              hook = "adjustAirRecovery";
+            } else {
+              continue;
+            }
+            var code = new List();
+            code.add(new Var(O.ALOAD, 0));
+            code.add(invoke("de/codemorra/sheeper/world/ArenaWater", hook,
+                "(ILnet/minecraft/world/entity/LivingEntity;)I"));
+            method.instructions.insert(insn, code);
+          }
+        }
+        check(loss, 1, "LivingEntity.baseTick air loss");
+        check(recovery, 1, "LivingEntity.baseTick air recovery");
         return node;
       }
     },
