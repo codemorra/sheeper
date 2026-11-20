@@ -67,6 +67,39 @@ public final class ArenaWater {
         return contains(level, point) && isOpenCell(level, new BlockPos(point));
     }
 
+    /** Checks the free part of a block at the player's eyes or a bubble spawn point. */
+    public static boolean isClearWaterPoint(Level level, Vec3 point) {
+        return isClearWaterColumn(level, point, point.y);
+    }
+
+    /** Checks vertical travel against collision shapes, including thin blocks between particle ticks. */
+    public static boolean isClearWaterColumn(Level level, Vec3 point, double previousY) {
+        double low = Math.min(previousY, point.y);
+        double high = Math.max(previousY, point.y);
+        BlockPos pos = new BlockPos(point.x, low, point.z);
+        double x = point.x - pos.getX();
+        double z = point.z - pos.getZ();
+        for (int y = pos.getY(); y <= Math.floor(high); y++) {
+            BlockPos cell = pos.atY(y);
+            var state = level.getBlockState(cell);
+            var fluid = state.getFluidState();
+            if (!fluid.isEmpty() && !fluid.is(FluidTags.WATER)) {
+                return false;
+            }
+            var shape = state.getCollisionShape(level, cell);
+            if (shape.isEmpty()) {
+                continue;
+            }
+            for (var box : shape.toAabbs()) {
+                if (x >= box.minX && x < box.maxX && z >= box.minZ && z < box.maxZ
+                        && high >= y + box.minY && low < y + box.maxY) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /**
      * Reports virtual water through Forge's normal fluid state so living entities
      * use their own water behavior. This runs after Forge detects physical fluids.
