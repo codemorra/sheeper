@@ -12,13 +12,17 @@ import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector4f;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelLastEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.opengl.GL11;
@@ -34,6 +38,11 @@ public final class WaterArenaFogRenderer {
     private static ShaderInstance shader;
     private static RenderTarget depthCopy;
     private static boolean capturedDepth;
+    private static FogFrame pendingOptiFineFrame;
+
+    private record FogFrame(ClientLevel level, int depthTexture, Matrix4f inverse,
+            Vector4f eye, Vec3 camera, float partialTick) {
+    }
 
     private WaterArenaFogRenderer() {
     }
@@ -55,10 +64,7 @@ public final class WaterArenaFogRenderer {
         }
         capturedDepth = false;
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || shader == null
-                || WaterSheeperConfig.WATER_FOG_INTENSITY.get() <= 0
-                || WaterArenaVisuals.activeVolumes(minecraft.level).isEmpty()
-                || !WaterArenaVisuals.canBlendFog(event.getCamera())) {
+        if (!canRender(minecraft, event.getCamera()) || OptiFineShaderDepth.isActive()) {
             return;
         }
         RenderTarget main = minecraft.getMainRenderTarget();
@@ -85,17 +91,26 @@ public final class WaterArenaFogRenderer {
     }
 
     /**
-     * The legacy event is intentional for this Minecraft version: it runs after
-     * Fabulous has composited every world layer, and before the hand and HUD.
+     * Runs after the vanilla world layers and captures the world camera for
+     * OptiFine, whose final composite runs later in GameRenderer.
      */
     @SuppressWarnings("removal")
     @SubscribeEvent
     public static void render(RenderLevelLastEvent event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!capturedDepth || shader == null || minecraft.level == null) {
+        if (shader == null || minecraft.level == null) {
+            return;
+        }
+        Camera camera = minecraft.gameRenderer.getMainCamera();
+        boolean optiFine = OptiFineShaderDepth.isActive();
+        if (optiFine ? !canRender(minecraft, camera) : !capturedDepth) {
             return;
         }
         capturedDepth = false;
+        int depthTexture = optiFine ? OptiFineShaderDepth.sceneTexture() : depthCopy.getDepthTextureId();
+        if (depthTexture == 0) {
+            return;
+        }
         Matrix4f inverse = event.getProjectionMatrix().copy();
         inverse.multiply(event.getPoseStack().last().pose());
         if (!inverse.invert()) {
@@ -108,15 +123,55 @@ public final class WaterArenaFogRenderer {
         if (Math.abs(eye.w()) < 1.0E-6F) {
             return;
         }
-        float originScale = 1.0F / eye.w();
-        Vec3 camera = minecraft.gameRenderer.getMainCamera().getPosition();
-        shader.getUniform("InverseViewProjection").set(inverse);
-        shader.getUniform("RayOrigin").set(eye.x() * originScale, eye.y() * originScale, eye.z() * originScale);
+        eye.mul(1.0F / eye.w());
+        var frame = new FogFrame(minecraft.level, depthTexture, inverse, eye, camera.getPosition(),
+                event.getPartialTick());
+        if (optiFine) {
+            pendingOptiFineFrame = frame;
+        } else {
+            draw(minecraft, frame);
+        }
+    }
+
+    /** Blends over OptiFine's final composite while the HUD is still clear. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST, receiveCanceled = true)
+    public static void beforeHud(RenderGuiEvent.Pre event) {
+        drawPendingOptiFineFrame(Minecraft.getInstance());
+    }
+
+    /** With F1 active Forge skips the HUD event, but the world is still ready before the final screen blit. */
+    @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (event.phase == TickEvent.Phase.END && minecraft.options.hideGui && minecraft.screen == null) {
+            drawPendingOptiFineFrame(minecraft);
+        }
+        pendingOptiFineFrame = null;
+    }
+
+    private static void drawPendingOptiFineFrame(Minecraft minecraft) {
+        FogFrame frame = pendingOptiFineFrame;
+        pendingOptiFineFrame = null;
+        if (frame != null && shader != null && minecraft.level == frame.level()) {
+            draw(minecraft, frame);
+        }
+    }
+
+    private static boolean canRender(Minecraft minecraft, Camera camera) {
+        return minecraft.level != null && shader != null
+                && WaterSheeperConfig.WATER_FOG_INTENSITY.get() > 0
+                && !WaterArenaVisuals.activeVolumes(minecraft.level).isEmpty()
+                && WaterArenaVisuals.canBlendFog(camera);
+    }
+
+    private static void draw(Minecraft minecraft, FogFrame frame) {
+        shader.getUniform("InverseViewProjection").set(frame.inverse());
+        shader.getUniform("RayOrigin").set(frame.eye().x(), frame.eye().y(), frame.eye().z());
         shader.getUniform("WaterColor").set(0.12F, 0.38F, 0.52F);
         // Intensity scales attenuation while preserving the existing base-distance tuning.
         shader.getUniform("WaterDensity").set((float) (Math.log(20) * WaterSheeperConfig.WATER_FOG_INTENSITY.get()
                 / WaterSheeperConfig.WATER_FOG_DISTANCE.get()));
-        shader.setSampler("SceneDepth", depthCopy.getDepthTextureId());
+        shader.setSampler("SceneDepth", frame.depthTexture());
         ShaderInstance previous = RenderSystem.getShader();
         minecraft.getMainRenderTarget().bindWrite(false);
         RenderSystem.disableDepthTest();
@@ -126,7 +181,8 @@ public final class WaterArenaFogRenderer {
         RenderSystem.setShader(() -> shader);
         try {
             double renderDistance = minecraft.options.getEffectiveRenderDistance() * 16.0D;
-            for (var bounds : WaterArenaVisuals.renderVolumes(minecraft.level, event.getPartialTick())) {
+            Vec3 camera = frame.camera();
+            for (var bounds : WaterArenaVisuals.renderVolumes(frame.level(), frame.partialTick())) {
                 // Camera-relative coordinates retain precision far from world origin.
                 double x = bounds.center().getX() + 0.5D - camera.x;
                 double z = bounds.center().getZ() + 0.5D - camera.z;
