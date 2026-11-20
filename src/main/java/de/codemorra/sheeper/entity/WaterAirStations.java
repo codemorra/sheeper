@@ -13,6 +13,7 @@ import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaData.AirColumn;
 import de.codemorra.sheeper.world.WaterArenaData.AirState;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import net.minecraft.core.BlockPos;
@@ -97,6 +98,14 @@ final class WaterAirStations {
             access.put(player.getUUID(), cached);
         }
         return cached.reachable() ? AirState.CONSUMING : AirState.SHELTERED;
+    }
+
+    /** Uses the same loaded positions as air recovery. */
+    List<AirColumn> airColumns(VolumeBounds volume) {
+        return loadedStations.stream()
+                .map(position -> new AirColumn(new BlockPos(position.x, volume.minimumY(), position.z),
+                        volume.maximumY() + 1))
+                .toList();
     }
 
     /** Checks a direct swim and a route over obstacles through the upper water layer. */

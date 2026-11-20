@@ -6,11 +6,15 @@ import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.WaterArenaVisuals;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaData.AirColumn;
+import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
@@ -20,7 +24,16 @@ import net.minecraftforge.network.NetworkEvent;
  * boss.
  */
 public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> arenas, long pushProtectedUntil,
-        double boundarySlowdownWidth, double boundarySlowdownStrength) {
+        double boundarySlowdownWidth, double boundarySlowdownStrength, List<AirColumn> airColumns) {
+    /** Captures the recipient's movement settings alongside the shared arena volumes. */
+    public static WaterArenaPacket capture(ServerPlayer player, List<AnimatedVolume> arenas) {
+        return new WaterArenaPacket(player.level.dimension().location(), arenas,
+                WaterArenaPushProtection.protectedUntil(player),
+                WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_WIDTH.get(),
+                WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_STRENGTH.get(),
+                WaterArenaData.airColumns(player.getLevel(), player.getEyePosition()));
+    }
+
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeVarInt(arenas.size());
@@ -38,6 +51,11 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
         buffer.writeLong(pushProtectedUntil);
         buffer.writeDouble(boundarySlowdownWidth);
         buffer.writeDouble(boundarySlowdownStrength);
+        buffer.writeVarInt(airColumns.size());
+        for (AirColumn column : airColumns) {
+            buffer.writeBlockPos(column.base());
+            buffer.writeDouble(column.surface());
+        }
     }
 
     /** Rejects invalid geometry and clocks before client physics or rendering uses them. */
@@ -75,7 +93,20 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
                 || strength > WaterSheeperConfig.MAX_BOUNDARY_SLOWDOWN_STRENGTH) {
             throw new IllegalArgumentException("Invalid water boundary slowdown settings");
         }
-        return new WaterArenaPacket(dimension, List.copyOf(arenas), protectedUntil, width, strength);
+        int columnCount = buffer.readVarInt();
+        if (columnCount < 0 || columnCount > 4096) {
+            throw new IllegalArgumentException("Invalid air fountain snapshot size: " + columnCount);
+        }
+        List<AirColumn> columns = new ArrayList<>(columnCount);
+        for (int index = 0; index < columnCount; index++) {
+            var column = new AirColumn(buffer.readBlockPos(), buffer.readDouble());
+            if (!column.isValid()) {
+                throw new IllegalArgumentException("Invalid air fountain bounds");
+            }
+            columns.add(column);
+        }
+        return new WaterArenaPacket(dimension, List.copyOf(arenas), protectedUntil, width, strength,
+                List.copyOf(columns));
     }
 
     /**

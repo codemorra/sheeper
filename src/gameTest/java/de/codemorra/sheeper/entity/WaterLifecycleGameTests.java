@@ -67,10 +67,13 @@ public final class WaterLifecycleGameTests {
                 "Reload must preserve geometry and lifecycle clocks without restarting either phase");
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            var packet = new WaterArenaPacket(c.level.dimension().location(), before, 0, 1.25D, 0.3D);
+            BlockPos base = c.pos(10, 1, 10);
+            var column = new WaterArenaData.AirColumn(base, base.getY() + 4);
+            var packet = new WaterArenaPacket(c.level.dimension().location(), before, 0, 1.25D, 0.3D,
+                    List.of(column));
             packet.encode(buffer);
             c.expect(packet.equals(WaterArenaPacket.decode(buffer)),
-                    "Animated geometry and both clocks must survive the actual network format");
+                    "Arena clocks, geometry and fountain columns must survive the network format");
         } finally {
             buffer.release();
         }

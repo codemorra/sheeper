@@ -6,6 +6,7 @@ import java.util.function.Function;
 
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaData.AirColumn;
 import de.codemorra.sheeper.world.WaterArenaData.AirState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -28,6 +29,7 @@ import net.minecraftforge.fluids.FluidType;
 public final class ArenaWater {
     public static final double BOUNDARY_MARGIN = 0.15D;
     private static Function<Level, List<WaterArenaData.VolumeBounds>> clientLookup = level -> List.of();
+    private static Function<Level, List<AirColumn>> clientAirColumns = level -> List.of();
 
     private ArenaWater() {
     }
@@ -38,6 +40,11 @@ public final class ArenaWater {
      */
     public static void setClientLookup(Function<Level, List<WaterArenaData.VolumeBounds>> lookup) {
         clientLookup = lookup;
+    }
+
+    /** Supplies nearby fountain geometry to the local swimming controller. */
+    public static void setClientAirColumns(Function<Level, List<AirColumn>> lookup) {
+        clientAirColumns = lookup;
     }
 
     /** Tests the exact cylindrical water volume on either logical side. */
@@ -188,6 +195,25 @@ public final class ArenaWater {
             return Math.min(capacity, player.getAirSupply() + Math.max(1, capacity / 10));
         }
         return vanilla;
+    }
+
+    /** Adds a small upward acceleration after water drag without replacing input or knockback. */
+    public static Vec3 applyAirFountainLift(Vec3 movement, LivingEntity entity) {
+        if (!(entity instanceof Player player) || !supportsSwimming(player) || player.getAbilities().flying
+                || player.isPassenger() || !player.isInWater() || player.isInLava()
+                || player.getEyeInFluidType() != ForgeMod.WATER_TYPE.get() || movement.y >= 0.04) {
+            return movement;
+        }
+        Vec3 eye = player.getEyePosition();
+        var columns = player.level instanceof ServerLevel server ? WaterArenaData.airColumns(server, eye)
+                : clientAirColumns.apply(player.level);
+        for (AirColumn column : columns) {
+            if (column.contains(eye) && player.getBoundingBox().maxY + BOUNDARY_MARGIN + 0.04 < column.surface()
+                    && isClearWaterPoint(player.level, eye)) {
+                return new Vec3(movement.x, Math.min(0.04, movement.y + 0.01), movement.z);
+            }
+        }
+        return movement;
     }
 
     /**

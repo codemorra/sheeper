@@ -9,6 +9,7 @@ import de.codemorra.sheeper.network.WaterArenaPacket;
 import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.world.WaterArenaBoundaryDrag;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
+import de.codemorra.sheeper.world.WaterArenaData.AirColumn;
 import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
 import net.minecraft.client.Camera;
 import net.minecraft.client.particle.Particle;
@@ -38,10 +39,11 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class WaterArenaVisuals {
     // Physics and rendering share immutable snapshots published by the client thread.
-    private record Snapshot(ClientLevel level, List<AnimatedVolume> arenas, long receivedAt) {
+    private record Snapshot(ClientLevel level, List<AnimatedVolume> arenas, List<AirColumn> airColumns,
+            long receivedAt) {
     }
 
-    private static volatile Snapshot snapshot = new Snapshot(null, List.of(), 0);
+    private static volatile Snapshot snapshot = new Snapshot(null, List.of(), List.of(), 0);
     private static final double TRANSITION_WIDTH = 1.0D;
     private static ClientLevel fogLevel;
     private static float previousFogBlend;
@@ -59,7 +61,7 @@ public final class WaterArenaVisuals {
         if (level == null || !level.dimension().location().equals(packet.dimension())) {
             return;
         }
-        snapshot = new Snapshot(level, packet.arenas(), level.getGameTime());
+        snapshot = new Snapshot(level, packet.arenas(), packet.airColumns(), level.getGameTime());
         WaterArenaBoundaryDrag.receive(packet.boundarySlowdownWidth(), packet.boundarySlowdownStrength());
         var player = Minecraft.getInstance().player;
         if (player != null && player.level == level) {
@@ -81,7 +83,7 @@ public final class WaterArenaVisuals {
         ClientLevel level = minecraft.level;
         if (current.level() != null && (current.level() != level
                 || level.getGameTime() - current.receivedAt() > 60)) {
-            snapshot = new Snapshot(null, List.of(), 0);
+            snapshot = new Snapshot(null, List.of(), List.of(), 0);
         }
         if (fogLevel != level) {
             fogLevel = level;
@@ -131,6 +133,12 @@ public final class WaterArenaVisuals {
     public static List<AnimatedVolume> animatedVolumes(Level level) {
         Snapshot current = snapshot;
         return current.level() == level ? current.arenas() : List.of();
+    }
+
+    /** Returns the nearest server-known fountain columns used by local swimming. */
+    public static List<AirColumn> airColumns(Level level) {
+        Snapshot current = snapshot;
+        return current.level() == level ? current.airColumns() : List.of();
     }
 
     /** Virtual water supplies its own depth-based fog, without the coarse vanilla camera texture. */

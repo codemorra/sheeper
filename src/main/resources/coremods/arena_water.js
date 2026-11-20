@@ -224,6 +224,31 @@ function initializeCoreMod() {
         return node;
       }
     },
+    arena_water_fountain_lift: {
+      target: { type: "CLASS", name: "net.minecraft.world.entity.LivingEntity" },
+      transformer: function (node) {
+        var count = 0;
+        var vector = "Lnet/minecraft/world/phys/Vec3;";
+        for (var i = 0; i < node.methods.size(); i++) {
+          var method = node.methods.get(i);
+          if (String(method.name) !== API.mapMethod("m_7023_") || String(method.desc) !== "(" + vector + ")V") continue;
+          var instructions = method.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if (insn.getOpcode() !== O.INVOKEVIRTUAL || String(insn.name) !== API.mapMethod("m_20994_") ||
+                String(insn.desc) !== "(DZ" + vector + ")" + vector) continue;
+            var code = new List();
+            code.add(new Var(O.ALOAD, 0));
+            code.add(invoke("de/codemorra/sheeper/world/ArenaWater", "applyAirFountainLift",
+                "(" + vector + "Lnet/minecraft/world/entity/LivingEntity;)" + vector));
+            method.instructions.insert(insn, code);
+            count++;
+          }
+        }
+        check(count, 2, "LivingEntity.travel fluid movement");
+        return node;
+      }
+    },
     arena_water_bubble_particles: {
       target: { type: "CLASS", name: "net.minecraft.client.particle.BubbleParticle" },
       transformer: function (node) {
