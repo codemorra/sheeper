@@ -3,6 +3,7 @@ package de.codemorra.sheeper.registry;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.particle.LightningRingOptions;
 import de.codemorra.sheeper.particle.MaelstromWaveOptions;
+import de.codemorra.sheeper.particle.WaterMineWaveOptions;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -27,6 +28,17 @@ public final class ModParticles {
 
     public static final RegistryObject<SimpleParticleType> WATER_FOUNTAIN = PARTICLES.register("water_fountain",
             () -> new SimpleParticleType(false));
+
+    public static final RegistryObject<SimpleParticleType> WATER_MINE = PARTICLES.register("water_mine",
+            () -> new SimpleParticleType(false));
+
+    public static final RegistryObject<ParticleType<WaterMineWaveOptions>> WATER_MINE_WAVE = PARTICLES.register(
+            "water_mine_wave", () -> new ParticleType<WaterMineWaveOptions>(false, WaterMineWaveOptions.DESERIALIZER) {
+                @Override
+                public Codec<WaterMineWaveOptions> codec() {
+                    return WaterMineWaveOptions.CODEC;
+                }
+            });
 
     public static final RegistryObject<ParticleType<MaelstromWaveOptions>> MAELSTROM_WAVE = PARTICLES.register(
             "maelstrom_wave", () -> new ParticleType<MaelstromWaveOptions>(false, MaelstromWaveOptions.DESERIALIZER) {

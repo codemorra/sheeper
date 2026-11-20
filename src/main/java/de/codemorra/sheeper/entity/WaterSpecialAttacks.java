@@ -19,11 +19,13 @@ final class WaterSpecialAttacks {
     private final WaterSheeperEntity boss;
     private final WaterBeamAttack beam;
     private final WaterMaelstromAttack maelstrom;
+    private final WaterMineAttack mines;
     private boolean beamActive;
     private int beamCooldown;
     private int recoveryTicks;
     private int defaultOnlyTicks;
     private int maelstromCooldown = -1;
+    private int mineCooldown;
 
     /**
      * @param boss owner whose default attack and movement are coordinated with
@@ -33,6 +35,7 @@ final class WaterSpecialAttacks {
         this.boss = boss;
         beam = new WaterBeamAttack(boss);
         maelstrom = new WaterMaelstromAttack(boss);
+        mines = new WaterMineAttack(boss);
     }
 
     /**
@@ -55,6 +58,9 @@ final class WaterSpecialAttacks {
             if (beamActive) {
                 finishBeam();
             }
+            if (mines.isActive()) {
+                finishMines();
+            }
             return;
         }
         if (maelstromCooldown < 0) {
@@ -66,6 +72,9 @@ final class WaterSpecialAttacks {
         }
         if (beamCooldown > 0) {
             beamCooldown--;
+        }
+        if (mineCooldown > 0) {
+            mineCooldown--;
         }
         if (recoveryTicks > 0) {
             if (--recoveryTicks == 0) {
@@ -86,7 +95,7 @@ final class WaterSpecialAttacks {
      *                      elapsed
      */
     void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack) {
-        if (beamActive || maelstrom.isActive()
+        if (beamActive || maelstrom.isActive() || mines.isActive()
                 || recoveryTicks > 0 || defaultOnlyTicks > 0 || !defaultAttack.isFiring()) {
             return;
         }
@@ -95,14 +104,17 @@ final class WaterSpecialAttacks {
         boolean maelstromReady = maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
                 || defaultAttack.getMeleeTicks() >= SheeperConfig
                         .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));
-        int choices = (beamReady ? 1 : 0) + (maelstromReady ? 1 : 0);
+        boolean minesReady = mineCooldown == 0;
+        int choices = (beamReady ? 1 : 0) + (maelstromReady ? 1 : 0) + (minesReady ? 1 : 0);
         if (choices == 0) {
             return;
         }
         int choice = boss.getRandom().nextInt(choices);
-        if (beamReady && choice == 0) {
+        if (beamReady && choice-- == 0) {
             beam.start();
             beamActive = true;
+        } else if (minesReady && choice == 0) {
+            mines.start();
         } else if (maelstromReady && !maelstrom.start()) {
             // Failed center searches must not repeat their pathfinding every tick.
             maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
@@ -119,6 +131,16 @@ final class WaterSpecialAttacks {
         if (beamActive && (!(boss.getTarget() instanceof ServerPlayer target) || !beam.tick(target))) {
             finishBeam();
         }
+        if (mines.isActive()) {
+            if (boss.getTarget() instanceof ServerPlayer) {
+                mines.tick(boss.getCombatParticipants());
+                if (!mines.isActive()) {
+                    finishMines();
+                }
+            } else {
+                finishMines();
+            }
+        }
         maelstrom.tickEffects();
     }
 
@@ -132,6 +154,11 @@ final class WaterSpecialAttacks {
      */
     boolean isMaelstromActive() {
         return maelstrom.isActive();
+    }
+
+    /** Mines pause ordinary firing while allowing the boss to reorient and swim. */
+    boolean isMineAttackActive() {
+        return mines.isActive();
     }
 
     /** @return whether Maelstrom still grants immunity before its impact */
@@ -149,7 +176,7 @@ final class WaterSpecialAttacks {
 
     /** @return whether projectile firing and its target-switch timer must pause */
     boolean suppressesDefault() {
-        return beamActive || maelstrom.isActive() || recoveryTicks > 0;
+        return beamActive || maelstrom.isActive() || mines.isActive() || recoveryTicks > 0;
     }
 
     /**
@@ -186,6 +213,11 @@ final class WaterSpecialAttacks {
         defaultOnlyTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
+    private void finishMines() {
+        mines.clear();
+        mineCooldown = mines.cooldown();
+    }
+
     /**
      * Resets specials after full recovery, including Maelstrom's initial cooldown.
      */
@@ -196,6 +228,8 @@ final class WaterSpecialAttacks {
         defaultOnlyTicks = 0;
         maelstrom.stop();
         maelstromCooldown = -1;
+        mines.clear();
+        mineCooldown = 0;
         beam.stop();
         boss.setBeamEyeIntensity(0);
     }
@@ -210,6 +244,8 @@ final class WaterSpecialAttacks {
         tag.put("Beam", beam.save());
         tag.putInt("MaelstromCooldown", maelstromCooldown);
         tag.put("Maelstrom", maelstrom.save());
+        tag.putInt("MineCooldown", mineCooldown);
+        tag.put("Mines", mines.save());
         return tag;
     }
 
@@ -228,6 +264,10 @@ final class WaterSpecialAttacks {
                 ? Mth.clamp(tag.getInt("MaelstromCooldown"), -1, 6000)
                 : -1;
         maelstrom.load(tag.getCompound("Maelstrom"));
+        mineCooldown = Mth.clamp(tag.getInt("MineCooldown"), 0, 2400);
+        if (!beamActive && !maelstrom.isActive()) {
+            mines.load(tag.getCompound("Mines"));
+        }
         if (maelstrom.isActive()) {
             // Malformed or old state must never resume two specials together.
             beamActive = false;

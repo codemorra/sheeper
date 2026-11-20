@@ -280,6 +280,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return arenaVolume != null && arenaVolume.contains(point);
     }
 
+    /** @return whether swimming should give the target more space while mines are active */
+    public boolean isPerformingWaterMines() {
+        return specialAttacks.isMineAttackActive();
+    }
+
     /** Supplies air-station state for this boss's active water volume. */
     public WaterArenaData.AirState getArenaAirState(ServerPlayer player, Vec3 eye) {
         if (!isAlive() || !isCombatReady() || arenaVolume == null) {

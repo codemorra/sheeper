@@ -136,6 +136,7 @@ public final class WaterAttackGameTests {
     private static WaterSpecialAttacks specials(WaterSheeperEntity boss, String ready) {
         WaterSpecialAttacks attacks = new WaterSpecialAttacks(boss);
         CompoundTag state = new CompoundTag();
+        state.putInt("MineCooldown", 1000);
         state.putInt("BeamCooldown", ready.equals("beam") ? 0 : 1000);
         state.putInt("MaelstromCooldown", ready.equals("maelstrom") ? -1 : 1000);
         attacks.load(state);
