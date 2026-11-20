@@ -48,7 +48,8 @@ public final class WaterSheeperConfig {
     public static final double MAX_BOUNDARY_SLOWDOWN_STRENGTH = 0.75D;
 
     public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_WIDTH = BUILDER
-            .comment("Width in blocks on each side of the outer arena boundary where crossing is slowed; 0 disables it.",
+            .comment(
+                    "Width in blocks on each side of the outer arena boundary where crossing is slowed; 0 disables it.",
                     "Combat entry uses its inner edge. Width is capped at half the arena radius.")
             .defineInRange("elemental.water.boundary.slowdownWidth", 1.5, 0.0, MAX_BOUNDARY_SLOWDOWN_WIDTH);
 
@@ -340,6 +341,55 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_DEFAULT_ONLY_MAX = BUILDER
             .comment("Maximum default-only seconds following recovery; capped below by defaultOnlyMinSeconds.")
             .defineInRange("elemental.water.special.defaultOnlyMaxSeconds", 10.0, 0.1, 30.0);
+
+    /**
+     * Water mines (elemental.water.mines). A maximum below its minimum uses the
+     * minimum.
+     */
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MIN = BUILDER
+            .comment("Minimum seconds during which new water mines appear.")
+            .defineInRange("elemental.water.mines.durationMinSeconds", 20.0, 0.5, 60);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MAX = BUILDER
+            .comment("Maximum seconds during which new water mines appear.")
+            .defineInRange("elemental.water.mines.durationMaxSeconds", 25.0, 0.5, 60);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COUNT_MULTIPLIER = BUILDER
+            .comment("Scales how many mines the boss attempts to place without changing attack duration.",
+                    "1 uses the standard rate, 0.5 halves it, and 2 doubles it.")
+            .defineInRange("elemental.water.mines.countMultiplier", 1.0, 0.25, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE_MIN = BUILDER
+            .comment("Minimum damage per mine in health points before armor. 2 health points equal one heart.")
+            .defineInRange("elemental.water.mines.damageMin", 2.0, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE_MAX = BUILDER
+            .comment("Maximum damage per mine in health points before armor.")
+
+            .defineInRange("elemental.water.mines.damageMax", 3.0, 0.0, 10.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN_MIN = BUILDER
+            .comment("Minimum cooldown in seconds after the last mine explodes.")
+
+            .defineInRange("elemental.water.mines.cooldownMinSeconds", 25.0, 1.0, 120.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN_MAX = BUILDER
+            .comment("Maximum cooldown in seconds after the last mine explodes.")
+
+            .defineInRange("elemental.water.mines.cooldownMaxSeconds", 35.0, 1.0, 120.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER_MIN = BUILDER
+            .comment("Minimum visible bubble diameter in blocks at detonation.")
+
+            .defineInRange("elemental.water.mines.diameterMin", 2.0, 0.75, 6.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER_MAX = BUILDER
+            .comment("Maximum visible bubble diameter in blocks at detonation.")
+
+            .defineInRange("elemental.water.mines.diameterMax", 3.0, 0.75, 6.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE_MIN = BUILDER
+            .comment("Minimum seconds from a mine appearing until it explodes.")
+            .defineInRange("elemental.water.mines.fuseMinSeconds", 1.6, 0.2, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE_MAX = BUILDER
+            .comment("Maximum seconds from a mine appearing until it explodes.")
+            .defineInRange("elemental.water.mines.fuseMaxSeconds", 2.8, 0.2, 5.0);
 
     /** Air fountains (elemental.water.airStations). */
     public static final ForgeConfigSpec.DoubleValue WATER_AIR_STATIONS_PER_1000_BLOCKS = BUILDER

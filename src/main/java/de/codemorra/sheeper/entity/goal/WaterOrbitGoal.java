@@ -25,6 +25,8 @@ import net.minecraft.world.phys.Vec3;
  * and stops short of the player's body instead of circling.
  */
 public final class WaterOrbitGoal extends Goal {
+    private static final double MINE_RETREAT_DISTANCE = 3;
+    private static final int MINE_RETREAT_TICKS = 20;
     private final WaterSheeperEntity boss;
     private UUID targetId;
     private Vec3 previousPlayerPosition;
@@ -35,6 +37,9 @@ public final class WaterOrbitGoal extends Goal {
     private long sprintEndTick;
     private long sprintReadyTick;
     private boolean closingOnTarget;
+    private boolean mineAttack;
+    private Vec3 mineRetreat;
+    private long mineRetreatEnd;
 
     /**
      * Creates a movement goal without taking control of the boss's head rotation.
@@ -88,8 +93,23 @@ public final class WaterOrbitGoal extends Goal {
         }
         long now = boss.level.getGameTime();
         boolean changed = !player.getUUID().equals(targetId);
-        boolean modeChanged = closingOnTarget != boss.isClosingOnTarget();
-        closingOnTarget = boss.isClosingOnTarget();
+        boolean mining = boss.isPerformingWaterMines();
+        boolean closing = !mining && boss.isClosingOnTarget();
+        boolean modeChanged = closingOnTarget != closing || mineAttack != mining;
+        if (mining && !mineAttack) {
+            Vec3 away = horizontal(boss.position().subtract(player.position())).normalize();
+            if (away.lengthSqr() < 1.0E-7D) {
+                away = new Vec3(1, 0, 0);
+            }
+            mineRetreat = boss.clampSwimmingPosition(boss.position().add(away.scale(MINE_RETREAT_DISTANCE)));
+            mineRetreatEnd = now + MINE_RETREAT_TICKS;
+        } else if (mineRetreat != null && (!mining || now >= mineRetreatEnd
+                || boss.position().distanceToSqr(mineRetreat) < 1)) {
+            mineRetreat = null;
+            modeChanged = true;
+        }
+        closingOnTarget = closing;
+        mineAttack = mining;
         if (closingOnTarget) {
             sprintEndTick = 0;
             if (boss.getBoundingBox().getCenter().distanceToSqr(
@@ -114,6 +134,11 @@ public final class WaterOrbitGoal extends Goal {
             updateCircle(player, changed || modeChanged);
             scheduleNextPlan(now);
             Path path = choosePath(player);
+            if (path == null && mineRetreat != null) {
+                // Terrain may block the brief retreat; keep circling instead.
+                mineRetreat = null;
+                path = choosePath(player);
+            }
             if (path != null) {
                 if (!closingOnTarget) {
                     beginSprint(now);
@@ -197,6 +222,9 @@ public final class WaterOrbitGoal extends Goal {
         }
         double height = player.getBoundingBox().getCenter().y - boss.getBbHeight() * 0.5D
                 + WaterSheeperConfig.WATER_MOVEMENT_HEIGHT_OFFSET.get();
+        if (mineRetreat != null) {
+            return mineRetreat;
+        }
         if (away.lengthSqr() < 4.0D) {
             Vec3 basis = away.lengthSqr() < 1.0E-7D ? new Vec3(1, 0, 0) : away.normalize();
             circleRadius = Math.max(circleRadius, Math.min(2, WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()));
@@ -288,7 +316,8 @@ public final class WaterOrbitGoal extends Goal {
             return false;
         }
         Vec3 away = horizontal(boss.position().subtract(player.position()));
-        return away.lengthSqr() <= 1.0E-7D || away.length() > WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()
+        return mineRetreat != null || away.lengthSqr() <= 1.0E-7D
+                || away.length() > WaterSheeperConfig.WATER_MOVEMENT_ORBIT_DISTANCE.get()
                 || horizontal(travel).dot(away.normalize()) <= 0.5D;
     }
 
@@ -366,6 +395,8 @@ public final class WaterOrbitGoal extends Goal {
     @Override
     public void stop() {
         sprintEndTick = 0;
+        mineAttack = false;
+        mineRetreat = null;
         stopSwimming();
     }
 

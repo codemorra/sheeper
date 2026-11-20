@@ -17,6 +17,8 @@ import de.codemorra.sheeper.client.particle.MuttonCloudParticle;
 import de.codemorra.sheeper.client.particle.ArenaWaterParticle;
 import de.codemorra.sheeper.client.particle.MaelstromWaveParticle;
 import de.codemorra.sheeper.client.particle.WaterArenaBoundaryParticle;
+import de.codemorra.sheeper.client.particle.WaterMineParticle;
+import de.codemorra.sheeper.client.particle.WaterMineWaveParticle;
 import de.codemorra.sheeper.client.particle.LightningRingParticle;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.util.ResourceLocations;
@@ -57,6 +59,8 @@ public class ClientModEvents {
         event.register(ModParticles.MUTTON_CLOUD.get(), MuttonCloudParticle.Provider::new);
         event.register(ModParticles.ARENA_RAIN.get(), ArenaWaterParticle.Provider::new);
         event.register(ModParticles.WATER_FOUNTAIN.get(), ArenaWaterParticle.Provider::new);
+        event.register(ModParticles.WATER_MINE.get(), WaterMineParticle.Provider::new);
+        event.register(ModParticles.WATER_MINE_WAVE.get(), WaterMineWaveParticle.Provider::new);
         event.register(ModParticles.MAELSTROM_WAVE.get(), MaelstromWaveParticle.Provider::new);
         event.register(ModParticles.WATER_ARENA_FLOOR.get(), WaterArenaBoundaryParticle.Provider::new);
         event.register(ModParticles.WATER_ARENA_SIDE.get(), WaterArenaBoundaryParticle.Provider::new);
