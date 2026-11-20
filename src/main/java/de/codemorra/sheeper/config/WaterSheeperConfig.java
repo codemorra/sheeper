@@ -196,14 +196,13 @@ public final class WaterSheeperConfig {
             .defineInRange("elemental.water.projectile.intervalSeconds", 1.25, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MIN = BUILDER
-            .comment("Minimum default attack phase seconds before a two-second target-selection pause.",
-                    "Firing starts immediately after the pause; movement continues throughout.")
-            .defineInRange("elemental.water.projectile.durationMinSeconds", 10.0, 0.05, 60.0);
+            .comment("Minimum seconds for each of the two projectile intervals.",
+                    "The boss can switch targets between intervals without pausing.")
+            .defineInRange("elemental.water.projectile.phaseIntervalMinSeconds", 8.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DURATION_MAX = BUILDER
-            .comment(
-                    "Maximum default attack phase seconds before target selection; capped below by durationMinSeconds.")
-            .defineInRange("elemental.water.projectile.durationMaxSeconds", 15.0, 0.05, 60.0);
+            .comment("Maximum seconds for each projectile interval; lower values use phaseIntervalMinSeconds.")
+            .defineInRange("elemental.water.projectile.phaseIntervalMaxSeconds", 12.0, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_LIFETIME = BUILDER
             .comment("Maximum flight duration in seconds; range is speedBlocksPerSecond multiplied by lifetimeSeconds.")
@@ -242,10 +241,6 @@ public final class WaterSheeperConfig {
             .comment(
                     "Beam damage in health points on first contact, then at least one second after the last accepted beam hit.")
             .defineInRange("elemental.water.beam.damagePerSecond", 4.88, 0.0, 20.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_SIGHT_TIMEOUT = BUILDER
-            .comment("Consecutive seconds without sight before aborting; collision still stops the visible beam.")
-            .defineInRange("elemental.water.beam.sightTimeoutSeconds", 1.0, 0.1, 5.0);
 
     /** Maelstrom preparation (elemental.water.maelstrom). */
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_COOLDOWN = BUILDER
@@ -328,19 +323,14 @@ public final class WaterSheeperConfig {
                     "Limited to half the arena radius. Reaching the ring releases affected players; 0 disables protection.")
             .defineInRange("elemental.water.maelstrom.safeOuterWidth", 8.0, 0.0, 32.0);
 
-    /** Shared recovery after stationary specials (elemental.water.special). */
+    /**
+     * Shared recovery between a special and the next projectile phase
+     * (elemental.water.special).
+     */
     public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_RECOVERY = BUILDER
-            .comment("Seconds without attacks after a beam or Maelstrom; the boss is vulnerable during recovery.",
-                    "Movement resumes after the beam; Maelstrom holds the boss still until recovery ends.")
+            .comment("Seconds without new attacks after a special; the boss is vulnerable during recovery.",
+                    "Maelstrom recovery begins at impact and holds the boss still.")
             .defineInRange("elemental.water.special.recoverySeconds", 2.0, 0.1, 5.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_DEFAULT_ONLY_MIN = BUILDER
-            .comment("Minimum default-only seconds following recovery before another special may start.")
-            .defineInRange("elemental.water.special.defaultOnlyMinSeconds", 5.0, 0.1, 20.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_DEFAULT_ONLY_MAX = BUILDER
-            .comment("Maximum default-only seconds following recovery; capped below by defaultOnlyMinSeconds.")
-            .defineInRange("elemental.water.special.defaultOnlyMaxSeconds", 10.0, 0.1, 30.0);
 
     /**
      * Water mines (elemental.water.mines). A maximum below its minimum uses the

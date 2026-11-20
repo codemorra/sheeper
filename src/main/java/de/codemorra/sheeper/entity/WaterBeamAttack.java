@@ -33,7 +33,6 @@ final class WaterBeamAttack {
     private int preparationTicks;
     private int preparationDuration;
     private int remainingAttackTicks;
-    private int sightLossTicks;
     private double beamLength;
     private int impactSoundTicks;
 
@@ -52,7 +51,6 @@ final class WaterBeamAttack {
         int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_DURATION_MIN.get());
         int maximum = Math.max(minimum, SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_DURATION_MAX.get()));
         remainingAttackTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
-        sightLossTicks = 0;
         beamLength = 0.0D;
         impactSoundTicks = 0;
         damageCooldowns.clear();
@@ -75,7 +73,7 @@ final class WaterBeamAttack {
      * distance.
      *
      * @param target current eligible target; replacements retain gradual tracking
-     * @return false when firing completes or sight is lost for too long
+     * @return false when firing completes or the arena is gone
      */
     boolean tick(ServerPlayer target) {
         boss.setBeamOffset(Vec3.ZERO);
@@ -85,14 +83,9 @@ final class WaterBeamAttack {
         // Cooldowns advance even while a player is outside the beam or arena.
         damageCooldowns.replaceAll((id, ticks) -> ticks - 1);
         damageCooldowns.values().removeIf(ticks -> ticks <= 0);
-        boolean visible = WaterAttackBlocks.hasLineOfSight(boss, target);
-        sightLossTicks = visible ? 0 : sightLossTicks + 1;
-        if (sightLossTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_SIGHT_TIMEOUT.get())) {
-            return false;
-        }
         if (aimPosition == null) {
             aimPosition = target.getEyePosition();
-        } else if (visible) {
+        } else {
             // A gradual response leaves room to dodge without abrupt aiming steps.
             int trackingTicks = Math.max(1,
                     SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_TRACKING_RESPONSE.get()));
@@ -208,7 +201,6 @@ final class WaterBeamAttack {
         tag.putInt("PreparationDuration", preparationDuration);
         tag.putInt("PreparationTicks", preparationTicks);
         tag.putInt("RemainingAttackTicks", remainingAttackTicks);
-        tag.putInt("SightLossTicks", sightLossTicks);
         tag.putDouble("BeamLength", beamLength);
         if (aimPosition != null) {
             tag.putDouble("AimX", aimPosition.x);
@@ -235,7 +227,6 @@ final class WaterBeamAttack {
         preparationDuration = Math.max(1, Math.min(1200, tag.getInt("PreparationDuration")));
         preparationTicks = Math.max(0, Math.min(preparationDuration, tag.getInt("PreparationTicks")));
         remainingAttackTicks = Math.max(0, Math.min(1200, tag.getInt("RemainingAttackTicks")));
-        sightLossTicks = Math.max(0, Math.min(1200, tag.getInt("SightLossTicks")));
         double savedLength = tag.getDouble("BeamLength");
         beamLength = Double.isFinite(savedLength) ? Math.max(0.0D, Math.min(128.0D, savedLength)) : 0.0D;
         aimPosition = null;

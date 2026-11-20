@@ -58,13 +58,21 @@ public final class WaterAttackGameTests {
         a.standAt(c.point(15, 1, 10));
         attack.tickTarget(List.of(a), true);
         c.expect(!attack.isClosingOnTarget(), "Moving beyond the melee distance must restore ranged mode");
-        c.expect(attack.tickTarget(List.of(b), true) == b, "Losing the current participant must reselect immediately");
-        WaterTestScene.ticks(3, () -> attack.tickTarget(List.of(b), true));
-        c.expect(!attack.isFiring(), "Configured firing duration must end in a selection pause");
+        WaterTestScene.ticks(3, () -> attack.tickTarget(List.of(a, b), true));
+        c.expect(attack.tickTarget(List.of(a, b), true) == b && attack.isFiring(),
+                "The midpoint must switch to another player without a firing pause");
+        c.expect(attack.tickTarget(List.of(a), true) == a, "Losing the current participant must reselect immediately");
         WaterDefaultAttack restored = new WaterDefaultAttack(boss);
         restored.load(attack.save());
-        WaterTestScene.ticks(40, () -> boss.setTarget(restored.tickTarget(List.of(b), true)));
-        c.expect(restored.isFiring() && boss.getTarget() == b, "A saved pause must resume the firing cycle");
+        WaterTestScene.ticks(4, () -> restored.tickTarget(List.of(a), true));
+        c.expect(restored.isFiring(), "Reload must preserve the remaining second interval");
+        restored.tickTarget(List.of(a), true);
+        c.expect(restored.isComplete() && !restored.isFiring(),
+                "The second interval must yield to the special attack check");
+        c.expect(restored.extendProjectilePhase(List.of(a)) == a && restored.isFiring(),
+                "A fallback interval must keep firing even with only one participant");
+        WaterTestScene.ticks(6, () -> restored.tickTarget(List.of(a), true));
+        c.expect(restored.isComplete(), "One fallback interval must yield to another special attack check");
         c.pass();
     }
 
@@ -129,8 +137,10 @@ public final class WaterAttackGameTests {
         for (int y = 1; y <= 4; y++) {
             c.setBlock(12, y, 10, Blocks.STONE);
         }
-        restored.tick(player);
+        WaterTestScene.ticks(20, () -> restored.tick(player));
+        c.expect(restored.tick(player), "A wall must not shorten the beam's firing duration");
         c.expect(boss.getBeamOffset().length() < 3, "Solid terrain must clip the beam before players behind it");
+        c.near(player.getHealth(), 16, "The beam must not damage a player through the wall");
         restored.stop();
         c.near(boss.getBeamOffset().length(), 0, "Stopping a beam must clear its collision segment");
         c.pass();
@@ -147,10 +157,13 @@ public final class WaterAttackGameTests {
         return attacks;
     }
 
-    private static WaterDefaultAttack firing(WaterSheeperEntity boss, TestPlayer player) {
+    private static WaterDefaultAttack completedProjectilePhase(GameTestContext c, WaterSheeperEntity boss,
+            TestPlayer player) {
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, 0.1D);
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, 0.1D);
         WaterDefaultAttack attack = new WaterDefaultAttack(boss);
         attack.resumeAfterSpecial();
-        boss.setTarget(attack.tickTarget(List.of(player), true));
+        WaterTestScene.ticks(5, () -> boss.setTarget(attack.tickTarget(List.of(player), true)));
         return attack;
     }
 
@@ -161,18 +174,19 @@ public final class WaterAttackGameTests {
         c.set(WaterSheeperConfig.WATER_BEAM_DURATION_MAX, 0.5D);
         c.set(WaterSheeperConfig.WATER_BEAM_COOLDOWN, 1.4D);
         c.set(WaterSheeperConfig.WATER_SPECIAL_RECOVERY, 0.2D);
-        c.set(WaterSheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MIN, 0.3D);
-        c.set(WaterSheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MAX, 0.3D);
         var player = WaterTestScene.player(c, 12, 1, 10);
-        WaterDefaultAttack normal = firing(boss, player);
+        WaterDefaultAttack normal = completedProjectilePhase(c, boss, player);
         WaterSpecialAttacks specials = specials(boss, "beam");
-        specials.tryStart(player, normal);
+        specials.tryStart(normal);
         c.expect(!specials.isBeamActive(), "Beam must not start against a melee target");
         player.standAt(c.point(15, 1, 10));
+        for (int y = 1; y <= 4; y++) {
+            c.setBlock(13, y, 10, Blocks.STONE);
+        }
         normal.tickTarget(List.of(player), true);
-        specials.tryStart(player, normal);
+        specials.tryStart(normal);
         c.expect(specials.isBeamActive() && specials.suppressesDefault() && specials.locksMovement(),
-                "An eligible beam must exclusively own firing and movement");
+                "An eligible beam must start behind cover and exclusively own firing and movement");
         player.standAt(c.point(12, 1, 10));
         specials.tickAttack();
         c.expect(specials.isBeamActive(), "Entering melee after beam start must not cancel it");
@@ -182,15 +196,21 @@ public final class WaterAttackGameTests {
         WaterTestScene.ticks(4, () -> specials.tickTimers(List.of(player), normal));
         c.expect(!specials.suppressesDefault(), "Default combat must resume after configured recovery");
         player.standAt(c.point(15, 1, 10));
-        normal.tickTarget(List.of(player), true);
+        WaterTestScene.ticks(5, () -> normal.tickTarget(List.of(player), true));
         WaterTestScene.ticks(6, () -> specials.tickTimers(List.of(player), normal));
-        specials.tryStart(player, normal);
-        c.expect(!specials.isBeamActive(), "Default-only recovery must not bypass the longer special cooldown");
+        specials.tryStart(normal);
+        c.expect(!specials.isBeamActive(), "Finishing a projectile phase must not bypass the beam cooldown");
         WaterSpecialAttacks restored = new WaterSpecialAttacks(boss);
-        restored.load(specials.save());
+        CompoundTag state = specials.save();
+        state.putInt("MineCooldown", 0);
+        restored.load(state);
         WaterTestScene.ticks(18, () -> restored.tickTimers(List.of(player), normal));
-        restored.tryStart(player, normal);
-        c.expect(restored.isBeamActive(), "The saved configured cooldown must eventually permit another beam");
+        restored.tryStart(normal);
+        c.expect(restored.isMineAttackActive() && !restored.isBeamActive(),
+                "Reload must exclude the previous special even after its cooldown expires");
+        restored.tickTimers(List.of(), normal);
+        c.expect(restored.suppressesDefault() && !restored.locksMovement(),
+                "Mines must use the same quiet recovery as the beam");
         c.pass();
     }
 
@@ -199,19 +219,19 @@ public final class WaterAttackGameTests {
         c.set(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN, 1.0D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY, 1.5D);
         var player = WaterTestScene.player(c, 12, 1, 10);
-        var normal = firing(boss, player);
+        var normal = completedProjectilePhase(c, boss, player);
         var specials = specials(boss, "maelstrom");
         for (int tick = 0; tick < 20; tick++) {
             specials.tickTimers(List.of(player), normal);
             normal.tickTarget(List.of(player), true);
-            specials.tryStart(player, normal);
+            specials.tryStart(normal);
         }
         c.expect(!specials.isMaelstromActive(), "Maelstrom must first earn its initial cooldown");
         specials.tickTimers(List.of(player), normal);
-        specials.tryStart(player, normal);
+        specials.tryStart(normal);
         c.expect(!specials.isMaelstromActive(), "Melee eligibility must require continuous configured time");
         WaterTestScene.ticks(10, () -> normal.tickTarget(List.of(player), true));
-        specials.tryStart(player, normal);
+        specials.tryStart(normal);
         c.expect(specials.isMaelstromActive() && specials.suppressesDefault() && specials.isMaelstromImmune(),
                 "Earned cooldown and melee duration must permit an exclusive, immune Maelstrom");
         specials.tickTimers(List.of(), normal);

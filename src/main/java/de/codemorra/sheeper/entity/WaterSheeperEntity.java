@@ -549,7 +549,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // An empty arena leaves navigation to the idle goal instead of cancelling
         // its current route every tick. Goal priorities handle combat transitions.
         if (target != null) {
-            specialAttacks.tryStart(target, defaultAttack);
+            specialAttacks.tryStart(defaultAttack);
+            if (defaultAttack.isComplete() && !specialAttacks.suppressesDefault()) {
+                target = defaultAttack.extendProjectilePhase(participants);
+                setTarget(target);
+            }
             if (isPerformingMaelstrom()) {
                 return;
             }

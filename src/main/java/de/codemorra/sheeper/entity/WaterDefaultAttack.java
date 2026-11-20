@@ -17,21 +17,24 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Controls the default projectile rhythm and its shared movement target.
- * Shooting pauses never stop navigation or clear an otherwise valid target.
- * Close-range approaches suppress projectiles without pausing target-switch
- * timers.
+ * Runs two projectile intervals before the first special check, and one further
+ * interval for each check without an available special.
+ * Close-range approaches suppress shots while the intervals keep advancing.
  */
 final class WaterDefaultAttack {
-    private static final int PAUSE_TICKS = 40;
+    private static final int ENTRY_PAUSE_TICKS = 40;
+
+    private enum Phase {
+        ENTRY, FIRST_INTERVAL, SECOND_INTERVAL, COMPLETE
+    }
 
     private final WaterSheeperEntity boss;
     @Nullable
     private UUID targetId;
-    private boolean firing;
+    private Phase phase = Phase.ENTRY;
     private boolean closingOnTarget;
     private int meleeTicks;
-    private int phaseTicks = PAUSE_TICKS;
+    private int phaseTicks = ENTRY_PAUSE_TICKS;
     private int shotTicks;
 
     /** @param boss owner whose navigation and projectile attacks share a target */
@@ -40,13 +43,11 @@ final class WaterDefaultAttack {
     }
 
     /**
-     * Advances the firing/pause cycle before navigation updates. Missing targets
-     * are replaced immediately, even during a pause; regular reselection happens
-     * only after the pause and may choose the same player again.
+     * Advances the projectile phase before navigation. At the midpoint, a valid
+     * target is replaced if another participant is available.
      *
      * @param participants currently eligible arena players
-     * @param advanceCycle whether regular firing and target-switch timers may
-     *                     advance
+     * @param advanceCycle whether a special or its recovery is letting the phase advance
      * @return shared movement and firing target, or {@code null} for an empty arena
      */
     @Nullable
@@ -60,23 +61,29 @@ final class WaterDefaultAttack {
         }
         ServerPlayer target = participants.stream().filter(player -> player.getUUID().equals(targetId))
                 .findFirst().orElse(null);
+        if (advanceCycle && phase != Phase.COMPLETE && --phaseTicks <= 0) {
+            switch (phase) {
+                case ENTRY -> {
+                    phase = Phase.FIRST_INTERVAL;
+                    phaseTicks = sampleInterval();
+                    shotTicks = 0;
+                }
+                case FIRST_INTERVAL -> {
+                    phase = Phase.SECOND_INTERVAL;
+                    phaseTicks = sampleInterval();
+                    if (target != null && participants.size() > 1) {
+                        ServerPlayer previous = target;
+                        target = selectTarget(participants.stream().filter(player -> player != previous).toList());
+                    }
+                }
+                case SECOND_INTERVAL -> phase = Phase.COMPLETE;
+                case COMPLETE -> {
+                    // The scheduler chooses a special or extends the projectile phase.
+                }
+            }
+        }
         if (target == null) {
             target = selectTarget(participants);
-        }
-        if (advanceCycle && --phaseTicks <= 0) {
-            firing = !firing;
-            if (firing) {
-                target = selectTarget(participants);
-                int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN.get());
-                int maximum = Math.max(minimum,
-                        SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX.get()));
-                phaseTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
-                // Fire immediately after the entry or target-switch pause, without a second
-                // delay.
-                shotTicks = 0;
-            } else {
-                phaseTicks = PAUSE_TICKS;
-            }
         }
         updateCloseRange(target);
         if (closingOnTarget) {
@@ -85,18 +92,43 @@ final class WaterDefaultAttack {
         return target;
     }
 
-    /**
-     * @return whether the entry pause has elapsed and the firing cycle is active
-     */
+    /** @return whether either of the two projectile intervals is running */
     boolean isFiring() {
-        return firing;
+        return phase == Phase.FIRST_INTERVAL || phase == Phase.SECOND_INTERVAL;
     }
 
-    /** Reselects a random target and resumes firing on the next cycle update. */
+    /** @return whether the projectile phase has yielded to the next special */
+    boolean isComplete() {
+        return phase == Phase.COMPLETE;
+    }
+
+    /**
+     * Adds one interval before the next special check without resetting shot spacing.
+     *
+     * @param participants eligible players, including the previous target
+     * @return the randomly selected target for the extension
+     */
+    ServerPlayer extendProjectilePhase(List<ServerPlayer> participants) {
+        phase = Phase.SECOND_INTERVAL;
+        phaseTicks = sampleInterval();
+        ServerPlayer target = selectTarget(participants);
+        updateCloseRange(target);
+        return target;
+    }
+
+    /** Starts a fresh projectile phase on the next cycle update. */
     void resumeAfterSpecial() {
-        firing = false;
+        phase = Phase.ENTRY;
         phaseTicks = 1;
         shotTicks = 0;
+    }
+
+    /** Samples the two firing intervals independently. */
+    private int sampleInterval() {
+        int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN.get());
+        int maximum = Math.max(minimum,
+                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX.get()));
+        return minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
     private ServerPlayer selectTarget(List<ServerPlayer> participants) {
@@ -150,7 +182,7 @@ final class WaterDefaultAttack {
         }
         // Recheck after movement so entering close range cannot produce one final shot.
         updateCloseRange(target);
-        if (!firing) {
+        if (!isFiring()) {
             return;
         }
         if (shotTicks > 0) {
@@ -178,10 +210,10 @@ final class WaterDefaultAttack {
     /** Restores the entry delay after the arena encounter has fully recovered. */
     void reset() {
         targetId = null;
-        firing = false;
+        phase = Phase.ENTRY;
         closingOnTarget = false;
         meleeTicks = 0;
-        phaseTicks = PAUSE_TICKS;
+        phaseTicks = ENTRY_PAUSE_TICKS;
         shotTicks = 0;
     }
 
@@ -193,7 +225,7 @@ final class WaterDefaultAttack {
         if (targetId != null) {
             tag.putUUID("Target", targetId);
         }
-        tag.putBoolean("Firing", firing);
+        tag.putInt("ProjectilePhase", phase.ordinal());
         tag.putBoolean("ClosingOnTarget", closingOnTarget);
         tag.putInt("MeleeTicks", meleeTicks);
         tag.putInt("PhaseTicks", phaseTicks);
@@ -209,11 +241,19 @@ final class WaterDefaultAttack {
     void load(CompoundTag tag) {
         reset();
         targetId = tag.hasUUID("Target") ? tag.getUUID("Target") : null;
-        firing = tag.getBoolean("Firing");
+        if (tag.contains("ProjectilePhase", Tag.TAG_INT)) {
+            int savedPhase = tag.getInt("ProjectilePhase");
+            if (savedPhase >= 0 && savedPhase < Phase.values().length) {
+                phase = Phase.values()[savedPhase];
+            }
+        } else if (tag.getBoolean("Firing")) {
+            // An older firing cycle can continue as the first interval.
+            phase = Phase.FIRST_INTERVAL;
+        }
         closingOnTarget = tag.getBoolean("ClosingOnTarget");
         meleeTicks = closingOnTarget ? Mth.clamp(tag.getInt("MeleeTicks"), 0, 600) : 0;
         if (tag.contains("PhaseTicks", Tag.TAG_INT)) {
-            phaseTicks = Mth.clamp(tag.getInt("PhaseTicks"), 1, 1200);
+            phaseTicks = isComplete() ? 0 : Mth.clamp(tag.getInt("PhaseTicks"), 1, 1200);
         }
         shotTicks = Mth.clamp(tag.getInt("ShotTicks"), 0, 12000);
     }

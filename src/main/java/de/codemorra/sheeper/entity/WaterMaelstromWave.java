@@ -76,7 +76,7 @@ final class WaterMaelstromWave {
                 current.put(player.getUUID(), player);
             }
         }
-        if (radius < maximumRadius) {
+        if (isExpanding()) {
             double previousRadius = radius;
             radius = Math.min(maximumRadius, radius + WaterSheeperConfig.WATER_MAELSTROM_WAVE_SPEED.get() / 20.0D);
             clearFrontLeaves(previousRadius);
@@ -134,6 +134,11 @@ final class WaterMaelstromWave {
             damageDelays.clear();
         }
         transports.tick(List.copyOf(current.values()));
+    }
+
+    /** @return whether the pressure front can still contact players or blocks */
+    boolean isExpanding() {
+        return radius < maximumRadius;
     }
 
     /** Visits leaf-bearing sections along the cylindrical front at all arena heights. */
