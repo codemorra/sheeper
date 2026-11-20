@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,12 +26,15 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.ForgeEventFactory;
 
 /** Schedules growing bubbles and resolves each detonation against the visible bubble's edge. */
 final class WaterMineAttack {
@@ -285,6 +289,7 @@ final class WaterMineAttack {
     /** Direct contact damages once; the expanding shell can only apply the same push. */
     private void explode(ServerLevel level, Mine mine, List<ServerPlayer> participants) {
         var wave = new PressureWave(mine);
+        clearBlastLeaves(level, wave.center, 0, wave.radius);
         level.sendParticles(ParticleTypes.BUBBLE, mine.center.x, mine.center.y, mine.center.z,
                 24, mine.radius * 0.35, mine.radius * 0.35, mine.radius * 0.35, 0.3);
         level.playSound(null, mine.center.x, mine.center.y, mine.center.z,
@@ -316,6 +321,7 @@ final class WaterMineAttack {
             PressureWave wave = iterator.next();
             double previous = wave.radius;
             wave.radius = Math.min(wave.maximum, previous + PRESSURE_SPEED);
+            clearBlastLeaves(level, wave.center, previous, wave.radius);
             for (ServerPlayer player : participants) {
                 if (wave.hit.contains(player.getUUID()) || !player.isAlive()
                         || !boss.containsAttackPoint(player.position())) {
@@ -338,6 +344,34 @@ final class WaterMineAttack {
         }
     }
 
+    /** Clears reachable leaves at the blast or wave front before resolving player contact. */
+    private void clearBlastLeaves(ServerLevel level, Vec3 center, double previous, double radius) {
+        if (!ForgeEventFactory.getMobGriefingEvent(level, boss)) {
+            return;
+        }
+        var leaves = new ArrayList<BlockPos>();
+        for (BlockPos pos : BlockPos.betweenClosed(new BlockPos(center.subtract(radius, radius, radius)),
+                new BlockPos(center.add(radius, radius, radius)))) {
+            double x = Math.abs(pos.getX() + 0.5 - center.x);
+            double y = Math.abs(pos.getY() + 0.5 - center.y);
+            double z = Math.abs(pos.getZ() + 0.5 - center.z);
+            if (lengthSquared(Math.max(0, x - 0.5), Math.max(0, y - 0.5), Math.max(0, z - 0.5))
+                    <= radius * radius && lengthSquared(x + 0.5, y + 0.5, z + 0.5) >= previous * previous
+                    && boss.isArenaWaterCell(pos) && WaterArenaData.isLoaded(level, pos)
+                    && level.getBlockState(pos).is(BlockTags.LEAVES)) {
+                leaves.add(pos.immutable());
+            }
+        }
+        // Resolve nearer leaves first so branches in front do not shield the rest of a canopy.
+        leaves.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(center)));
+        for (BlockPos pos : leaves) {
+            BlockHitResult hit = clipBlastPath(level, center, Vec3.atCenterOf(pos));
+            if (hit != null && (hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(pos))) {
+                WaterAttackBlocks.clearLeaves(boss, pos);
+            }
+        }
+    }
+
     private void showWave(ServerLevel level, PressureWave wave) {
         var volume = boss.getAttackVolume();
         if (volume == null) {
@@ -353,9 +387,16 @@ final class WaterMineAttack {
     }
 
     private boolean hasOpenBlastPath(ServerLevel level, Vec3 center, Vec3 contact) {
+        BlockHitResult hit = clipBlastPath(level, center, contact);
+        return hit != null && hit.getType() == HitResult.Type.MISS;
+    }
+
+    /** Traces blast cover only through terrain the server already has loaded. */
+    @Nullable
+    private BlockHitResult clipBlastPath(ServerLevel level, Vec3 center, Vec3 contact) {
         return chunksLoaded(level, new AABB(center, contact))
-                && level.clip(new ClipContext(center, contact, ClipContext.Block.COLLIDER,
-                        ClipContext.Fluid.NONE, boss)).getType() == HitResult.Type.MISS;
+                ? level.clip(new ClipContext(center, contact, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, boss))
+                : null;
     }
 
     private static Vec3 nearestBodyPoint(Vec3 center, ServerPlayer player) {
@@ -368,6 +409,10 @@ final class WaterMineAttack {
         double x = Math.max(Math.abs(center.x - box.minX), Math.abs(center.x - box.maxX));
         double y = Math.max(Math.abs(center.y - box.minY), Math.abs(center.y - box.maxY));
         double z = Math.max(Math.abs(center.z - box.minZ), Math.abs(center.z - box.maxZ));
+        return lengthSquared(x, y, z);
+    }
+
+    private static double lengthSquared(double x, double y, double z) {
         return x * x + y * y + z * z;
     }
 
