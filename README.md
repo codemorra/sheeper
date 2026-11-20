@@ -32,7 +32,7 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 ### Elemental Sheeper bosses
 
 - **Summoning:** Use `/summon sheeper:lava_sheeper`, `/summon sheeper:lightning_sheeper`, or `/summon sheeper:water_sheeper`.
-- **Elemental appearance:** Lava has dark wool with glowing magma, Lightning has gray wool with moving electrical lines, and Water has ocean-blue wool. Matching body colors and ambient particles for Lava and Lightning complete the appearance. The layers use Minecraft textures and pick up resource-pack replacements for those textures.
+- **Elemental appearance:** Lava has dark wool with glowing magma, Lightning has gray wool with moving electrical lines, and Water has blue-tinted wool with an animated water layer. Matching body colors and ambient particles for Lava and Lightning complete the appearance. The layers use Minecraft textures and pick up resource-pack replacements for those textures.
 - **Boss foundation:** Each persistent adult boss has an element-colored health bar for players tracking it. Each element has independent size and maximum-health settings.
 
 #### Water Sheeper encounter

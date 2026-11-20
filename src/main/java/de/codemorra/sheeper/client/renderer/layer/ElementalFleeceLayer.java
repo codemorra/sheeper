@@ -21,11 +21,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.inventory.InventoryMenu;
 
-/** Elemental fleece colors and animated surfaces for lava and lightning. */
+/** Animated elemental surfaces layered over the tinted sheep fleece. */
 public class ElementalFleeceLayer extends SheepFurLayer {
     private static final ResourceLocation MAGMA = ResourceLocations.create("minecraft", "block/magma");
-    private static final ResourceLocation FLEECE = ResourceLocations.create("minecraft",
-            "textures/entity/sheep/sheep_fur.png");
+    private static final ResourceLocation WATER = ResourceLocations.create("minecraft", "block/water_flow");
     private static final ResourceLocation LIGHTNING = ResourceLocations.create("minecraft",
             "textures/entity/creeper/creeper_armor.png");
 
@@ -39,11 +38,8 @@ public class ElementalFleeceLayer extends SheepFurLayer {
     @Override
     public void render(PoseStack poses, MultiBufferSource buffers, int light, Sheep sheep,
             float limbSwing, float limbSwingAmount, float partialTick, float age, float yaw, float pitch) {
-        // Preserve vanilla fleece and glowing outlines for the other elements.
-        if (!(sheep instanceof ElementalSheeperEntity boss) || boss.getElement() != ElementalSheeperEntity.Element.WATER
-                || sheep.isInvisible()) {
-            super.render(poses, buffers, light, sheep, limbSwing, limbSwingAmount, partialTick, age, yaw, pitch);
-        }
+        // The translucent surfaces need the dyed fleece underneath.
+        super.render(poses, buffers, light, sheep, limbSwing, limbSwingAmount, partialTick, age, yaw, pitch);
         if (sheep.isInvisible() || !(sheep instanceof ElementalSheeperEntity boss)) {
             return;
         }
@@ -69,8 +65,10 @@ public class ElementalFleeceLayer extends SheepFurLayer {
                         OverlayTexture.NO_OVERLAY, pulse * 0.7F, pulse * 0.85F, pulse, 1.0F);
             }
             case WATER -> {
-                fleece.renderToBuffer(poses, buffers.getBuffer(RenderType.entityCutoutNoCull(FLEECE)), light,
-                        OverlayTexture.NO_OVERLAY, 0.28F, 0.48F, 0.64F, 1.0F);
+                float shimmer = 0.58F + 0.08F * Mth.sin(age * 0.08F);
+                float flow = age * 0.002F % 1.0F;
+                fleece.renderToBuffer(poses, blockSurface(buffers, WATER, surfaceOffset, flow), light,
+                        OverlayTexture.NO_OVERLAY, 0.3F, 0.8F, 1.0F, shimmer);
             }
         }
     }

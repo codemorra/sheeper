@@ -121,9 +121,9 @@ public class ElementalSheeperRenderer extends SheepRenderer {
                     blue = 0.7F;
                 }
                 case WATER -> {
-                    red = 0.34F;
-                    green = 0.64F;
-                    blue = 0.78F;
+                    red = 0.4F;
+                    green = 0.8F;
+                    blue = 0.85F;
                 }
             }
         }
