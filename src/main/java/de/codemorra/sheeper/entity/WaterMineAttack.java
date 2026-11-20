@@ -1,7 +1,6 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,7 +28,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
@@ -257,23 +255,12 @@ final class WaterMineAttack {
                 continue;
             }
             AABB bounds = AABB.ofSize(center, radius * 2, radius * 2, radius * 2);
-            if (chunksLoaded(level, bounds) && ArenaWater.isClearWaterPoint(level, center)
+            if (WaterAttackBlocks.chunksLoaded(level, bounds) && ArenaWater.isClearWaterPoint(level, center)
                     && !level.getBlockCollisions(boss, bounds).iterator().hasNext()) {
                 return center;
             }
         }
         return null;
-    }
-
-    private static boolean chunksLoaded(ServerLevel level, AABB body) {
-        for (int x = Mth.floor(body.minX) >> 4; x <= Mth.floor(body.maxX) >> 4; x++) {
-            for (int z = Mth.floor(body.minZ) >> 4; z <= Mth.floor(body.maxZ) >> 4; z++) {
-                if (level.getChunkSource().getChunkNow(x, z) == null) {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     private void show(ServerLevel level, Mine mine) {
@@ -362,14 +349,7 @@ final class WaterMineAttack {
                 leaves.add(pos.immutable());
             }
         }
-        // Resolve nearer leaves first so branches in front do not shield the rest of a canopy.
-        leaves.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(center)));
-        for (BlockPos pos : leaves) {
-            BlockHitResult hit = clipBlastPath(level, center, Vec3.atCenterOf(pos));
-            if (hit != null && (hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(pos))) {
-                WaterAttackBlocks.clearLeaves(boss, pos);
-            }
-        }
+        WaterAttackBlocks.clearReachableLeaves(boss, level, center, leaves, false);
     }
 
     private void showWave(ServerLevel level, PressureWave wave) {
@@ -387,16 +367,8 @@ final class WaterMineAttack {
     }
 
     private boolean hasOpenBlastPath(ServerLevel level, Vec3 center, Vec3 contact) {
-        BlockHitResult hit = clipBlastPath(level, center, contact);
+        BlockHitResult hit = WaterAttackBlocks.clipLoaded(boss, level, center, contact);
         return hit != null && hit.getType() == HitResult.Type.MISS;
-    }
-
-    /** Traces blast cover only through terrain the server already has loaded. */
-    @Nullable
-    private BlockHitResult clipBlastPath(ServerLevel level, Vec3 center, Vec3 contact) {
-        return chunksLoaded(level, new AABB(center, contact))
-                ? level.clip(new ClipContext(center, contact, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, boss))
-                : null;
     }
 
     private static Vec3 nearestBodyPoint(Vec3 center, ServerPlayer player) {
