@@ -10,9 +10,7 @@ import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -42,7 +40,8 @@ public final class ArenaWaterParticle extends NoRenderParticle {
      */
     @Override
     public void tick() {
-        if (age >= lifetime || !isClearWater(level, x, y, z)) {
+        // A blocked base must not stop emission in open sections higher up.
+        if (age >= lifetime) {
             remove();
             return;
         }
@@ -64,33 +63,11 @@ public final class ArenaWaterParticle extends NoRenderParticle {
     private void emit(double bubbleY) {
         double bubbleX = x + (random.nextDouble() - 0.5D) * 0.8D;
         double bubbleZ = z + (random.nextDouble() - 0.5D) * 0.8D;
-        if (isClearWater(level, bubbleX, bubbleY, bubbleZ)) {
+        var point = new Vec3(bubbleX, bubbleY, bubbleZ);
+        if (ArenaWater.contains(level, point) && ArenaWater.isClearWaterPoint(level, point)) {
             Minecraft.getInstance().particleEngine.add(new Bubble(level, bubbleX, bubbleY, bubbleZ,
                     speed, y + height, sprites));
         }
-    }
-
-    /** Tests the actual collision shape so bubbles can start above a partial block. */
-    private static boolean isClearWater(ClientLevel level, double x, double y, double z) {
-        if (!ArenaWater.contains(level, new Vec3(x, y, z))) {
-            return false;
-        }
-        var pos = new BlockPos(x, y, z);
-        var state = level.getBlockState(pos);
-        var fluid = state.getFluidState();
-        if (!fluid.isEmpty() && !fluid.is(FluidTags.WATER)) {
-            return false;
-        }
-        var shape = state.getCollisionShape(level, pos);
-        if (shape.isEmpty()) {
-            return true;
-        }
-        for (var box : shape.toAabbs()) {
-            if (box.contains(x - pos.getX(), y - pos.getY(), z - pos.getZ())) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private static final class Bubble extends TextureSheetParticle {
@@ -112,8 +89,11 @@ public final class ArenaWaterParticle extends NoRenderParticle {
 
         @Override
         public void tick() {
+            double previousY = y;
             super.tick();
-            if (y >= ceiling || !isClearWater(level, x, y, z)) {
+            var point = new Vec3(x, y, z);
+            if (y >= ceiling || !ArenaWater.contains(level, point)
+                    || !ArenaWater.isClearWaterColumn(level, point, previousY)) {
                 remove();
             }
         }

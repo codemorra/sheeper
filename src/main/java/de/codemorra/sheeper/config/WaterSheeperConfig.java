@@ -343,8 +343,8 @@ public final class WaterSheeperConfig {
 
     /** Air fountains (elemental.water.airStations). */
     public static final ForgeConfigSpec.DoubleValue WATER_AIR_STATIONS_PER_1000_BLOCKS = BUILDER
-            .comment("Air fountain density per 1,000 usable arena floor blocks.",
-                    "Valid arenas receive at least one fountain when space permits, up to 48.")
+            .comment("Air fountain density per 1,000 arena floor blocks.",
+                    "Larger arenas receive more fountains, up to 48.")
             .defineInRange("elemental.water.airStations.per1000Blocks", 2.0D, 0.1D, 8.0D);
 
     public static final ForgeConfigSpec.DoubleValue WATER_AIR_DURATION = BUILDER
@@ -375,8 +375,7 @@ public final class WaterSheeperConfig {
             .defineInRange("elemental.water.arena.heightRange", 10, 0, 32);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
-            .comment("Maximum floor columns examined per second for air fountains.",
-                    "The search also limits work per tick and skips unloaded chunks until a later pass.")
+            .comment("Maximum floor columns examined per second when distributing air fountains.")
             .defineInRange("elemental.water.arena.searchCandidatesPerSecond", 40960, 20, 81920);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
