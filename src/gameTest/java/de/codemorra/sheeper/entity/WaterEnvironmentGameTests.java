@@ -247,9 +247,11 @@ public final class WaterEnvironmentGameTests {
         var boss = WaterTestScene.boss(c);
         c.expect(boss.canSwimAt(boss.position().add(0, 1, 0)), "Open water above the boss must be navigable");
         Vec3 limited = boss.clampSwimmingPosition(boss.position().add(30, 30, 0));
-        c.expect(boss.isWithinMovementArea(limited.x, limited.z)
-                && limited.y + boss.getBbHeight() < boss.getArenaWaterSurfaceY(),
-                "Swim destinations must retain edge and ceiling clearance");
+        // Adding the arena center can round a point on the circle just outside a strict comparison.
+        c.near(limited.subtract(Vec3.atBottomCenterOf(boss.getArenaCenter())).horizontalDistance(),
+                boss.getMovementRadius(), "Distant swim destinations must clamp to the movement edge");
+        c.expect(limited.y + boss.getBbHeight() < boss.getArenaWaterSurfaceY(),
+                "Swim destinations must retain ceiling clearance");
         c.expect(!boss.isPushedByFluid(ForgeMod.WATER_TYPE.get()), "Ordinary currents must not displace the boss");
         c.setBlock(10, 2, 10, Blocks.STONE);
         c.expect(!boss.canSwimAt(boss.position().add(0, 1, 0)), "Navigation must reject full-body terrain collisions");

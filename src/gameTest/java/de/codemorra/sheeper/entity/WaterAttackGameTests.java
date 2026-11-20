@@ -9,6 +9,8 @@ import de.codemorra.sheeper.gametest.TestPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -34,7 +36,7 @@ public final class WaterAttackGameTests {
         var boss = WaterTestScene.boss(c);
         c.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, 0.3D);
         c.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, 0.3D);
-        c.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, 0.15D);
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, 0.11);
         var a = WaterTestScene.player(c, 15, 1, 10);
         var b = WaterTestScene.player(c, 10, 1, 15);
         WaterDefaultAttack attack = new WaterDefaultAttack(boss);
@@ -49,7 +51,7 @@ public final class WaterAttackGameTests {
         WaterTestScene.ticks(2, attack::tickProjectiles);
         c.expect(c.entities(WaterProjectile.class).size() == 1, "Shots must respect the scene's interval");
         attack.tickProjectiles();
-        c.expect(c.entities(WaterProjectile.class).size() == 2, "The configured interval must release the next shot");
+        c.expect(c.entities(WaterProjectile.class).size() == 2, "A fractional interval must round up before the next shot");
         a.standAt(c.point(12, 1, 10));
         boss.setTarget(attack.tickTarget(List.of(a), true));
         WaterTestScene.ticks(4, attack::tickProjectiles);
@@ -69,10 +71,27 @@ public final class WaterAttackGameTests {
         restored.tickTarget(List.of(a), true);
         c.expect(restored.isComplete() && !restored.isFiring(),
                 "The second interval must yield to the special attack check");
-        c.expect(restored.extendProjectilePhase(List.of(a)) == a && restored.isFiring(),
-                "A fallback interval must keep firing even with only one participant");
-        WaterTestScene.ticks(6, () -> restored.tickTarget(List.of(a), true));
-        c.expect(restored.isComplete(), "One fallback interval must yield to another special attack check");
+
+        // Exercise the entity's scheduler too. The mine cooldown expires partway through the fallback interval.
+        b.standAt(c.point(21, 1, 10));
+        c.entities(WaterProjectile.class).forEach(Entity::discard);
+        c.set(WaterSheeperConfig.WATER_MOVEMENT_SPEED, 0.0);
+        CompoundTag combat = new CompoundTag();
+        boss.addAdditionalSaveData(combat);
+        combat.getCompound("WaterDefaultAttack").putInt("PhaseTicks", 1);
+        CompoundTag specials = combat.getCompound("WaterSpecialAttacks");
+        specials.putInt("MineCooldown", 15);
+        specials.putInt("BeamCooldown", 100);
+        specials.putInt("MaelstromCooldown", 100);
+        boss.readAdditionalSaveData(combat);
+        boss.setNoAi(false);
+        WaterTestScene.ticks(12, boss::tick);
+        int fired = c.entities(WaterProjectile.class).size();
+        WaterTestScene.ticks(6, boss::tick);
+        c.expect(c.entities(WaterProjectile.class).size() > fired && !boss.isPerformingWaterMines()
+                && boss.getTarget() == a, "A fallback interval must keep shooting until the next special check");
+        boss.tick();
+        c.expect(boss.isPerformingWaterMines(), "The next special check must start the newly available mines");
         c.pass();
     }
 
@@ -279,6 +298,12 @@ public final class WaterAttackGameTests {
         c.set(WaterSheeperConfig.WATER_MAELSTROM_TRANSPORT_SPEED, 2.0D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_SAFE_OUTER_WIDTH, 2.0D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_DAMAGE, 4.0D);
+        c.rule(GameRules.RULE_MOBGRIEFING, true);
+        var exposedLeaf = c.pos(13, 5, 10);
+        var shelteredLeaf = c.pos(10, 5, 13);
+        c.setBlock(13, 5, 10, Blocks.OAK_LEAVES);
+        c.setBlock(10, 5, 12, Blocks.STONE);
+        c.setBlock(10, 5, 13, Blocks.OAK_LEAVES);
         var near = WaterTestScene.player(c, 11, 2, 10);
         var far = WaterTestScene.player(c, 14, 2, 10);
         var safe = WaterTestScene.player(c, 17, 2, 10);
@@ -287,12 +312,16 @@ public final class WaterAttackGameTests {
         wave.start(boss.position());
         wave.tick(players);
         c.near(near.getHealth(), 20, "No damage may precede wave contact");
+        c.expect(c.level.getBlockState(exposedLeaf).is(Blocks.OAK_LEAVES), "Leaves must wait for the wave front");
         wave.tick(players);
         c.near(near.getHealth(), 18, "First wave contact must deal half a second of normal damage immediately");
         c.near(far.getHealth(), 20, "Distant participants must wait for their own contact");
         WaterTestScene.ticks(6, () -> wave.tick(players));
         c.near(far.getHealth(), 18, "The expanding wave must reach distant participants later");
         c.near(safe.getHealth(), 20, "The configured outer ring must remain safe");
+        c.expect(c.level.getBlockState(exposedLeaf).isAir()
+                && c.level.getBlockState(shelteredLeaf).is(Blocks.OAK_LEAVES),
+                "Maelstrom must clear exposed leaves even high in the arena while respecting solid cover");
         WaterMaelstromWave restored = new WaterMaelstromWave(boss);
         restored.load(wave.save());
         near.invulnerableTime = 0;
@@ -336,6 +365,13 @@ public final class WaterAttackGameTests {
         var boss = WaterTestScene.boss(c);
         c.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH, 0.6);
         c.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH, 0.2);
+        c.rule(GameRules.RULE_MOBGRIEFING, true);
+        var blastLeaf = c.pos(11, 2, 10);
+        var waveLeaf = c.pos(8, 2, 10);
+        var shelteredLeaf = c.pos(12, 2, 13);
+        c.setBlock(11, 2, 10, Blocks.OAK_LEAVES);
+        c.setBlock(8, 2, 10, Blocks.OAK_LEAVES);
+        c.setBlock(12, 2, 13, Blocks.OAK_LEAVES);
         var direct = WaterTestScene.player(c, 14, 2, 10);
         var swept = WaterTestScene.player(c, 16, 2, 10);
         var sheltered = WaterTestScene.player(c, 12, 2, 14);
@@ -368,12 +404,16 @@ public final class WaterAttackGameTests {
         c.near(direct.getHealth(), 17, "A player whose body reaches the bubble edge must take damage");
         c.near(direct.getDeltaMovement().x, 0.6, "A direct hit must push away from the mine");
         c.expect(swept.getDeltaMovement().equals(Vec3.ZERO), "Pressure must take time to reach distant swimmers");
+        c.expect(c.level.getBlockState(blastLeaf).isAir() && c.level.getBlockState(waveLeaf).is(Blocks.OAK_LEAVES),
+                "The blast must clear nearby leaves immediately while distant ones wait for the front");
         direct.setDeltaMovement(Vec3.ZERO);
         WaterTestScene.ticks(3, () -> attack.tick(players));
         c.near(swept.getHealth(), 20, "The outer pressure wave must not deal damage");
         c.near(swept.getDeltaMovement().x, 0.6, "The pressure wave must push as hard as a direct hit");
         c.expect(direct.getDeltaMovement().equals(Vec3.ZERO), "The pressure wave must not push a direct victim again");
         c.expect(sheltered.getDeltaMovement().equals(Vec3.ZERO), "Solid cover must block a mine's pressure");
+        c.expect(c.level.getBlockState(waveLeaf).isAir() && c.level.getBlockState(shelteredLeaf).is(Blocks.OAK_LEAVES),
+                "The pressure front must clear reachable leaves and respect solid cover");
         c.pass();
     }
 

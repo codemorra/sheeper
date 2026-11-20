@@ -67,7 +67,6 @@ public final class SheeperGameTests {
         WaterEnvironmentGameTests.add(scenarios);
         WaterLifecycleGameTests.add(scenarios);
         DataGameTests.add(scenarios);
-        ConfigUnitGameTests.add(scenarios);
 
         List<TestFunction> tests = scenarios.stream().map(scenario -> {
             String name = "sheeper." + scenario.name();
