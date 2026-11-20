@@ -1,7 +1,6 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -48,7 +47,6 @@ import net.minecraftforge.fluids.FluidType;
 public class WaterSheeperEntity extends ElementalSheeperEntity {
     // Counteracts vanilla sheep water slowdown; user tuning uses navigation speed.
     private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
-    private static final int SURFACE_DISCOVERY_STEP_HEIGHT = 1;
     private static final int DEATH_ANIMATION_TICKS = 60;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
@@ -69,7 +67,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     @Nullable
     private BlockPos arenaCenter;
     @Nullable
-    private WaterArenaSearch arenaSearch;
+    private final WaterAirStations airStations = new WaterAirStations();
     @Nullable
     private WaterArenaData.VolumeBounds arenaVolume;
     private boolean volumeInitialized;
@@ -248,8 +246,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * @return captured water surface Y used by full-height fountain columns and
-     *         transport
+     * @return captured water surface Y used by attacks and transport
      */
     double getArenaWaterSurfaceY() {
         return arenaVolume == null ? getArenaCenter().getY() + WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()
@@ -257,8 +254,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * @return lowest captured water cell at which a fountain may search for
-     *         supporting ground
+     * @return lowest captured water cell
      */
     int getArenaWaterMinimumY() {
         return arenaVolume == null ? getArenaCenter().getY() - WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get()
@@ -572,7 +568,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
 
     /**
      * Restores attack and movement controllers after full empty-arena recovery.
-     * Arena origin, discovered terrain and the virtual water volume remain intact.
+     * Arena origin, air stations and the virtual water volume remain intact.
      */
     void resetArenaEncounter() {
         defaultAttack.reset();
@@ -581,18 +577,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         setTarget(null);
         orbitGoal.reset();
         idleGoal.reset();
-    }
-
-    public boolean isArenaSearchComplete() {
-        return arenaSearch != null && arenaSearch.isComplete();
-    }
-
-    /**
-     * Server-side, read-only surface cells, potentially incomplete during
-     * discovery.
-     */
-    public Set<BlockPos> getArenaSurfacePositions() {
-        return arenaSearch == null ? Set.of() : arenaSearch.getSurfacePositions();
     }
 
     /**
@@ -640,7 +624,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return true;
     }
 
-    /** Advances optional floor discovery without filling or changing terrain. */
+    /** Keeps encounter validity and air-station placement tied to the captured arena. */
     private void advanceArenaPreparation() {
         boolean valid = combatSettings.hasArenaRoom(arenaVolume);
         if (arenaConfigurationValid && !valid) {
@@ -650,12 +634,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         arenaConfigurationValid = valid;
         if (arenaConfigurationValid) {
-            if (arenaSearch == null) {
-                arenaSearch = new WaterArenaSearch(level, getArenaCenter(), getCombatRadius(),
-                        WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                        SURFACE_DISCOVERY_STEP_HEIGHT, getArenaWaterMinimumY());
-            }
-            arenaSearch.advance(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20);
+            airStations.tick((ServerLevel) level, arenaVolume, isCombatReady());
         }
     }
 
@@ -816,6 +795,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.put("WaterArenaCombat", arenaCombat.save());
         tag.put("WaterArenaPlayers", arenaPlayers.save());
         tag.put("WaterSpecialAttacks", specialAttacks.save());
+        tag.put("WaterAirStations", airStations.save());
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
         tag.putString("WaterArenaDimension", level.dimension().location().toString());
     }
@@ -835,12 +815,13 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         arenaCenter = tag.contains("WaterArenaCenter", Tag.TAG_LONG)
                 ? BlockPos.of(tag.getLong("WaterArenaCenter"))
                 : null;
+        airStations.load(tag.getCompound("WaterAirStations"));
         if (tag.contains("WaterArenaDimension", Tag.TAG_STRING)
                 && !tag.getString("WaterArenaDimension").equals(level.dimension().location().toString())) {
             arenaCenter = null;
+            airStations.load(new CompoundTag());
         }
-        // Restore captured bounds immediately; terrain discovery is rebuilt separately.
-        arenaSearch = null;
+        // Restore captured bounds immediately for the first combat tick.
         arenaVolume = level instanceof ServerLevel server ? WaterArenaData.get(server).getVolume(getUUID()) : null;
         volumeInitialized = false;
     }
