@@ -359,37 +359,21 @@ public final class WaterSheeperConfig {
                     "1 uses the standard rate, 0.5 halves it, and 2 doubles it.")
             .defineInRange("elemental.water.mines.countMultiplier", 1.0, 0.25, 2.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE_MIN = BUILDER
-            .comment("Minimum damage per mine in health points before armor. 2 health points equal one heart.")
-            .defineInRange("elemental.water.mines.damageMin", 2.0, 0.0, 10.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE = BUILDER
+            .comment("Damage per mine in health points before armor. 2 health points equal one heart.")
+            .defineInRange("elemental.water.mines.damage", 2.5, 0.0, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE_MAX = BUILDER
-            .comment("Maximum damage per mine in health points before armor.")
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN = BUILDER
+            .comment("Cooldown in seconds after the last mine pressure wave ends.")
+            .defineInRange("elemental.water.mines.cooldownSeconds", 20.0, 1.0, 120.0);
 
-            .defineInRange("elemental.water.mines.damageMax", 3.0, 0.0, 10.0);
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN_MIN = BUILDER
-            .comment("Minimum cooldown in seconds after the last mine explodes.")
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER = BUILDER
+            .comment("Visible bubble diameter in blocks at detonation.")
+            .defineInRange("elemental.water.mines.diameter", 2.5, 0.75, 6.0);
 
-            .defineInRange("elemental.water.mines.cooldownMinSeconds", 25.0, 1.0, 120.0);
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN_MAX = BUILDER
-            .comment("Maximum cooldown in seconds after the last mine explodes.")
-
-            .defineInRange("elemental.water.mines.cooldownMaxSeconds", 35.0, 1.0, 120.0);
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER_MIN = BUILDER
-            .comment("Minimum visible bubble diameter in blocks at detonation.")
-
-            .defineInRange("elemental.water.mines.diameterMin", 2.0, 0.75, 6.0);
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER_MAX = BUILDER
-            .comment("Maximum visible bubble diameter in blocks at detonation.")
-
-            .defineInRange("elemental.water.mines.diameterMax", 3.0, 0.75, 6.0);
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE_MIN = BUILDER
-            .comment("Minimum seconds from a mine appearing until it explodes.")
-            .defineInRange("elemental.water.mines.fuseMinSeconds", 1.6, 0.2, 5.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE_MAX = BUILDER
-            .comment("Maximum seconds from a mine appearing until it explodes.")
-            .defineInRange("elemental.water.mines.fuseMaxSeconds", 2.8, 0.2, 5.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE = BUILDER
+            .comment("Seconds from a mine appearing until it explodes.")
+            .defineInRange("elemental.water.mines.fuseSeconds", 2.2, 0.2, 5.0);
 
     /** Air fountains (elemental.water.airStations). */
     public static final ForgeConfigSpec.DoubleValue WATER_AIR_STATIONS_PER_1000_BLOCKS = BUILDER

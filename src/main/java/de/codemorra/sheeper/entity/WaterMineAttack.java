@@ -118,7 +118,7 @@ final class WaterMineAttack {
             double spawnRate = BASE_MINE_RATE * WaterSheeperConfig.WATER_MINES_COUNT_MULTIPLIER.get();
             while (ticksUntilMine <= 0) {
                 if (mines.size() < MAX_MINES) {
-                    placeMine(level, participants, spawnRate);
+                    placeMine(level, participants);
                 }
                 // Carry fractional ticks forward so the multiplier scales the average interval.
                 ticksUntilMine += (3 + boss.getRandom().nextInt(3)) / spawnRate;
@@ -140,17 +140,11 @@ final class WaterMineAttack {
     }
 
     int cooldown() {
-        return randomTicks(WaterSheeperConfig.WATER_MINES_COOLDOWN_MIN.get(),
-                WaterSheeperConfig.WATER_MINES_COOLDOWN_MAX.get());
+        return SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MINES_COOLDOWN.get());
     }
 
-    private void placeMine(ServerLevel level, List<ServerPlayer> participants, double spawnRate) {
-        int fuse = findFuse(spawnRate);
-        if (fuse == 0) {
-            return;
-        }
-        double radius = randomValue(WaterSheeperConfig.WATER_MINES_DIAMETER_MIN.get(),
-                WaterSheeperConfig.WATER_MINES_DIAMETER_MAX.get()) * 0.5;
+    private void placeMine(ServerLevel level, List<ServerPlayer> participants) {
+        double radius = WaterSheeperConfig.WATER_MINES_DIAMETER.get() * 0.5;
         Vec3 center = null;
         if (ticksUntilNearPlayer == 0 && !participants.isEmpty()) {
             ServerPlayer player = participants.get(boss.getRandom().nextInt(participants.size()));
@@ -166,8 +160,8 @@ final class WaterMineAttack {
             center = findPosition(level, participants, radius, null);
         }
         if (center != null) {
-            float damage = (float) randomValue(WaterSheeperConfig.WATER_MINES_DAMAGE_MIN.get(),
-                    WaterSheeperConfig.WATER_MINES_DAMAGE_MAX.get());
+            int fuse = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MINES_FUSE.get());
+            float damage = WaterSheeperConfig.WATER_MINES_DAMAGE.get().floatValue();
             Mine mine = new Mine(center, radius, damage, fuse);
             mines.add(mine);
             show(level, mine);
@@ -179,38 +173,6 @@ final class WaterMineAttack {
     private void scheduleNearPlayerMine() {
         ticksUntilNearPlayer = NEAR_PLAYER_DELAY_MIN
                 + boss.getRandom().nextInt(NEAR_PLAYER_DELAY_MAX - NEAR_PLAYER_DELAY_MIN + 1);
-    }
-
-    /** Spreads blasts over the fuse window before assigning multiple blasts to a tick. */
-    private int findFuse(double spawnRate) {
-        int min = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MINES_FUSE_MIN.get());
-        int max = Math.max(min, SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MINES_FUSE_MAX.get()));
-        int count = max - min + 1;
-        int start = boss.getRandom().nextInt(count);
-        int[] scheduled = new int[count + 2];
-        for (Mine mine : mines) {
-            int index = mine.fuse - mine.age - min + 1;
-            if (index >= 0 && index < scheduled.length) {
-                scheduled[index]++;
-            }
-        }
-        int shared = 0;
-        // Each unscaled spawn interval averages four ticks. Allow enough slots
-        // for the configured rate, while preferring the least crowded tick.
-        int bestOccupancy = Mth.ceil(spawnRate / 4);
-        for (int offset = 0; offset < count; offset++) {
-            int index = 1 + (start + offset) % count;
-            int fuse = min + index - 1;
-            if (scheduled[index] == 0
-                    && (spawnRate > 2 || scheduled[index - 1] == 0 && scheduled[index + 1] == 0)) {
-                return fuse;
-            }
-            if (scheduled[index] > 0 && scheduled[index] < bestOccupancy) {
-                shared = fuse;
-                bestOccupancy = scheduled[index];
-            }
-        }
-        return shared;
     }
 
     /** Samples the arena, or the full sphere around a swimmer for an occasional nearby mine. */

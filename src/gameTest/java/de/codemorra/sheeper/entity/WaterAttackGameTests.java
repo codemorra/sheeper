@@ -361,10 +361,8 @@ public final class WaterAttackGameTests {
         var boss = WaterTestScene.boss(c);
         c.set(WaterSheeperConfig.WATER_MINES_DURATION_MIN, 1.0);
         c.set(WaterSheeperConfig.WATER_MINES_DURATION_MAX, 1.0);
-        c.set(WaterSheeperConfig.WATER_MINES_FUSE_MIN, 5.0);
-        c.set(WaterSheeperConfig.WATER_MINES_FUSE_MAX, 5.0);
-        c.set(WaterSheeperConfig.WATER_MINES_DIAMETER_MIN, 0.75);
-        c.set(WaterSheeperConfig.WATER_MINES_DIAMETER_MAX, 0.75);
+        c.set(WaterSheeperConfig.WATER_MINES_FUSE, 5.0);
+        c.set(WaterSheeperConfig.WATER_MINES_DIAMETER, 0.75);
         int sparse = spawnedMines(c, boss, 0.25);
         int dense = spawnedMines(c, boss, 1.25);
         c.expect(sparse > 0 && dense > sparse * 2,
