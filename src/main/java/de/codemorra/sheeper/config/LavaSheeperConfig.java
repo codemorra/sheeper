@@ -10,7 +10,7 @@ public final class LavaSheeperConfig {
     public static final String FILE_NAME = "sheeper/lava.toml";
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
-    /** Lava elemental boss (elemental.lava). */
+    /** Lava boss settings (boss). */
     public static final ForgeConfigSpec.DoubleValue LAVA_MAX_HEALTH = ElementalConfigValues
             .elementalHealth(BUILDER, "lava", 200.0);
 

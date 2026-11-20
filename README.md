@@ -104,11 +104,11 @@ Eating durations and normal wool fuses are captured when eating/igniting. New in
 
 **Elemental bosses: `config/sheeper/lava.toml`, `lightning.toml`, and `water.toml`**
 
-Each element has its own common config file, with settings under `elemental.<element>`.
+Each element has its own common config file with top-level sections such as `[boss]` and `[arena]`.
 
-- **Shared options:** Each element has independent `size` and `maxHealth` settings. Size changes also affect hitboxes; health changes preserve the remaining health percentage. The server synchronizes boss size to clients.
-- **Water:** `elemental.water` controls the virtual water arena, movement, attacks, proximity defense, and recovery.
-- **Lightning:** `elemental.lightning` controls arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather.
+- **Shared options:** Each element has independent `size` and `maxHealth` settings under `[boss]`. Size changes also affect hitboxes. Health changes preserve the remaining health percentage. The server synchronizes boss size to clients.
+- **Water:** `water.toml` controls the virtual arena, movement, attacks, proximity defense, and recovery.
+- **Lightning:** `lightning.toml` controls arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather.
 
 **Presentation: `config/sheeper-client.toml`**
 
