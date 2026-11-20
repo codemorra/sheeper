@@ -165,7 +165,7 @@ public final class WaterEnvironmentGameTests {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             try {
                 var packet = new WaterArenaPacket(c.level.dimension().location(),
-                        WaterArenaData.animatedVolumes(c.level), 0, 1.25D, 0.3D);
+                        WaterArenaData.animatedVolumes(c.level), 0, 1.25D, 0.3D, List.of());
                 packet.encode(buffer);
                 c.expect(packet.equals(WaterArenaPacket.decode(buffer)),
                         "Filtered server snapshots must round-trip through the client decoder");

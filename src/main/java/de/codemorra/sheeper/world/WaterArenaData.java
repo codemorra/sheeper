@@ -133,6 +133,48 @@ public final class WaterArenaData extends SavedData {
         OUTSIDE, SHELTERED, CONSUMING, REFILLING
     }
 
+    /** Fixed one-block footprint and captured surface for fountain movement prediction. */
+    public record AirColumn(BlockPos base, double surface) {
+        public boolean isValid() {
+            return base.getY() >= -2032 && Double.isFinite(surface) && surface <= 2032
+                    && surface > base.getY() && surface - base.getY() <= 129;
+        }
+
+        public boolean contains(Vec3 point) {
+            return point.x >= base.getX() && point.x < base.getX() + 1
+                    && point.z >= base.getZ() && point.z < base.getZ() + 1
+                    && point.y >= base.getY() && point.y <= surface;
+        }
+    }
+
+    /** Supplies nearby columns only while their boss is active, including in overlapping arenas. */
+    public static List<AirColumn> airColumns(ServerLevel level, Vec3 position) {
+        WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
+        if (data == null || data.arenas.isEmpty()) {
+            return List.of();
+        }
+        List<AirColumn> nearby = new ArrayList<>();
+        for (var entry : data.arenas.entrySet()) {
+            Arena arena = entry.getValue();
+            if (!arena.ready || arena.drainDuration > 0 || arena.volume == null
+                    || arena.volume.interiorDistance(position) < -24
+                    || !(level.getEntity(entry.getKey()) instanceof WaterSheeperEntity boss)) {
+                continue;
+            }
+            for (AirColumn column : boss.getArenaAirColumns()) {
+                double dx = column.base().getX() + 0.5 - position.x;
+                double dz = column.base().getZ() + 0.5 - position.z;
+                if (dx * dx + dz * dz <= 24 * 24) {
+                    nearby.add(column);
+                    if (nearby.size() == 4096) {
+                        return List.copyOf(nearby);
+                    }
+                }
+            }
+        }
+        return List.copyOf(nearby);
+    }
+
     /** A refill column takes priority over consumption when arenas overlap. */
     public static AirState airState(ServerPlayer player) {
         ServerLevel level = player.getLevel();

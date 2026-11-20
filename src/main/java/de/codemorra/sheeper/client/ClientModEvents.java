@@ -42,6 +42,7 @@ public class ClientModEvents {
         event.enqueueWork(() -> {
             de.codemorra.sheeper.world.ArenaWeather.setClientLookup(LightningWeatherVisuals::intensity);
             de.codemorra.sheeper.world.ArenaWater.setClientLookup(WaterArenaVisuals::activeVolumes);
+            de.codemorra.sheeper.world.ArenaWater.setClientAirColumns(WaterArenaVisuals::airColumns);
         });
     }
 

@@ -293,6 +293,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return airStations.airState(player, arenaVolume, eye);
     }
 
+    /** @return active fountain geometry for swimming prediction and server movement */
+    public List<WaterArenaData.AirColumn> getArenaAirColumns() {
+        return isAlive() && isCombatReady() && arenaVolume != null ? airStations.airColumns(arenaVolume) : List.of();
+    }
+
     /**
      * Maintains neutral buoyancy in water without changing the persistent gravity
      * flag. On land, gravity and fall behavior remain vanilla.
