@@ -83,6 +83,61 @@ function initializeCoreMod() {
         return node;
       }
     },
+    arena_virtual_water_drowned_paths: {
+      target: { type: "CLASS", name: "net.minecraft.world.level.pathfinder.SwimNodeEvaluator" },
+      transformer: function (node) {
+        var classify = 0;
+        var cost = 0;
+        var hooks = "de/codemorra/sheeper/world/DrownedArenaPaths";
+        var blocks = "Lnet/minecraft/world/level/BlockGetter;";
+        var mob = "Lnet/minecraft/world/entity/Mob;";
+        var pathType = "Lnet/minecraft/world/level/pathfinder/BlockPathTypes;";
+        for (var i = 0; i < node.methods.size(); i++) {
+          var m = node.methods.get(i);
+          if (String(m.name) === API.mapMethod("m_7209_") &&
+              String(m.desc) === "(" + blocks + "III" + mob + "IIIZZ)" + pathType) {
+            var code = new List();
+            var vanilla = new Label();
+            code.add(new Var(O.ALOAD, 1));
+            for (var slot = 2; slot <= 8; slot++) {
+              code.add(new Var(slot === 5 ? O.ALOAD : O.ILOAD, slot));
+            }
+            code.add(invoke(hooks, "classify", "(" + blocks + "III" + mob + "III)" + pathType));
+            code.add(new Insn(O.DUP));
+            code.add(new Jump(O.IFNULL, vanilla));
+            code.add(new Insn(O.ARETURN));
+            code.add(vanilla);
+            code.add(new Insn(O.POP));
+            m.instructions.insert(code);
+            classify++;
+          }
+          if (String(m.name) !== API.mapMethod("m_5676_") ||
+              String(m.desc) !== "(III)Lnet/minecraft/world/level/pathfinder/Node;") continue;
+          var typeSlot = -1;
+          var instructions = m.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if (insn.getOpcode() !== O.INVOKEVIRTUAL) continue;
+            if (String(insn.name) === API.mapMethod("m_192967_") && String(insn.desc) === "(III)" + pathType) {
+              var store = insn.getNext();
+              if (store !== null && store.getOpcode() === O.ASTORE) typeSlot = store.var;
+            } else if (typeSlot >= 0 && String(insn.owner) === "net/minecraft/world/level/material/FluidState" &&
+                String(insn.name) === API.mapMethod("m_76178_") && String(insn.desc) === "()Z") {
+              var args = new List();
+              args.add(new Var(O.ALOAD, 0));
+              args.add(new Field(O.GETFIELD, String(node.name), API.mapField("f_77313_"), mob));
+              args.add(new Var(O.ALOAD, typeSlot));
+              m.instructions.insertBefore(insn, args);
+              m.instructions.set(insn, invoke(hooks, "isDryNode", "(" + state + mob + pathType + ")Z"));
+              cost++;
+            }
+          }
+        }
+        check(classify, 1, "SwimNodeEvaluator water classification");
+        check(cost, 1, "SwimNodeEvaluator dry node cost");
+        return node;
+      }
+    },
     arena_virtual_water_player_swimming: {
       target: { type: "CLASS", name: "net.minecraft.world.entity.player.Player" },
       transformer: function (node) {
