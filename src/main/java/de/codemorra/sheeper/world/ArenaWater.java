@@ -4,8 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.WaterArenaData.AirState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -110,14 +114,47 @@ public final class ArenaWater {
     }
 
     /**
-     * Grants arena breathing to participating player game modes. Other living
-     * entities use their usual breathing rules for water.
+     * Shelters players during setup, drainage and where no usable route to air
+     * exists. Bubble columns allow the normal air recovery branch to run.
      */
     public static boolean allowsBreathing(LivingEntity entity, FluidType type) {
-        if (!(entity instanceof Player) || !supportsSwimming(entity) || type != ForgeMod.WATER_TYPE.get()) {
+        if (!(entity instanceof ServerPlayer player) || !supportsSwimming(player) || type != ForgeMod.WATER_TYPE.get()) {
             return false;
         }
-        return contains(entity.level, entity.getEyePosition());
+        AirState state = WaterArenaData.airState(player);
+        return state == AirState.SHELTERED || state == AirState.REFILLING;
+    }
+
+    /** Throttles the vanilla result so Respiration and drowning damage keep their normal behavior. */
+    public static int adjustAirLoss(int vanilla, LivingEntity entity) {
+        if (!(entity instanceof Player player) || !supportsSwimming(player)
+                || player.getEyeInFluidType() != ForgeMod.WATER_TYPE.get()) {
+            return vanilla;
+        }
+        int air = player.getAirSupply();
+        if (player.level.isClientSide) {
+            // The server synchronizes the air bar. Local water ticks must not run a second countdown.
+            return contains(player.level, player.getEyePosition()) ? air : vanilla;
+        }
+        if (!(player instanceof ServerPlayer serverPlayer) || air <= 0
+                || WaterArenaData.airState(serverPlayer) != AirState.CONSUMING) {
+            return vanilla;
+        }
+        int duration = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_AIR_DURATION.get());
+        int capacity = player.getMaxAirSupply();
+        long tick = Math.floorMod(player.level.getGameTime(), duration);
+        return (tick + 1) * capacity / duration > tick * capacity / duration ? vanilla : air;
+    }
+
+    /** A short pass through a fountain restores a noticeable part of the air bar. */
+    public static int adjustAirRecovery(int vanilla, LivingEntity entity) {
+        if (entity instanceof ServerPlayer player && supportsSwimming(player)
+                && player.getEyeInFluidType() == ForgeMod.WATER_TYPE.get()
+                && WaterArenaData.airState(player) == AirState.REFILLING) {
+            int capacity = player.getMaxAirSupply();
+            return Math.min(capacity, player.getAirSupply() + Math.max(1, capacity / 10));
+        }
+        return vanilla;
     }
 
     /**

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.entity.WaterSheeperEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -14,6 +15,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.LivingEntity;
@@ -125,6 +127,42 @@ public final class WaterArenaData extends SavedData {
 
     public static WaterArenaData get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(WaterArenaData::load, WaterArenaData::new, FILE_NAME);
+    }
+
+    public enum AirState {
+        OUTSIDE, SHELTERED, CONSUMING, REFILLING
+    }
+
+    /** A refill column takes priority over consumption when arenas overlap. */
+    public static AirState airState(ServerPlayer player) {
+        ServerLevel level = player.getLevel();
+        WaterArenaData data = level.getDataStorage().get(WaterArenaData::load, FILE_NAME);
+        if (data == null) {
+            return AirState.OUTSIDE;
+        }
+        Vec3 eye = player.getEyePosition();
+        long now = level.getGameTime();
+        AirState result = AirState.OUTSIDE;
+        for (var entry : data.arenas.entrySet()) {
+            Arena arena = entry.getValue();
+            if (arena.volume == null || !arena.volume.contains(eye)) {
+                continue;
+            }
+            var animated = data.animation(arena);
+            if (!animated.hasWater(now) || !animated.at(now).contains(eye)) {
+                continue;
+            }
+            AirState state = arena.ready && !animated.isDraining()
+                    && level.getEntity(entry.getKey()) instanceof WaterSheeperEntity boss
+                            ? boss.getArenaAirState(player, eye) : AirState.SHELTERED;
+            if (state == AirState.REFILLING) {
+                return state;
+            }
+            if (state == AirState.CONSUMING || result == AirState.OUTSIDE) {
+                result = state;
+            }
+        }
+        return result;
     }
 
     /** Does not create new saved data in dimensions without an encounter. */

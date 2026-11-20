@@ -347,6 +347,10 @@ public final class WaterSheeperConfig {
                     "Valid arenas receive at least one fountain when space permits, up to 48.")
             .defineInRange("elemental.water.airStations.per1000Blocks", 2.0D, 0.1D, 8.0D);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_AIR_DURATION = BUILDER
+            .comment("Seconds a full air bar lasts in a Water Sheeper arena without breathing bonuses.")
+            .defineInRange("elemental.water.airStations.airDurationSeconds", 40.0D, 20.0D, 120.0D);
+
     /** Arena water visibility (elemental.water.visuals). */
     public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
             .comment(

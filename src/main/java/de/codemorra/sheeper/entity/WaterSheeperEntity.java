@@ -280,6 +280,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return arenaVolume != null && arenaVolume.contains(point);
     }
 
+    /** Supplies air-station state for this boss's active water volume. */
+    public WaterArenaData.AirState getArenaAirState(ServerPlayer player, Vec3 eye) {
+        if (!isAlive() || !isCombatReady() || arenaVolume == null) {
+            return WaterArenaData.AirState.SHELTERED;
+        }
+        return airStations.airState(player, arenaVolume, eye);
+    }
+
     /**
      * Maintains neutral buoyancy in water without changing the persistent gravity
      * flag. On land, gravity and fall behavior remain vanilla.

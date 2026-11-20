@@ -189,7 +189,7 @@ public final class WaterEnvironmentGameTests {
             c.setBlock(13, y, 10, Blocks.WATER);
         }
         c.expect(!player.canDrownInFluidType(ForgeMod.WATER_TYPE.get()),
-                "The actual drowning hook must protect natural water inside the arena");
+                "The drowning hook must shelter players while no usable air stations are available");
         player.standAt(c.point(21, 1, 10));
         c.expect(player.canDrownInFluidType(ForgeMod.WATER_TYPE.get()), "Natural water outside must retain drowning");
         player.standAt(c.point(13, 1, 10));

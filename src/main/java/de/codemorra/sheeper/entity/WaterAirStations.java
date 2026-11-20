@@ -1,14 +1,18 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.WaterArenaData.AirState;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,6 +24,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /** Discovers, distributes and displays fixed air fountains for one arena. */
@@ -33,6 +39,8 @@ final class WaterAirStations {
 
     private final List<Vec3> stations = new ArrayList<>();
     private final List<Vec3> candidates = new ArrayList<>();
+    private List<Vec3> usableStations = List.of();
+    private final Map<UUID, Access> access = new HashMap<>();
     @Nullable
     private Iterator<BlockPos> scan;
     private boolean missedChunks;
@@ -40,6 +48,9 @@ final class WaterAirStations {
     private double density;
     private long nextScanTick;
     private long nextEmitterTick;
+
+    private record Access(Vec3 eye, long tick, boolean reachable) {
+    }
 
     /** Scans during expansion and emits only once the captured arena is ready. */
     void tick(ServerLevel level, VolumeBounds volume, boolean ready) {
@@ -55,18 +66,75 @@ final class WaterAirStations {
         if (!scanComplete && now >= nextScanTick) {
             advanceScan(level, volume, now);
         }
-        if (!ready || now < nextEmitterTick || stations.isEmpty()) {
+        if (!ready || now < nextEmitterTick) {
             return;
         }
         nextEmitterTick = now + EMITTER_TICKS;
+        List<Vec3> usable = new ArrayList<>(stations.size());
         for (Vec3 station : stations) {
             BlockPos column = new BlockPos(station);
             double height = volume.maximumY() + 1 - station.y;
             if (height >= MIN_CLEAR_HEIGHT && volume.contains(station)
                     && WaterArenaData.isLoaded(level, column) && station.equals(findSurface(level, volume, column))) {
+                usable.add(station);
                 sendEmitter(level, station, height);
             }
         }
+        if (!usable.equals(usableStations)) {
+            usableStations = List.copyOf(usable);
+            access.clear();
+        }
+        access.values().removeIf(entry -> now - entry.tick() > EMITTER_TICKS);
+    }
+
+    /** Finds a refill column or checks for an open swim route before imposing air loss. */
+    AirState airState(ServerPlayer player, VolumeBounds volume, Vec3 eye) {
+        for (Vec3 station : usableStations) {
+            if (eye.y >= station.y && Math.abs(eye.x - station.x) < 0.5D
+                    && Math.abs(eye.z - station.z) < 0.5D) {
+                return AirState.REFILLING;
+            }
+        }
+        if (usableStations.isEmpty()) {
+            return AirState.SHELTERED;
+        }
+        long now = player.level.getGameTime();
+        Access cached = access.get(player.getUUID());
+        if (cached == null || now - cached.tick() >= EMITTER_TICKS || cached.eye().distanceToSqr(eye) >= 16) {
+            cached = new Access(eye, now, hasSwimRoute(player, volume, eye));
+            access.put(player.getUUID(), cached);
+        }
+        return cached.reachable() ? AirState.CONSUMING : AirState.SHELTERED;
+    }
+
+    /** Checks a direct swim and a route over obstacles through the upper water layer. */
+    private boolean hasSwimRoute(ServerPlayer player, VolumeBounds volume, Vec3 eye) {
+        double upperY = volume.maximumY() + 0.65D;
+        Vec3 upper = new Vec3(eye.x, upperY, eye.z);
+        boolean canRise = isSwimSegmentOpen(player, eye, upper);
+        for (Vec3 station : usableStations) {
+            double directY = Mth.clamp(eye.y, station.y + 0.25D, upperY);
+            if (isSwimSegmentOpen(player, eye, new Vec3(station.x, directY, station.z))
+                    || canRise && isSwimSegmentOpen(player, upper, new Vec3(station.x, upperY, station.z))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isSwimSegmentOpen(ServerPlayer player, Vec3 from, Vec3 to) {
+        ServerLevel level = player.getLevel();
+        BlockPos start = new BlockPos(from);
+        BlockPos end = new BlockPos(to);
+        for (int x = Math.min(start.getX(), end.getX()) >> 4; x <= Math.max(start.getX(), end.getX()) >> 4; x++) {
+            for (int z = Math.min(start.getZ(), end.getZ()) >> 4; z <= Math.max(start.getZ(), end.getZ()) >> 4; z++) {
+                if (level.getChunkSource().getChunkNow(x, z) == null) {
+                    return false;
+                }
+            }
+        }
+        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player))
+                .getType() == HitResult.Type.MISS;
     }
 
     /** Measures from the visible column instead of Vanilla's short radius around the emitter base. */
@@ -225,6 +293,8 @@ final class WaterAirStations {
         stations.clear();
         candidates.clear();
         scan = null;
+        usableStations = List.of();
+        access.clear();
         scanComplete = tag.getBoolean("ScanComplete");
         density = tag.getDouble("Density");
         nextScanTick = 0;
