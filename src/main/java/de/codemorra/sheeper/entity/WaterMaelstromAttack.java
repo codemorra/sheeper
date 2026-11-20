@@ -317,6 +317,11 @@ final class WaterMaelstromAttack {
         wave.tick(boss.getCombatParticipants());
     }
 
+    /** @return whether the released front is still traveling through the arena */
+    boolean hasExpandingWave() {
+        return wave.isExpanding();
+    }
+
     /** @return whether impact already granted the vulnerable recovery window */
     boolean hasImpacted() {
         return phase == Phase.RECOVERY;

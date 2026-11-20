@@ -157,7 +157,7 @@ public final class WaterArenaGameTests {
         boss.addAdditionalSaveData(interrupted);
         interrupted.getCompound("WaterSpecialAttacks").putInt("BeamCooldown", 400);
         interrupted.getCompound("WaterSpecialAttacks").putInt("MaelstromCooldown", 300);
-        interrupted.getCompound("WaterDefaultAttack").putBoolean("Firing", true);
+        interrupted.getCompound("WaterDefaultAttack").putInt("ProjectilePhase", 2);
         boss.readAdditionalSaveData(interrupted);
         WaterArenaCombat combat = new WaterArenaCombat(boss);
         combat.tick(List.of(player));
@@ -176,7 +176,7 @@ public final class WaterArenaGameTests {
         boss.addAdditionalSaveData(special);
         c.expect(special.getCompound("WaterSpecialAttacks").getInt("MaelstromCooldown") == -1
                 && special.getCompound("WaterSpecialAttacks").getInt("BeamCooldown") == 0
-                && !special.getCompound("WaterDefaultAttack").getBoolean("Firing")
+                && special.getCompound("WaterDefaultAttack").getInt("ProjectilePhase") == 0
                 && special.getCompound("WaterDefaultAttack").getInt("PhaseTicks") > 0,
                 "Full recovery must reset special readiness and the encounter entry pause");
         c.pass();

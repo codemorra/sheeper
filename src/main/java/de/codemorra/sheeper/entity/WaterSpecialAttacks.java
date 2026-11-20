@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
@@ -10,12 +11,16 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Schedules special attacks separately from default firing and movement.
- * Specials have independent cooldowns and cannot overlap. Stationary specials
- * own quiet and default-only recovery.
+ * Schedules one eligible special after each projectile phase, followed by
+ * shared recovery before the next phase.
  */
 final class WaterSpecialAttacks {
     private static final int BEAM_EYE_FADE_TICKS = 10;
+
+    private enum Special {
+        NONE, BEAM, MINES, MAELSTROM
+    }
+
     private final WaterSheeperEntity boss;
     private final WaterBeamAttack beam;
     private final WaterMaelstromAttack maelstrom;
@@ -23,7 +28,7 @@ final class WaterSpecialAttacks {
     private boolean beamActive;
     private int beamCooldown;
     private int recoveryTicks;
-    private int defaultOnlyTicks;
+    private Special lastSpecial = Special.NONE;
     private int maelstromCooldown = -1;
     private int mineCooldown;
 
@@ -76,48 +81,57 @@ final class WaterSpecialAttacks {
         if (mineCooldown > 0) {
             mineCooldown--;
         }
-        if (recoveryTicks > 0) {
-            if (--recoveryTicks == 0) {
-                defaultAttack.resumeAfterSpecial();
-            }
-        } else if (defaultOnlyTicks > 0) {
-            defaultOnlyTicks--;
+        if (recoveryTicks > 0 && --recoveryTicks == 0) {
+            defaultAttack.resumeAfterSpecial();
         }
     }
 
     /**
-     * Selects uniformly among currently eligible specials. Close range excludes
-     * beam entry only.
-     * Once started, approaching the boss cannot cancel a beam.
+     * Selects uniformly among eligible specials other than the last one used.
+     * Only beam entry requires a ranged target.
      *
-     * @param target        current shared target
-     * @param defaultAttack default cycle whose initial entry pause must have
-     *                      elapsed
+     * @param defaultAttack projectile phase that must have completed both intervals
      */
-    void tryStart(ServerPlayer target, WaterDefaultAttack defaultAttack) {
-        if (beamActive || maelstrom.isActive() || mines.isActive()
-                || recoveryTicks > 0 || defaultOnlyTicks > 0 || !defaultAttack.isFiring()) {
+    void tryStart(WaterDefaultAttack defaultAttack) {
+        if (suppressesDefault() || maelstrom.hasExpandingWave() || !defaultAttack.isComplete()) {
             return;
         }
-        boolean beamReady = beamCooldown == 0
-                && !defaultAttack.isClosingOnTarget() && WaterAttackBlocks.hasLineOfSight(boss, target);
-        boolean maelstromReady = maelstromCooldown == 0 && (!defaultAttack.isClosingOnTarget()
+        boolean beamReady = lastSpecial != Special.BEAM && beamCooldown == 0 && !defaultAttack.isClosingOnTarget();
+        boolean minesReady = lastSpecial != Special.MINES && mineCooldown == 0;
+        boolean maelstromReady = lastSpecial != Special.MAELSTROM && maelstromCooldown == 0
+                && (!defaultAttack.isClosingOnTarget()
                 || defaultAttack.getMeleeTicks() >= SheeperConfig
                         .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));
-        boolean minesReady = mineCooldown == 0;
-        int choices = (beamReady ? 1 : 0) + (maelstromReady ? 1 : 0) + (minesReady ? 1 : 0);
-        if (choices == 0) {
-            return;
+        var choices = new ArrayList<Special>(3);
+        if (beamReady) {
+            choices.add(Special.BEAM);
         }
-        int choice = boss.getRandom().nextInt(choices);
-        if (beamReady && choice-- == 0) {
-            beam.start();
-            beamActive = true;
-        } else if (minesReady && choice == 0) {
-            mines.start();
-        } else if (maelstromReady && !maelstrom.start()) {
-            // Failed center searches must not repeat their pathfinding every tick.
-            maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+        if (minesReady) {
+            choices.add(Special.MINES);
+        }
+        if (maelstromReady) {
+            choices.add(Special.MAELSTROM);
+        }
+        while (!choices.isEmpty()) {
+            switch (choices.remove(boss.getRandom().nextInt(choices.size()))) {
+                case BEAM -> {
+                    beam.start();
+                    beamActive = true;
+                    return;
+                }
+                case MINES -> {
+                    mines.start();
+                    return;
+                }
+                case MAELSTROM -> {
+                    if (maelstrom.start()) {
+                        return;
+                    }
+                    // A blocked center leaves the other specials eligible this tick.
+                    maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
+                }
+                case NONE -> throw new IllegalStateException("No special attack selected");
+            }
         }
     }
 
@@ -190,32 +204,30 @@ final class WaterSpecialAttacks {
         beamActive = false;
         beam.stop();
         beamCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_COOLDOWN.get());
-        beginRecovery();
+        beginRecovery(Special.BEAM);
     }
 
     private void finishMaelstrom() {
         boolean impacted = maelstrom.hasImpacted();
         maelstrom.finish();
         maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
-        beginRecovery();
+        beginRecovery(Special.MAELSTROM);
         if (impacted) {
             // The attack already held its vulnerable recovery at the impact.
-            // Resume default target selection on the next timer update.
+            // Begin the next projectile phase on the next timer update.
             recoveryTicks = 1;
         }
     }
 
-    private void beginRecovery() {
+    private void beginRecovery(Special completed) {
+        lastSpecial = completed;
         recoveryTicks = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_RECOVERY.get());
-        int minimum = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MIN.get());
-        int maximum = Math.max(minimum,
-                SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_DEFAULT_ONLY_MAX.get()));
-        defaultOnlyTicks = minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
     private void finishMines() {
         mines.clear();
         mineCooldown = mines.cooldown();
+        beginRecovery(Special.MINES);
     }
 
     /**
@@ -225,7 +237,7 @@ final class WaterSpecialAttacks {
         beamActive = false;
         beamCooldown = 0;
         recoveryTicks = 0;
-        defaultOnlyTicks = 0;
+        lastSpecial = Special.NONE;
         maelstrom.stop();
         maelstromCooldown = -1;
         mines.clear();
@@ -240,7 +252,7 @@ final class WaterSpecialAttacks {
         tag.putBoolean("BeamActive", beamActive);
         tag.putInt("BeamCooldown", beamCooldown);
         tag.putInt("RecoveryTicks", recoveryTicks);
-        tag.putInt("DefaultOnlyTicks", defaultOnlyTicks);
+        tag.putInt("LastSpecial", lastSpecial.ordinal());
         tag.put("Beam", beam.save());
         tag.putInt("MaelstromCooldown", maelstromCooldown);
         tag.put("Maelstrom", maelstrom.save());
@@ -258,7 +270,10 @@ final class WaterSpecialAttacks {
         beamActive = tag.getBoolean("BeamActive");
         beamCooldown = Mth.clamp(tag.getInt("BeamCooldown"), 0, 2400);
         recoveryTicks = Mth.clamp(tag.getInt("RecoveryTicks"), 0, 100);
-        defaultOnlyTicks = Mth.clamp(tag.getInt("DefaultOnlyTicks"), 0, 600);
+        int savedSpecial = tag.getInt("LastSpecial");
+        if (savedSpecial >= 0 && savedSpecial < Special.values().length) {
+            lastSpecial = Special.values()[savedSpecial];
+        }
         beam.load(tag.getCompound("Beam"));
         maelstromCooldown = tag.contains("MaelstromCooldown")
                 ? Mth.clamp(tag.getInt("MaelstromCooldown"), -1, 6000)
