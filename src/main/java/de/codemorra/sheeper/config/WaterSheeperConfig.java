@@ -394,14 +394,15 @@ public final class WaterSheeperConfig {
     /**
      * Virtual water arena geometry and surface discovery (arena).
      */
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_WATER_HEIGHT = BUILDER
-            .comment("Virtual water height in blocks above the saved arena origin.",
-                    "Captured per arena; terrain and existing fluid blocks remain unchanged.")
-            .defineInRange("arena.waterHeight", 12, 4, 24);
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT = BUILDER
+            .comment("Blocks from the boss's spawn point up to the arena's virtual water surface.",
+                    "Applies to new arenas.")
+            .defineInRange("arena.height", 12, 4, 24);
 
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT_RANGE = BUILDER
-            .comment("Maximum arena depth below the saved origin, captured when the arena is created.")
-            .defineInRange("arena.heightRange", 10, 0, 32);
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_DEPTH = BUILDER
+            .comment("Blocks from the boss's spawn point down to the arena floor.",
+                    "Applies to new arenas.")
+            .defineInRange("arena.depth", 10, 0, 32);
 
     public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
             .comment("Maximum floor columns examined per second when distributing air fountains.")

@@ -28,7 +28,8 @@ final class LightningSpawnGameTests {
     private static LightningSheeperEntity boss(GameTestContext context) {
         context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 8.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 6.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 7);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 6);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 4.0D);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 3);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_INTERVAL, 1.0D);

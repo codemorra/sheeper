@@ -250,9 +250,7 @@ final class LightningFrontAttack {
 
     private boolean isValidPoint(ServerLevel level, Vec3 pos) {
         return isWithinArena(pos.x, pos.z)
-                && Math.abs(pos.y
-                        - boss.getArenaCenter().getY()) <= LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get()
-                && pos.y >= level.getMinBuildHeight() && pos.y < level.getMaxBuildHeight()
+                && boss.isWithinArenaHeight(pos.y)
                 && level.getChunkSource().hasChunk(Mth.floor(pos.x) >> 4, Mth.floor(pos.z) >> 4);
     }
 

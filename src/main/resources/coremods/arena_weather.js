@@ -9,7 +9,6 @@ function initializeCoreMod() {
   var Label = Java.type("org.objectweb.asm.tree.LabelNode");
   var API = Java.type("net.minecraftforge.coremod.api.ASMAPI");
   var hook = "de/codemorra/sheeper/world/ArenaWeather";
-  var client = "de/codemorra/sheeper/client/LightningWeatherVisuals";
   var level = "Lnet/minecraft/world/level/Level;";
   var pos = "Lnet/minecraft/core/BlockPos;";
 
@@ -98,86 +97,6 @@ function initializeCoreMod() {
           }
         }
         check(count, "ServerLevel.tickChunk");
-        return node;
-      }
-    },
-    arena_storm_sky: {
-      target: {
-        type: "CLASS",
-        name: "net.minecraft.client.multiplayer.ClientLevel"
-      },
-      transformer: function (node) {
-        var count = 0;
-        for (var i = 0; i < node.methods.size(); i++) {
-          var m = node.methods.get(i);
-          for (
-            var insn = m.instructions.getFirst();
-            insn !== null;
-            insn = insn.getNext()
-          ) {
-            if (
-              insn.getOpcode() === O.INVOKEVIRTUAL &&
-              String(insn.desc) === "(F)F" &&
-              (String(insn.name) === API.mapMethod("m_46722_") ||
-                String(insn.name) === API.mapMethod("m_46661_"))
-            ) {
-              m.instructions.insert(insn, call(client, "skyWeather", "(F)F"));
-              count++;
-            }
-          }
-        }
-        check(count, "ClientLevel sky and clouds");
-        return node;
-      }
-    },
-    arena_storm_precipitation_visuals: {
-      target: {
-        type: "CLASS",
-        name: "net.minecraft.client.renderer.LevelRenderer"
-      },
-      transformer: function (node) {
-        var count = 0;
-        var biome = "Lnet/minecraft/world/level/biome/Biome;";
-        for (var i = 0; i < node.methods.size(); i++) {
-          var m = node.methods.get(i);
-          if (
-            String(m.name) !== API.mapMethod("m_109703_") &&
-            String(m.name) !== API.mapMethod("m_109693_")
-          )
-            continue;
-          var instructions = m.instructions.toArray();
-          for (var j = 0; j < instructions.length; j++) {
-            var insn = instructions[j];
-            if (insn.getOpcode() !== O.INVOKEVIRTUAL) continue;
-            if (
-              String(insn.desc) ===
-              "(" + pos + ")Lnet/minecraft/core/Holder;"
-            ) {
-              m.instructions.insertBefore(
-                insn,
-                call(client, "rainColumn", "(" + pos + ")" + pos)
-              );
-            } else if (String(insn.name) === API.mapMethod("m_47530_")) {
-              m.instructions.set(
-                insn,
-                call(
-                  client,
-                  "precipitation",
-                  "(" +
-                    biome +
-                    ")Lnet/minecraft/world/level/biome/Biome$Precipitation;"
-                )
-              );
-              count++;
-            } else if (String(insn.name) === API.mapMethod("m_198906_")) {
-              m.instructions.set(
-                insn,
-                call(client, "warmEnough", "(" + biome + pos + ")Z")
-              );
-            }
-          }
-        }
-        check(count, "LevelRenderer precipitation columns");
         return node;
       }
     }

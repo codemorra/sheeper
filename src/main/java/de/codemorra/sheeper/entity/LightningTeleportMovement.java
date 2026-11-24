@@ -106,10 +106,7 @@ final class LightningTeleportMovement {
 
     private boolean isSafe(Vec3 target) {
         ServerLevel level = (ServerLevel) boss.level;
-        if (!boss.isWithinMovementArea(target.x, target.z)
-                || Math.abs(
-                        target.y - boss.getArenaCenter().getY()) > LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE
-                                .get()) {
+        if (!boss.isWithinMovementArea(target.x, target.z) || !boss.isWithinArenaHeight(target.y)) {
             return false;
         }
         AABB bounds = boss.getBoundingBox().move(target.subtract(boss.position()));

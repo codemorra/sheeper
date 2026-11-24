@@ -35,7 +35,8 @@ final class LightningGameTests {
         context.set(LightningSheeperConfig.LIGHTNING_RING_WEIGHT, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
         context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 3.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 4);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 3);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.2D);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_WAVE_COUNT, 1);
         return context.spawn(ModEntities.LIGHTNING_SHEEPER.get(), 12, 1, 12);

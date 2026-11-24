@@ -37,7 +37,8 @@ final class LightningTeleportGameTests {
         context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
         context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 4.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 4);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 3);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MIN, 0.2D);
         context.set(LightningSheeperConfig.LIGHTNING_TELEPORT_INTERVAL_MAX, 0.2D);
