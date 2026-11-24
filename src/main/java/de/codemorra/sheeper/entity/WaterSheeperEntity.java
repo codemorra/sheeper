@@ -213,6 +213,28 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return getEyePosition().add(0, -0.15D * getSizeMultiplier(), 0);
     }
 
+    /** @return whether the boss is looking for a clear beam position before committing to the attack */
+    public boolean isSeekingBeamSight() {
+        return specialAttacks.isSeekingBeamSight();
+    }
+
+    /**
+     * Tests the same mouth-to-target line used to aim the beam, using collision
+     * shapes so glass and other physical cover count.
+     *
+     * @param feet proposed boss position, or its current feet position
+     * @param target player the boss is tracking
+     * @return whether the target is visible from the proposed beam origin
+     */
+    public boolean hasBeamSightFrom(Vec3 feet, ServerPlayer target) {
+        if (!(level instanceof ServerLevel server) || target.level != level) {
+            return false;
+        }
+        Vec3 origin = getBeamOrigin().add(feet.subtract(position()));
+        var hit = WaterAttackBlocks.clipLoaded(this, server, origin, target.getEyePosition());
+        return hit != null && hit.getType() == HitResult.Type.MISS;
+    }
+
     /** @return server-authoritative collision segment relative to the mouth */
     public Vec3 getBeamOffset() {
         return new Vec3(entityData.get(DATA_BEAM_X), entityData.get(DATA_BEAM_Y), entityData.get(DATA_BEAM_Z));
@@ -669,8 +691,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // An empty arena leaves navigation to the idle goal instead of cancelling
         // its current route every tick. Goal priorities handle combat transitions.
         if (target != null) {
-            specialAttacks.tryStart(defaultAttack);
-            if (defaultAttack.isComplete() && !specialAttacks.suppressesDefault()) {
+            specialAttacks.tryStart(defaultAttack, target);
+            if (defaultAttack.isComplete() && !specialAttacks.suppressesDefault() && !isSeekingBeamSight()) {
                 target = defaultAttack.extendProjectilePhase(participants);
                 setTarget(target);
             }

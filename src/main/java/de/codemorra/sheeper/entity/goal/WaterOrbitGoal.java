@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
@@ -27,6 +28,8 @@ import net.minecraft.world.phys.Vec3;
 public final class WaterOrbitGoal extends Goal {
     private static final double MINE_RETREAT_DISTANCE = 3;
     private static final int MINE_RETREAT_TICKS = 20;
+    private static final int BEAM_SIGHT_REPLAN_TICKS = 10;
+    private static final int BEAM_SIGHT_SEARCH_RADIUS = 6;
     private final WaterSheeperEntity boss;
     private UUID targetId;
     private Vec3 previousPlayerPosition;
@@ -38,6 +41,7 @@ public final class WaterOrbitGoal extends Goal {
     private long sprintReadyTick;
     private boolean closingOnTarget;
     private boolean mineAttack;
+    private boolean seekingBeamSight;
     private Vec3 mineRetreat;
     private long mineRetreatEnd;
 
@@ -95,7 +99,8 @@ public final class WaterOrbitGoal extends Goal {
         boolean changed = !player.getUUID().equals(targetId);
         boolean mining = boss.isPerformingWaterMines();
         boolean closing = !mining && boss.isClosingOnTarget();
-        boolean modeChanged = closingOnTarget != closing || mineAttack != mining;
+        boolean seeking = boss.isSeekingBeamSight();
+        boolean modeChanged = closingOnTarget != closing || mineAttack != mining || seekingBeamSight != seeking;
         if (mining && !mineAttack) {
             Vec3 away = horizontal(boss.position().subtract(player.position())).normalize();
             if (away.lengthSqr() < 1.0E-7D) {
@@ -110,7 +115,8 @@ public final class WaterOrbitGoal extends Goal {
         }
         closingOnTarget = closing;
         mineAttack = mining;
-        if (!mining && boss.tryBubbleRecoveryToward(player)) {
+        seekingBeamSight = seeking;
+        if (!mining && !seeking && boss.tryBubbleRecoveryToward(player)) {
             return;
         }
         if (closingOnTarget) {
@@ -135,8 +141,15 @@ public final class WaterOrbitGoal extends Goal {
                 && (closingOnTarget || Math.abs(player.getY() - previousPlayerPosition.y) > 0.5D);
         if (changed || modeChanged || directionChanged || approached || targetMoved || now >= nextPlanTick) {
             updateCircle(player, changed || modeChanged);
-            scheduleNextPlan(now);
-            Path path = choosePath(player);
+            if (seeking) {
+                nextPlanTick = now + BEAM_SIGHT_REPLAN_TICKS;
+            } else {
+                scheduleNextPlan(now);
+            }
+            Path path = seeking ? chooseBeamSightPath(player) : null;
+            if (path == null) {
+                path = choosePath(player);
+            }
             if (path == null && mineRetreat != null) {
                 // Terrain may block the brief retreat; keep circling instead.
                 mineRetreat = null;
@@ -154,6 +167,37 @@ public final class WaterOrbitGoal extends Goal {
             }
         }
         boss.getNavigation().setSpeedModifier(speed(now));
+    }
+
+    /**
+     * Looks for a reachable firing position around or above cover. If none is
+     * nearby, the orbit can still move the boss around larger obstacles.
+     *
+     * @param player current beam target
+     * @return a full swim path to clear sight outside melee range, or null
+     */
+    private Path chooseBeamSightPath(ServerPlayer player) {
+        Vec3 start = boss.position();
+        Vec3 centerOffset = boss.getBoundingBox().getCenter().subtract(start);
+        Vec3 targetCenter = player.getBoundingBox().getCenter();
+        double melee = WaterSheeperConfig.WATER_CLOSE_RANGE_DISTANCE.get();
+        int radius = BEAM_SIGHT_SEARCH_RADIUS;
+        BlockPos center = boss.blockPosition();
+        var candidates = StreamSupport.stream(BlockPos.betweenClosed(
+                center.offset(-radius, -3, -radius), center.offset(radius, 3, radius)).spliterator(), false)
+                .map(BlockPos::immutable)
+                .filter(node -> {
+                    Vec3 point = navigationPoint(node);
+                    double distance = point.distanceToSqr(start);
+                    return distance >= 0.25 && distance <= radius * radius
+                            && point.add(centerOffset).distanceToSqr(targetCenter) > melee * melee
+                            && boss.canSwimAt(point) && boss.hasBeamSightFrom(point, player);
+                })
+                .sorted(Comparator.comparingDouble(node -> navigationPoint(node).distanceToSqr(start)))
+                .limit(24)
+                .collect(Collectors.toSet());
+        Path path = candidates.isEmpty() ? null : boss.getNavigation().createPath(candidates, 0);
+        return path != null && path.canReach() && pathInsideArena(path) ? path : null;
     }
 
     /**
@@ -399,6 +443,7 @@ public final class WaterOrbitGoal extends Goal {
     public void stop() {
         sprintEndTick = 0;
         mineAttack = false;
+        seekingBeamSight = false;
         mineRetreat = null;
         boss.resetBubbleRecovery();
         stopSwimming();

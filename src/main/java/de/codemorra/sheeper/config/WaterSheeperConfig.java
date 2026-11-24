@@ -213,6 +213,11 @@ public final class WaterSheeperConfig {
             .comment("Seconds after a beam ends before another beam may start.")
             .defineInRange("beam.cooldownSeconds", 20.0, 1.0, 120.0);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_SIGHT_SEARCH = BUILDER
+            .comment("Maximum time in seconds to look for a clear shot before choosing another attack.",
+                    "Set to 0 to skip the search when the target is behind cover.")
+            .defineInRange("beam.sightSearchSeconds", 3.0, 0.0, 10.0);
+
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_PREPARATION = BUILDER
             .comment("Stationary warning seconds before firing; eyes gradually turn red.")
             .defineInRange("beam.preparationSeconds", 2.0, 0.1, 5.0);
