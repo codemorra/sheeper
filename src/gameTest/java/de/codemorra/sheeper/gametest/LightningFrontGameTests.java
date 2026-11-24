@@ -36,7 +36,8 @@ final class LightningFrontGameTests {
         context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 9.0D);
         context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 4);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 3);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 1.0D);

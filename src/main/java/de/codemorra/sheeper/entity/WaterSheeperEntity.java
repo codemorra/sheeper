@@ -322,7 +322,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      * @return captured water surface Y used by attacks and transport
      */
     double getArenaWaterSurfaceY() {
-        return arenaVolume == null ? getArenaCenter().getY() + WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get()
+        return arenaVolume == null ? getArenaCenter().getY() + WaterSheeperConfig.WATER_ARENA_HEIGHT.get()
                 : arenaVolume.maximumY() + 1.0D;
     }
 
@@ -330,7 +330,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      * @return lowest captured water cell
      */
     int getArenaWaterMinimumY() {
-        return arenaVolume == null ? getArenaCenter().getY() - WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get()
+        return arenaVolume == null ? getArenaCenter().getY() - WaterSheeperConfig.WATER_ARENA_DEPTH.get()
                 : arenaVolume.minimumY();
     }
 
@@ -774,8 +774,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             arenaCenter = existing.center();
         }
         WaterArenaData.VolumeBounds bounds = data.prepareVolume(server, getUUID(), getArenaCenter(),
-                getCombatRadius(), WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(),
-                WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get());
+                getCombatRadius(), WaterSheeperConfig.WATER_ARENA_DEPTH.get(),
+                WaterSheeperConfig.WATER_ARENA_HEIGHT.get());
         if (bounds == null) {
             // prepareVolume also protects callers that do not perform spawn checks.
             discard();

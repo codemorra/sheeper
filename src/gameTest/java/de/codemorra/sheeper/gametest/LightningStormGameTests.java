@@ -34,7 +34,8 @@ final class LightningStormGameTests {
         context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
         context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 10.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE, 3.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 4);
+        context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 3);
         context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN, 0.05D);

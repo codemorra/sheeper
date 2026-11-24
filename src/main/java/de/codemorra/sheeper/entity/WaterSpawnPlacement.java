@@ -84,7 +84,7 @@ final class WaterSpawnPlacement {
     private static boolean fits(ServerLevel level, WaterSheeperEntity boss, WaterCombatSettings settings,
             Vec3 position) {
         var bounds = VolumeBounds.capture(level, new BlockPos(position), boss.getCombatRadius(),
-                WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE.get(), WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT.get());
+                WaterSheeperConfig.WATER_ARENA_DEPTH.get(), WaterSheeperConfig.WATER_ARENA_HEIGHT.get());
         AABB body = boss.getBoundingBox().move(position.subtract(boss.position()));
         return !level.isOutsideBuildHeight(new BlockPos(position))
                 && bounds.isValidFor(level) && body.minY >= bounds.minimumY()

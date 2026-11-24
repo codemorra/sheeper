@@ -49,8 +49,8 @@ public final class WaterEnvironmentGameTests {
         c.set(WaterSheeperConfig.WATER_SIZE, 2.0D);
         c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 4.0D);
         c.set(WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE, 0.0D);
-        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 2);
-        c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 4);
+        c.set(WaterSheeperConfig.WATER_ARENA_DEPTH, 2);
+        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT, 4);
         c.set(WaterSheeperConfig.WATER_SPAWN_PUSH_SPEED, 0.0D);
         c.set(WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND, 20);
     }
@@ -299,8 +299,8 @@ public final class WaterEnvironmentGameTests {
     private static void bubbleCage(GameTestContext c) {
         configureSpawn(c);
         c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 16.0);
-        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
-        c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 5);
+        c.set(WaterSheeperConfig.WATER_ARENA_DEPTH, 0);
+        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT, 5);
         c.set(WaterSheeperConfig.WATER_CLOSE_RANGE_DISTANCE, 3.0);
         c.set(WaterSheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE, 1.0);
         var boss = c.readyForCombat(spawnAt(c, c.point(10, 1, 10)));

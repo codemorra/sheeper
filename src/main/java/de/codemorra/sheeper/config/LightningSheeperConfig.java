@@ -26,17 +26,20 @@ public final class LightningSheeperConfig {
                     "Horizontal teleport movement radius around the saved spawn position; capped at combatRadius. 0 disables movement.")
             .defineInRange("teleport.movementRadius", 10.0, 0.0, 128.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_HEIGHT_RANGE = BUILDER
-            .comment("Vertical viewer range for arena boundary particles around the saved origin.",
-                    "Does not limit combat participation after entering the flooded arena.")
-            .defineInRange("arena.combatHeightRange", 15.0, 0.0, 128.0);
+    public static final ForgeConfigSpec.IntValue LIGHTNING_ARENA_HEIGHT = BUILDER
+            .comment("Blocks from the boss's spawn point up to the top of the storm arena.",
+                    "Applies to new arenas.")
+            .defineInRange("arena.height", 24, 4, 64);
 
-    /** Lightning arena preparation (arena). */
+    public static final ForgeConfigSpec.IntValue LIGHTNING_ARENA_DEPTH = BUILDER
+            .comment("Blocks from the boss's spawn point down to the arena floor.",
+                    "Applies to new arenas.")
+            .defineInRange("arena.depth", 24, 0, 32);
+
+    /** Lightning arena buildup (arenaBuild). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
-            .comment(
-                    "Seconds for each preparation wave to reach the arena edge. 0 skips spawn waves and awakening.",
-                    "Storm awakening follows the final wave. Wave timing is captured at spawn and preserved when loading.")
-            .defineInRange("arena.preparationSeconds", 4.0, 0.0, 600.0);
+            .comment("Seconds for the storm front to spread from the center to the arena edge. 0 skips the buildup.")
+            .defineInRange("arenaBuild.durationSeconds", 5.0, 0.0, 30.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_PREPARATION_WAVE_COUNT = BUILDER
             .comment("Number of outward preparation waves before storm awakening begins.")

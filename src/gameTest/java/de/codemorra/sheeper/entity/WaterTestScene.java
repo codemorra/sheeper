@@ -21,8 +21,8 @@ final class WaterTestScene {
         context.set(WaterSheeperConfig.WATER_MAX_HEALTH, 100.0D);
         context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 8.0D);
         context.set(WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_WIDTH, 1.0D);
-        context.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 6);
-        context.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
+        context.set(WaterSheeperConfig.WATER_ARENA_HEIGHT, 6);
+        context.set(WaterSheeperConfig.WATER_ARENA_DEPTH, 0);
         context.set(WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE, 1.0D);
         context.set(WaterSheeperConfig.WATER_SPAWN_PUSH_SPEED, 0.0D);
         context.set(WaterSheeperConfig.WATER_PROXIMITY_PUSH_RADIUS, 0.0D);

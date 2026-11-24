@@ -299,8 +299,7 @@ final class LightningStrikeAttack {
     private boolean isValidPosition(ServerLevel level, Vec3 pos) {
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         return pos.subtract(center).horizontalDistanceSqr() <= boss.getCombatRadius() * boss.getCombatRadius()
-                && Math.abs(pos.y - center.y) <= LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get()
-                && pos.y >= level.getMinBuildHeight() && pos.y < level.getMaxBuildHeight()
+                && boss.isWithinArenaHeight(pos.y)
                 && level.getChunkSource().hasChunk(Mth.floor(pos.x) >> 4, Mth.floor(pos.z) >> 4);
     }
 

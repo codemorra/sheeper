@@ -7,8 +7,8 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Matrix4f;
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.Minecraft;
@@ -16,35 +16,38 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Bounded rain columns and local sky darkening, independent of boss render
- * distance.
+ * Local storm clouds, wind and rain, independent of boss render distance.
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LightningWeatherVisuals {
     private static final ResourceLocation RAIN = ResourceLocations.create("minecraft",
             "textures/environment/rain.png");
+    private static final double FRONT_VISIBILITY = 48;
+    private static final int CLOUD_SEGMENTS = 48;
+    private static final int CLOUD_RINGS = 10;
+    private static final int RAIN_SPACING = 2;
     private static ClientLevel snapshotLevel;
     private static List<LightningWeatherPacket.Arena> arenas = List.of();
     private static long lastSnapshot;
-    private static BlockPos rainColumn = BlockPos.ZERO;
 
     private LightningWeatherVisuals() {
     }
@@ -59,138 +62,194 @@ public final class LightningWeatherVisuals {
     }
 
     public static float intensity(Level level, BlockPos pos) {
-        return intensity(level, pos.getX() + 0.5D, pos.getZ() + 0.5D, 0);
+        return intensity(level, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
     }
 
-    private static float intensity(Level level, double x, double z, float partialTick) {
-        if (level != snapshotLevel || level.getGameTime() - lastSnapshot > 60) {
+    private static float intensity(Level level, double x, double y, double z) {
+        if (!hasSnapshot(level)) {
             return 0;
         }
         float value = 0;
         for (var arena : arenas) {
-            if (arena.contains(x, z)) {
-                value = Math.max(value, arena.intensity(level.getGameTime() + partialTick));
-            }
+            value = Math.max(value, arena.intensityAt(level.getGameTime(), x, y, z));
         }
         return value;
     }
 
-    /** Called only at vanilla's client sky/cloud rain and thunder calculations. */
-    public static float skyWeather(float vanilla) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            return vanilla;
-        }
-        Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
-        return Math.max(vanilla, intensity(mc.level, camera.x, camera.z, mc.getFrameTime()));
+    private static double cloudHalfHeight(LightningWeatherPacket.Arena arena) {
+        return Math.min(4.5, (arena.maximumY() - arena.minimumY()) / 5.0);
     }
 
-    /**
-     * Vanilla precipitation keeps its normal behavior outside local storm columns.
-     */
-    public static BlockPos rainColumn(BlockPos pos) {
-        rainColumn = pos.immutable();
-        return pos;
+    private static double cloudCenterY(LightningWeatherPacket.Arena arena, double halfHeight) {
+        return arena.maximumY() - halfHeight * 1.7;
     }
 
-    public static Biome.Precipitation precipitation(Biome biome) {
-        ClientLevel level = Minecraft.getInstance().level;
-        return level != null && intensity(level, rainColumn) > 0.2F
-                ? Biome.Precipitation.RAIN
-                : biome.getPrecipitation();
-    }
-
-    public static boolean warmEnough(Biome biome, BlockPos pos) {
-        ClientLevel level = Minecraft.getInstance().level;
-        return level != null && intensity(level, pos) > 0.2F || biome.warmEnoughToRain(pos);
+    private static boolean hasSnapshot(Level level) {
+        return level == snapshotLevel && !arenas.isEmpty() && level.getGameTime() - lastSnapshot <= 60;
     }
 
     @SubscribeEvent
-    public static void fog(ViewportEvent.ComputeFogColor event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            Vec3 camera = event.getCamera().getPosition();
-            float factor = 1 - intensity(mc.level, camera.x, camera.z, (float) event.getPartialTick()) * 0.55F;
-            event.setRed(event.getRed() * factor);
-            event.setGreen(event.getGreen() * factor);
-            event.setBlue(event.getBlue() * factor);
-        }
-    }
-
-    @SubscribeEvent
-    public static void rain(RenderLevelStageEvent event) {
+    public static void renderStorm(RenderLevelStageEvent event) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || level == null
-                || level != snapshotLevel || arenas.isEmpty()) {
+                || !hasSnapshot(level)) {
             return;
         }
         Vec3 camera = event.getCamera().getPosition();
-        int range = Minecraft.useFancyGraphics() ? 20 : 10;
-        float natural = level.getRainLevel(event.getPartialTick());
+        double time = level.getGameTime() + (double) event.getPartialTick();
+        double viewDistance = mc.options.getEffectiveRenderDistance() * 16.0;
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-        Matrix4f matrix = event.getPoseStack().last().pose();
-        mc.gameRenderer.lightTexture().turnOnLightLayer();
+        // AFTER_WEATHER already has the camera's view matrix on RenderSystem.
+        // Submit camera-relative coordinates so turning the camera applies that matrix only once.
         RenderSystem.disableCull();
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
-        RenderSystem.setShader(GameRenderer::getParticleShader);
-        RenderSystem.setShaderTexture(0, RAIN);
+
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        for (int x = Mth.floor(camera.x) - range; x <= Mth.floor(camera.x) + range; x++) {
-            for (int z = Mth.floor(camera.z) - range; z <= Mth.floor(camera.z) + range; z++) {
-                if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) {
-                    continue;
-                }
-                float strength = intensity(level, x + 0.5D, z + 0.5D, event.getPartialTick());
-                if (strength <= 0) {
-                    continue;
-                }
-                BlockPos column = new BlockPos(x, camera.y, z);
-                Biome biome = level.getBiome(column).value();
-                if (natural > 0 && strength > 0.2F
-                        || biome.getPrecipitation() == Biome.Precipitation.RAIN && biome.warmEnoughToRain(column)) {
-                    strength = Math.max(0, strength - natural);
-                }
-                if (strength <= 0) {
-                    continue;
-                }
-                int floor = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-                double bottom = Math.max(floor, camera.y - 12);
-                double top = camera.y + 14;
-                if (bottom >= top) {
-                    continue;
-                }
-                double dx = x + 0.5D - camera.x;
-                double dz = z + 0.5D - camera.z;
-                double distance = Math.sqrt(dx * dx + dz * dz);
-                float alpha = strength * 0.65F * (float) Math.max(0, 1 - distance * distance / (range * range));
-                double wx = distance < 0.01D ? 0.5D : -dz / distance * 0.5D;
-                double wz = distance < 0.01D ? 0 : dx / distance * 0.5D;
-                // With world-height UVs, increasing the V offset moves streaks downward.
-                float scroll = (level.getGameTime() + event.getPartialTick() + (x * 31 + z * 17 & 31)) * 0.12F;
-                int light = LevelRenderer.getLightColor(level, new BlockPos(x, Math.max(floor, camera.y), z));
-                vertex(buffer, matrix, dx - wx, top - camera.y, dz - wz, 0, (float) top * 0.25F + scroll, alpha, light);
-                vertex(buffer, matrix, dx + wx, top - camera.y, dz + wz, 1, (float) top * 0.25F + scroll, alpha, light);
-                vertex(buffer, matrix, dx + wx, bottom - camera.y, dz + wz, 1, (float) bottom * 0.25F + scroll, alpha,
-                        light);
-                vertex(buffer, matrix, dx - wx, bottom - camera.y, dz - wz, 0, (float) bottom * 0.25F + scroll, alpha,
-                        light);
+        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        for (var arena : arenas) {
+            if (visible(arena, camera, time, viewDistance)) {
+                drawClouds(buffer, arena, camera, time);
             }
         }
         Tesselator.getInstance().end();
+
+        mc.gameRenderer.lightTexture().turnOnLightLayer();
+        RenderSystem.setShader(GameRenderer::getParticleShader);
+        RenderSystem.setShaderTexture(0, RAIN);
+        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        for (var arena : arenas) {
+            if (visible(arena, camera, time, viewDistance)) {
+                drawRain(buffer, level, arena, camera, time);
+            }
+        }
+        Tesselator.getInstance().end();
+        mc.gameRenderer.lightTexture().turnOffLightLayer();
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
-        mc.gameRenderer.lightTexture().turnOffLightLayer();
     }
 
-    private static void vertex(BufferBuilder buffer, Matrix4f matrix, double x, double y, double z,
+    private static boolean visible(LightningWeatherPacket.Arena arena, Vec3 camera, double time, double viewDistance) {
+        Vec3 center = Vec3.atBottomCenterOf(arena.center());
+        double radius = arena.radiusAt(time);
+        return radius >= 0.1
+                && Math.hypot(center.x - camera.x, center.z - camera.z) <= radius + viewDistance;
+    }
+
+    /**
+     * Draws a closed, flattened cloud bank. Rings meet around its curved sides
+     * so the underside and top stay connected from every viewing height.
+     */
+    private static void drawClouds(BufferBuilder buffer, LightningWeatherPacket.Arena arena,
+            Vec3 camera, double time) {
+        double halfHeight = cloudHalfHeight(arena);
+        Vec3 center = new Vec3(arena.center().getX() + 0.5, cloudCenterY(arena, halfHeight),
+                arena.center().getZ() + 0.5).subtract(camera);
+        double radius = arena.radiusAt(time);
+        for (int ring = 0; ring < CLOUD_RINGS; ring++) {
+            double upper = Math.PI * (0.5 - (double) ring / CLOUD_RINGS);
+            double lower = Math.PI * (0.5 - (double) (ring + 1) / CLOUD_RINGS);
+            double upperRadius = radius * Math.cos(upper);
+            double lowerRadius = radius * Math.cos(lower);
+            double upperHeight = Math.sin(upper);
+            double lowerHeight = Math.sin(lower);
+            for (int segment = 0; segment < CLOUD_SEGMENTS; segment++) {
+                double a = Math.PI * 2 * segment / CLOUD_SEGMENTS;
+                double b = Math.PI * 2 * (segment + 1) / CLOUD_SEGMENTS;
+                cloudVertex(buffer, center, upperRadius, a, upperHeight, halfHeight, time);
+                cloudVertex(buffer, center, lowerRadius, a, lowerHeight, halfHeight, time);
+                cloudVertex(buffer, center, lowerRadius, b, lowerHeight, halfHeight, time);
+                cloudVertex(buffer, center, upperRadius, b, upperHeight, halfHeight, time);
+            }
+        }
+    }
+
+    private static void cloudVertex(BufferBuilder buffer, Vec3 center,
+            double radius, double angle, double height, double halfHeight, double time) {
+        double x = Math.cos(angle) * radius;
+        double z = Math.sin(angle) * radius;
+        double variation = (Math.sin(x * 0.14 + z * 0.11 - time * 0.018)
+                + Math.sin(z * 0.27 - x * 0.09 + time * 0.011)) * 0.5;
+        double y = center.y + halfHeight * (variation * 0.5 + height * (1 + variation * 0.2));
+        float shade = (float) (0.23 + variation * 0.06 + height * 0.05);
+        float opacity = (float) (0.56 + variation * 0.09 + Math.abs(height) * 0.14);
+        buffer.vertex((float) (center.x + x), (float) y, (float) (center.z + z))
+                .color(shade * 0.8F, shade * 0.92F, shade * 1.15F, opacity).endVertex();
+    }
+
+    /**
+     * Distributes rain from the terrain to the cloud base. Each cell has a fixed
+     * offset and orientation to break up straight sightlines through the rain.
+     */
+    private static void drawRain(BufferBuilder buffer, ClientLevel level,
+            LightningWeatherPacket.Arena arena, Vec3 camera, double time) {
+        double radius = arena.radiusAt(time);
+        double top = cloudCenterY(arena, cloudHalfHeight(arena));
+        double centerX = arena.center().getX() + 0.5;
+        double centerZ = arena.center().getZ() + 0.5;
+        int extent = Mth.ceil(radius / RAIN_SPACING + 0.5);
+        for (int dx = -extent; dx <= extent; dx++) {
+            for (int dz = -extent; dz <= extent; dz++) {
+                int cellX = arena.center().getX() + dx * RAIN_SPACING;
+                int cellZ = arena.center().getZ() + dz * RAIN_SPACING;
+                long pattern = RandomSupport.mixStafford13(BlockPos.asLong(cellX, 0, cellZ));
+                double x = cellX + 0.5 + (rainVariation(pattern) - 0.5) * 1.8;
+                double z = cellZ + 0.5 + (rainVariation(pattern >>> 8) - 0.5) * 1.8;
+                float strength = arena.intensityAt(time, x, top, z);
+                int blockX = Mth.floor(x);
+                int blockZ = Mth.floor(z);
+                if (strength <= 0 || !level.getChunkSource().hasChunk(blockX >> 4, blockZ >> 4)) {
+                    continue;
+                }
+                int floor = Math.max(arena.minimumY(), level.getHeight(Heightmap.Types.MOTION_BLOCKING, blockX, blockZ));
+                if (floor >= top) {
+                    continue;
+                }
+
+                float alpha = strength * 0.40F;
+                int light = LevelRenderer.getLightColor(level, new BlockPos(blockX, floor, blockZ));
+                double edge = radius - Math.hypot(x - centerX, z - centerZ);
+                double halfWidth = Math.min(0.85, edge);
+                double downwind = Math.min((top - floor) * 0.20, edge - halfWidth);
+                float scroll = (float) (time % 800) * 0.12F + rainVariation(pattern >>> 16);
+                float bottomV = floor * 0.25F + scroll;
+                float topV = (float) top * 0.25F + scroll;
+                double angle = rainVariation(pattern >>> 24) * Math.PI / 2;
+                double wx = Math.cos(angle) * halfWidth;
+                double wz = Math.sin(angle) * halfWidth;
+                // Crossed vertical planes are visible from both sides and do not rotate with the camera.
+                rainPlane(buffer, x - camera.x, z - camera.z, floor - camera.y, top - camera.y,
+                        downwind, wx, wz, bottomV, topV, alpha, light);
+                rainPlane(buffer, x - camera.x, z - camera.z, floor - camera.y, top - camera.y,
+                        downwind, -wz, wx, bottomV, topV, alpha, light);
+            }
+        }
+    }
+
+    /** Extracts one independent fraction from the cell's stable hash. */
+    private static float rainVariation(long bits) {
+        return (bits & 255) / 256.0F;
+    }
+
+    private static void rainPlane(BufferBuilder buffer, double x, double z, double bottom,
+            double top, double slant, double wx, double wz, float bottomV, float topV, float alpha, int light) {
+        double topX = x - slant * 0.91;
+        double topZ = z - slant * 0.41;
+        rainVertex(buffer, topX - wx, top, topZ - wz, 0, topV, alpha, light);
+        rainVertex(buffer, topX + wx, top, topZ + wz, 1, topV, alpha, light);
+        rainVertex(buffer, x + wx, bottom, z + wz, 1, bottomV, alpha, light);
+        rainVertex(buffer, x - wx, bottom, z - wz, 0, bottomV, alpha, light);
+    }
+
+    private static void rainVertex(BufferBuilder buffer, double x, double y, double z,
             float u, float v, float alpha, int light) {
-        buffer.vertex(matrix, (float) x, (float) y, (float) z).uv(u, v).color(1, 1, 1, alpha).uv2(light).endVertex();
+        buffer.vertex((float) x, (float) y, (float) z)
+                .uv(u, v).color(0.79F, 0.86F, 1, alpha).uv2(light).endVertex();
     }
 
     @SubscribeEvent
@@ -200,21 +259,24 @@ public final class LightningWeatherVisuals {
             return;
         }
         ClientLevel level = mc.level;
-        if (level != snapshotLevel || arenas.isEmpty()) {
+        if (!hasSnapshot(level)) {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
-        float strength = intensity(level, camera.x, camera.z, 0);
+        if (level.getGameTime() % 3 == 0) {
+            showFront(level, camera);
+        }
+        float strength = intensity(level, camera.x, camera.y, camera.z);
         // Splashes are also visible from outside, unlike the listener-local rain sound.
         for (int index = 0; index < 20; index++) {
             int x = Mth.floor(camera.x) + level.random.nextInt(25) - 12;
             int z = Mth.floor(camera.z) + level.random.nextInt(25) - 12;
-            if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)
-                    || level.random.nextFloat() >= intensity(level, x + 0.5D, z + 0.5D, 0)) {
+            if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) {
                 continue;
             }
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-            if (Math.abs(y - camera.y) < 12) {
+            if (Math.abs(y - camera.y) < 12
+                    && level.random.nextFloat() < intensity(level, x + 0.5, y + 0.1, z + 0.5)) {
                 level.addParticle(ParticleTypes.RAIN, x + level.random.nextDouble(), y + 0.1D,
                         z + level.random.nextDouble(), 0, 0, 0);
             }
@@ -225,6 +287,82 @@ public final class LightningWeatherVisuals {
                     sheltered ? SoundEvents.WEATHER_RAIN_ABOVE : SoundEvents.WEATHER_RAIN,
                     SoundSource.WEATHER, strength * (sheltered ? 0.2F : 0.4F), sheltered ? 0.5F : 1.0F, false);
         }
+    }
+
+    /** Samples only the nearby arc of the storm front, even when viewed from outside. */
+    private static void showFront(ClientLevel level, Vec3 camera) {
+        long now = level.getGameTime();
+        int remaining = 80;
+        for (var arena : arenas) {
+            double radius = arena.radiusAt(now);
+            Vec3 center = Vec3.atBottomCenterOf(arena.center());
+            double dx = camera.x - center.x;
+            double dz = camera.z - center.z;
+            double radial = Math.hypot(dx, dz);
+            if (radius < 0.25 || Math.abs(radial - radius) > FRONT_VISIBILITY) {
+                continue;
+            }
+            // A short visible arc keeps the marker density consistent on large arenas.
+            double arc = radius <= FRONT_VISIBILITY - radial ? Math.PI : Math.min(Math.PI, FRONT_VISIBILITY / radius);
+            double bearing = Math.atan2(dz, dx);
+            int samples = Math.min(64, Math.max(8, (int) Math.ceil(arc * radius)));
+            for (int index = 0; index < samples && remaining > 0; index++) {
+                double angle = bearing + ((index + level.random.nextDouble()) / samples * 2 - 1) * arc;
+                double x = center.x + Math.cos(angle) * radius;
+                double z = center.z + Math.sin(angle) * radius;
+                double ground = LightningRingSurface.find(level, x, z, center.y, arena.minimumY(),
+                        arena.maximumY() - 1);
+                double water = findFrontWaterSurface(level, arena, x, z, ground);
+                boolean overWater = Double.isFinite(water);
+                double y = overWater ? water : ground;
+                if (!Double.isFinite(y) || camera.distanceToSqr(x, y, z) > FRONT_VISIBILITY * FRONT_VISIBILITY) {
+                    continue;
+                }
+                boolean building = arena.isBuilding(now);
+                double height = building ? level.random.nextDouble() * 3 : level.random.nextDouble() * 1.8;
+                if (overWater) {
+                    level.addParticle(ParticleTypes.SPLASH, true, x, Math.min(y + 0.05, arena.maximumY() - 0.01),
+                            z, 0.15, 0.08, 0.07);
+                }
+                double windY = Math.min(y + 0.3 + height, arena.maximumY() - 0.01);
+                level.addParticle(ParticleTypes.CLOUD, true, x, windY, z, 0.22, 0.02, 0.10);
+                if (index % 4 == 0) {
+                    level.addParticle(ParticleTypes.ELECTRIC_SPARK, true, x,
+                            Math.min(y + 0.18, arena.maximumY() - 0.01), z, 0, 0.02, 0);
+                }
+                remaining--;
+            }
+        }
+    }
+
+    /** Uses exposed fluid height so deep or flowing water can carry the front instead of its seabed. */
+    private static double findFrontWaterSurface(ClientLevel level, LightningWeatherPacket.Arena arena,
+            double x, double z, double ground) {
+        int blockX = Mth.floor(x);
+        int blockZ = Mth.floor(z);
+        if (!level.getChunkSource().hasChunk(blockX >> 4, blockZ >> 4)) {
+            return Double.NaN;
+        }
+        int minY = Double.isFinite(ground) ? Math.max(arena.minimumY(), Mth.floor(ground)) : arena.minimumY();
+        int maxY = Math.min(arena.maximumY() - 1, level.getHeight(Heightmap.Types.MOTION_BLOCKING, blockX, blockZ) - 1);
+        var pos = new BlockPos.MutableBlockPos(blockX, maxY, blockZ);
+        for (int y = maxY; y >= minY; y--) {
+            pos.setY(y);
+            var fluid = level.getFluidState(pos);
+            if (!fluid.is(FluidTags.WATER)) {
+                continue;
+            }
+            BlockPos above = pos.above();
+            if (level.getFluidState(above).is(FluidTags.WATER)
+                    || level.getBlockState(above).isFaceSturdy(level, above, Direction.DOWN)) {
+                continue;
+            }
+            double surface = y + fluid.getHeight(level, pos);
+            if (arena.containsY(surface) && (!Double.isFinite(ground) || surface >= ground)) {
+                return surface;
+            }
+        }
+        return Double.NaN;
     }
 
     @SubscribeEvent

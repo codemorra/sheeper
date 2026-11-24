@@ -41,8 +41,8 @@ public final class WaterLifecycleGameTests {
         c.level.getDataStorage().set("sheeper_water_arenas", new WaterArenaData());
         c.set(WaterSheeperConfig.WATER_SIZE, 1.0D);
         c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 8.0D);
-        c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 6);
-        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
+        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT, 6);
+        c.set(WaterSheeperConfig.WATER_ARENA_DEPTH, 0);
         c.set(WaterSheeperConfig.WATER_ARENA_BUILD_DURATION, startupSeconds);
         c.set(WaterSheeperConfig.WATER_ARENA_DRAIN_DURATION, drainSeconds);
         c.set(WaterSheeperConfig.WATER_SPAWN_PUSH_SPEED, 0.0D);

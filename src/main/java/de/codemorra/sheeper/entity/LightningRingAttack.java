@@ -117,9 +117,8 @@ final class LightningRingAttack {
                 arenaCenter = Vec3.atBottomCenterOf(boss.getArenaCenter());
                 arenaRadius = boss.getCombatRadius();
                 maxRadius = arenaRadius + Math.sqrt(origin.subtract(arenaCenter).horizontalDistanceSqr());
-                double height = LightningSheeperConfig.LIGHTNING_COMBAT_HEIGHT_RANGE.get();
-                minY = Math.max(boss.level.getMinBuildHeight(), Mth.ceil(arenaCenter.y - height));
-                maxY = Math.min(boss.level.getMaxBuildHeight() - 1, Mth.floor(arenaCenter.y + height));
+                minY = boss.getArenaMinimumY();
+                maxY = boss.getArenaMaximumY() - 1;
                 stage = Stage.CHARGE;
             }
             return;
