@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningWeatherVisuals;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -17,7 +19,8 @@ import net.minecraftforge.network.NetworkEvent;
  * Full dimension snapshot; clients can render an arena without tracking its
  * boss.
  */
-public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> arenas) {
+public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> arenas, double boundarySlowdownWidth,
+        double boundarySlowdownStrength) {
     public record Arena(BlockPos center, double radius, int minimumY, int maximumY, long start, int transition,
             long drainStart, int drainDuration) {
         /** Applies the captured floor and exclusive ceiling to all storm effects. */
@@ -87,6 +90,8 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             buffer.writeLong(arena.drainStart());
             buffer.writeVarInt(arena.drainDuration());
         }
+        buffer.writeDouble(boundarySlowdownWidth);
+        buffer.writeDouble(boundarySlowdownStrength);
     }
 
     public static LightningWeatherPacket decode(FriendlyByteBuf buffer) {
@@ -111,7 +116,16 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             }
             arenas.add(arena);
         }
-        return new LightningWeatherPacket(dimension, List.copyOf(arenas));
+        double width = buffer.readDouble();
+        double strength = buffer.readDouble();
+        ForgeConfigSpec.ValueSpec widthSpec = LightningSheeperConfig.SPEC.getSpec()
+                .get(LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_WIDTH.getPath());
+        ForgeConfigSpec.ValueSpec strengthSpec = LightningSheeperConfig.SPEC.getSpec()
+                .get(LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH.getPath());
+        if (!widthSpec.test(width) || !strengthSpec.test(strength)) {
+            throw new IllegalArgumentException("Invalid storm boundary slowdown settings");
+        }
+        return new LightningWeatherPacket(dimension, List.copyOf(arenas), width, strength);
     }
 
     public void handle(Supplier<NetworkEvent.Context> context) {

@@ -1,11 +1,15 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
+import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -23,6 +27,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
@@ -34,6 +39,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private BlockPos arenaCenter;
     @Nullable
     private LightningWeatherPacket.Arena arena;
+    private Set<UUID> admittedPlayers = Set.of();
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -96,20 +102,35 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Current arena participants, independent of preparation progress and line of
-     * sight.
+     * Admits players past the inner side of the storm and retains them until
+     * they cross the actual boundary, including the open top and bottom.
      */
     public List<ServerPlayer> getCombatParticipants() {
-        if (!(level instanceof ServerLevel server) || !isAlive() || isRemoved()) {
+        if (!(level instanceof ServerLevel server) || !isAlive() || isRemoved() || !isCombatReady()) {
+            admittedPlayers = Set.of();
             return List.of();
         }
-        return server.players().stream()
+        double radius = getCombatRadius();
+        double innerRadius = radius - LightningArenaBoundaryDrag.entryInset(radius);
+        List<ServerPlayer> participants = server.players().stream()
                 .filter(player -> player.level == level && player.isAlive() && !player.isRemoved()
                         && !player.isCreative() && !player.isSpectator()
-                        && horizontalDistanceSquared(player.getX(), player.getZ()) <= getCombatRadius()
-                                * getCombatRadius()
-                        && isWithinArenaHeight(player.getY()))
+                        && horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
+                        && isWithinArenaHeight(player.getBoundingBox().getCenter().y)
+                        && (admittedPlayers.contains(player.getUUID()) || fitsBehindStorm(player, innerRadius)))
                 .toList();
+        admittedPlayers = participants.stream().map(ServerPlayer::getUUID).collect(Collectors.toSet());
+        return participants;
+    }
+
+    /** Requires the player's horizontal footprint to clear the side band on entry. */
+    private boolean fitsBehindStorm(ServerPlayer player, double innerRadius) {
+        AABB body = player.getBoundingBox();
+        double centerX = getArenaCenter().getX() + 0.5;
+        double centerZ = getArenaCenter().getZ() + 0.5;
+        double x = Math.max(Math.abs(body.minX - centerX), Math.abs(body.maxX - centerX));
+        double z = Math.max(Math.abs(body.minZ - centerZ), Math.abs(body.maxZ - centerZ));
+        return x * x + z * z <= innerRadius * innerRadius;
     }
 
     @Override
@@ -144,6 +165,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                     getCombatRadius(), getArenaMinimumY(), getArenaMaximumY());
             entityData.set(DATA_COMBAT_READY,
                     arena != null && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
+            getCombatParticipants();
         }
         super.tick();
     }
@@ -203,6 +225,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 ? BlockPos.of(tag.getLong("LightningArenaCenter"))
                 : null;
         arena = null;
+        admittedPlayers = Set.of();
     }
 
     @Override

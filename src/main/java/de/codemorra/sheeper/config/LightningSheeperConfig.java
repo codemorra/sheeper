@@ -36,6 +36,16 @@ public final class LightningSheeperConfig {
                     "Applies to new arenas.")
             .defineInRange("arena.depth", 24, 0, 32);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_WIDTH = BUILDER
+            .comment("Blocks on each side of the storm boundary where crossing is slowed. 0 disables the slowdown.",
+                    "Combat entry uses the inner edge. Width is capped at half the arena radius.")
+            .defineInRange("boundary.slowdownWidth", 1.5, 0.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH = BUILDER
+            .comment("Fraction of sideways crossing speed lost at the storm boundary. 0 disables the slowdown.",
+                    "Movement along the boundary and through the top or bottom stays free.")
+            .defineInRange("boundary.slowdownStrength", 0.35, 0.0, 0.75);
+
     /** Lightning arena buildup (arenaBuild). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
             .comment("Seconds for the storm front to spread from the center to the arena edge. 0 skips the buildup.")

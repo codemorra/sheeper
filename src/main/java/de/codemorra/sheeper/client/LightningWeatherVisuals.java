@@ -11,6 +11,7 @@ import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.util.ResourceLocations;
+import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
@@ -58,7 +59,13 @@ public final class LightningWeatherVisuals {
             snapshotLevel = level;
             arenas = packet.arenas();
             lastSnapshot = level.getGameTime();
+            LightningArenaBoundaryDrag.receive(packet.boundarySlowdownWidth(), packet.boundarySlowdownStrength());
         }
+    }
+
+    /** @return current storm snapshots for local movement prediction */
+    public static List<LightningWeatherPacket.Arena> visibleArenas(Level level) {
+        return hasSnapshot(level) ? arenas : List.of();
     }
 
     public static float intensity(Level level, BlockPos pos) {
@@ -322,7 +329,19 @@ public final class LightningWeatherVisuals {
                 double water = findFrontWaterSurface(level, arena, x, z, ground);
                 boolean overWater = Double.isFinite(water);
                 double y = overWater ? water : ground;
-                if (!Double.isFinite(y) || camera.distanceToSqr(x, y, z) > FRONT_VISIBILITY * FRONT_VISIBILITY) {
+                if (!building && !draining && index % 3 == 0
+                        && (!Double.isFinite(y) || Math.abs(camera.y - y) > 5)
+                        && arena.containsY(camera.y)
+                        && camera.distanceToSqr(x, camera.y, z) <= FRONT_VISIBILITY * FRONT_VISIBILITY
+                        && level.getChunkSource().hasChunk(Mth.floor(x) >> 4, Mth.floor(z) >> 4)) {
+                    // Mark the side at altitude or over empty space, where there is no nearby surface marker.
+                    double sideY = Mth.clamp(camera.y + level.random.nextDouble() * 4 - 2,
+                            arena.minimumY(), arena.maximumY() - 0.01);
+                    level.addParticle(ParticleTypes.CLOUD, true, x, sideY, z, 0.22, 0.02, 0.10);
+                    remaining--;
+                }
+                if (remaining == 0 || !Double.isFinite(y)
+                        || camera.distanceToSqr(x, y, z) > FRONT_VISIBILITY * FRONT_VISIBILITY) {
                     continue;
                 }
                 double height = building ? level.random.nextDouble() * 3 : level.random.nextDouble() * 1.8;
