@@ -41,6 +41,10 @@ public final class LightningSheeperConfig {
             .comment("Seconds for the storm front to spread from the center to the arena edge. 0 skips the buildup.")
             .defineInRange("arenaBuild.durationSeconds", 5.0, 0.0, 30.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ARENA_DRAIN_DURATION = BUILDER
+            .comment("Seconds for the storm front to retreat and fade after the boss is defeated or removed.")
+            .defineInRange("arena.drainDurationSeconds", 8.0, 1.0, 30.0);
+
     public static final ForgeConfigSpec.IntValue LIGHTNING_PREPARATION_WAVE_COUNT = BUILDER
             .comment("Number of outward preparation waves before storm awakening begins.")
             .defineInRange("arena.waveCount", 3, 1, 16);

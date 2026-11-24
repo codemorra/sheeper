@@ -24,10 +24,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 
-/** Keeps storm geometry and its opening time available independently of boss tracking. */
+/** Keeps the storm and its lifecycle available independently of boss tracking. */
 public final class LightningStormData extends SavedData {
     private static final class Storm {
-        private final LightningWeatherPacket.Arena arena;
+        private LightningWeatherPacket.Arena arena;
         private long nextFlash;
         private long nextRumble;
 
@@ -55,7 +55,7 @@ public final class LightningStormData extends SavedData {
         if (storm == null) {
             int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION.get());
             var arena = new LightningWeatherPacket.Arena(center.immutable(), radius, minimumY, maximumY,
-                    level.getGameTime(), duration);
+                    level.getGameTime(), duration, 0, 0);
             if (!arena.isValid()) {
                 return null;
             }
@@ -67,11 +67,19 @@ public final class LightningStormData extends SavedData {
         return storm.arena;
     }
 
-    public void remove(ServerLevel level, UUID id) {
-        if (storms.remove(id) != null) {
-            setDirty();
-            sync(level);
+    /**
+     * Starts one retreat after defeat or permanent removal. Subsequent removal
+     * callbacks for the same boss leave the original animation clock intact.
+     */
+    public void beginDrain(ServerLevel level, UUID id) {
+        Storm storm = storms.get(id);
+        if (storm == null || storm.arena.isDraining()) {
+            return;
         }
+        int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ARENA_DRAIN_DURATION.get());
+        storm.arena = storm.arena.beginDrain(level.getGameTime(), duration);
+        setDirty();
+        sync(level);
     }
 
     public boolean hasStorms() {
@@ -92,12 +100,18 @@ public final class LightningStormData extends SavedData {
 
     public void tick(ServerLevel level) {
         long now = level.getGameTime();
+        boolean removed = storms.values().removeIf(storm -> storm.arena.hasFinishedDraining(now));
+        if (removed) {
+            setDirty();
+        }
         if (hasStorms()) {
             for (Storm storm : storms.values()) {
-                tickAtmosphere(level, storm, now);
+                if (!storm.arena.isDraining()) {
+                    tickAtmosphere(level, storm, now);
+                }
             }
         }
-        if (now % 10 == 0) {
+        if (removed || now % 10 == 0) {
             sync(level);
         }
     }
@@ -151,7 +165,8 @@ public final class LightningStormData extends SavedData {
             CompoundTag entry = (CompoundTag) value;
             var arena = new LightningWeatherPacket.Arena(BlockPos.of(entry.getLong("Center")), entry.getDouble("Radius"),
                     entry.getInt("MinimumY"), entry.getInt("MaximumY"),
-                    entry.getLong("Start"), Mth.clamp(entry.getInt("Transition"), 0, 1200));
+                    entry.getLong("Start"), Mth.clamp(entry.getInt("Transition"), 0, 1200),
+                    entry.getLong("DrainStart"), Mth.clamp(entry.getInt("DrainDuration"), 0, 600));
             if (entry.hasUUID("Boss") && arena.isValid()) {
                 data.storms.put(entry.getUUID("Boss"), new Storm(arena));
             }
@@ -171,6 +186,8 @@ public final class LightningStormData extends SavedData {
             entry.putInt("MaximumY", storm.arena.maximumY());
             entry.putLong("Start", storm.arena.start());
             entry.putInt("Transition", storm.arena.transition());
+            entry.putLong("DrainStart", storm.arena.drainStart());
+            entry.putInt("DrainDuration", storm.arena.drainDuration());
             entries.add(entry);
         });
         tag.put("Storms", entries);
