@@ -23,6 +23,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
@@ -47,6 +48,7 @@ import net.minecraftforge.fluids.FluidType;
 public class WaterSheeperEntity extends ElementalSheeperEntity {
     // Counteracts vanilla sheep water slowdown; user tuning uses navigation speed.
     private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
+    private static final double LAVA_ESCAPE_SPEED = 0.16;
     private static final int DEATH_ANIMATION_TICKS = 60;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
@@ -307,6 +309,20 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         return isInArenaWater() ? movement : super.getFluidFallingAdjustedMovement(gravity, falling, movement);
     }
 
+    /** Surfaces through open lava even when ordinary swim navigation cannot start. */
+    @Override
+    public void travel(Vec3 input) {
+        if (!level.isClientSide && isAlive() && !isNoAi() && isInLava()
+                && isCombatReady() && containsAttackPoint(position())) {
+            Vec3 movement = getDeltaMovement();
+            // Lava can interrupt a downward swim leg. Rise using ordinary collision and fluid drag.
+            setDeltaMovement(movement.x, Math.max(movement.y, LAVA_ESCAPE_SPEED), movement.z);
+            super.travel(new Vec3(input.x, 0, input.z));
+            return;
+        }
+        super.travel(input);
+    }
+
     /**
      * Projects a requested feet position into the swim volume, accounting for the
      * boss's height and the inset needed at the top water surface.
@@ -354,7 +370,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             if (!WaterArenaData.isLoaded(server, cell)) {
                 return false;
             }
-            if (!arenaVolume.contains(cell)) {
+            if (!arenaVolume.contains(cell) || server.getFluidState(cell).is(FluidTags.LAVA)) {
                 return false;
             }
         }

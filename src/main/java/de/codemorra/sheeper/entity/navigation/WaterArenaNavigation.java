@@ -4,6 +4,7 @@ import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.ai.navigation.WaterBoundPathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.BlockGetter;
@@ -98,7 +99,7 @@ public final class WaterArenaNavigation extends WaterBoundPathNavigation {
                 .expandTowards(to.subtract(from)).deflate(0.01D);
         for (BlockPos pos : BlockPos.betweenClosed(new BlockPos(swept.minX, swept.minY, swept.minZ),
                 new BlockPos(swept.maxX, swept.maxY, swept.maxZ))) {
-            if (!WaterArenaData.isLoaded(server, pos)) {
+            if (!WaterArenaData.isLoaded(server, pos) || server.getFluidState(pos).is(FluidTags.LAVA)) {
                 return false;
             }
         }
