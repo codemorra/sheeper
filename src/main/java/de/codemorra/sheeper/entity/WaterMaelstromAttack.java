@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -19,6 +20,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 
@@ -29,7 +31,9 @@ import net.minecraft.world.phys.shapes.Shapes;
 final class WaterMaelstromAttack {
     private static final float INITIAL_ROTATION_DEGREES_PER_SECOND = 180.0F;
     private static final double PREPARATION_RADIUS = 6.0D;
-    private static final double PREPARATION_HEIGHT_RANGE = 2.0D;
+    private static final double PREFERRED_FLOOR_CLEARANCE = 1;
+    private static final double MAX_FLOOR_CLEARANCE = 2;
+    private static final double COLLISION_EPSILON = 0.001;
 
     private enum Phase {
         IDLE, APPROACH, ROTATION, ASCENT, MEDIUM_PULL, STRONG_PULL, DESCENT, RECOVERY
@@ -43,7 +47,6 @@ final class WaterMaelstromAttack {
     private Vec3 destination;
     private int phaseTicks;
     private int replanTicks;
-    private double minimumPreparationY = Double.NaN;
     private double ascentStartY;
     private double ascentTargetY;
     private float rotationDegrees;
@@ -55,9 +58,8 @@ final class WaterMaelstromAttack {
     }
 
     /**
-     * Chooses a loaded water position within six blocks of the horizontal center.
-     * The lowest available level is preferred; at most two blocks above the
-     * shared minimum height are allowed, regardless of individual block types.
+     * Chooses a loaded water position near the saved arena center and above its
+     * local floor.
      *
      * @return whether a safe approach or an immediate rotation could begin
      */
@@ -67,45 +69,32 @@ final class WaterMaelstromAttack {
     }
 
     /**
-     * Searches target sets together so one blocked center cell cannot hide other
-     * reachable positions.
+     * Prioritizes reachable starts over the center, then nearby starts and
+     * finally the lower positions needed in shallow arenas.
      */
     private boolean chooseApproach() {
-        Set<BlockPos> positions = findPreparationPositions();
-        Set<BlockPos> floor = new HashSet<>();
-        Set<BlockPos> elevated = new HashSet<>();
-        for (BlockPos node : positions) {
-            double height = point(node).y - minimumPreparationY;
-            if (height >= 0 && height <= PREPARATION_HEIGHT_RANGE) {
-                (height <= 0.01D ? floor : elevated).add(node);
+        Vec3 current = boss.position();
+        double clearance = preparationClearance(current);
+        if (Double.isFinite(clearance) && clearance >= PREFERRED_FLOOR_CLEARANCE && isOverCenter(current)) {
+            beginRotation();
+            return true;
+        }
+        Path partial = null;
+        for (Set<BlockPos> candidates : findPreparationPositions()) {
+            Path path = approachPath(candidates);
+            if (path != null && path.canReach()) {
+                followApproach(path);
+                return true;
+            }
+            if (partial == null) {
+                partial = path;
             }
         }
-        boolean currentAllowed = isPreparationPosition(boss.position());
-        if (currentAllowed && boss.getY() <= minimumPreparationY + 0.01D) {
-            destination = boss.position();
+        if (Double.isFinite(clearance)) {
             beginRotation();
             return true;
         }
-        Path floorPath = approachPath(floor);
-        if (floorPath != null && floorPath.canReach()) {
-            followApproach(floorPath);
-            return true;
-        }
-        if (currentAllowed) {
-            // If the lowest level cannot be reached, the shared two-block
-            // height band still permits preparation at the current position.
-            destination = boss.position();
-            beginRotation();
-            return true;
-        }
-        Path elevatedPath = approachPath(elevated);
-        if (elevatedPath != null && elevatedPath.canReach()) {
-            followApproach(elevatedPath);
-            return true;
-        }
-        // Long approaches may exceed the pathfinder's range. Continue along a
-        // progressing partial route, then reassess alternatives if it stalls.
-        Path partial = floorPath != null ? floorPath : elevatedPath;
+        // Beyond the pathfinder's range, keep a progressing route and retry at the next waypoint.
         if (partial != null) {
             followApproach(partial);
             return true;
@@ -125,39 +114,58 @@ final class WaterMaelstromAttack {
                 && boss.isWithinMovementArea(point.x, point.z);
     }
 
+    /** Includes the closest aligned nodes for narrow and wide boss bodies. */
+    private boolean isOverCenter(Vec3 point) {
+        double dx = point.x - boss.getArenaCenter().getX() - 0.5;
+        double dz = point.z - boss.getArenaCenter().getZ() - 0.5;
+        return Math.abs(dx) <= 0.5 && Math.abs(dz) <= 0.5;
+    }
+
     /**
-     * Finds a shared minimum rather than measuring above each local obstacle.
-     * The saved spawn height anchors the reference; lower free positions within
-     * the preparation area can lower it, but placed blocks cannot raise it.
-     *
-     * @return loaded, full-body swim positions across the preparation cylinder
+     * @return loaded swim nodes grouped by preference for the approach
      */
-    private Set<BlockPos> findPreparationPositions() {
-        minimumPreparationY = boss.getArenaCenter().getY();
+    private List<Set<BlockPos>> findPreparationPositions() {
+        Set<BlockPos> central = new HashSet<>();
+        Set<BlockPos> nearby = new HashSet<>();
+        Set<BlockPos> low = new HashSet<>();
+        List<Set<BlockPos>> groups = List.of(central, nearby, low);
         double offset = (int) (boss.getBbWidth() + 1.0F) * 0.5D;
         BlockPos center = new BlockPos(boss.getArenaCenter().getX() + 0.5D - offset,
                 boss.getArenaWaterMinimumY(), boss.getArenaCenter().getZ() + 0.5D - offset);
         int maximumY = Mth.floor(boss.getArenaWaterSurfaceY() - boss.getBbHeight() - 0.15D);
-        Set<BlockPos> positions = new HashSet<>();
         if (maximumY < center.getY()) {
-            return positions;
+            return groups;
         }
         for (BlockPos node : BlockPos.betweenClosed(
                 new BlockPos(center.getX() - 6, center.getY(), center.getZ() - 6),
                 new BlockPos(center.getX() + 6, maximumY, center.getZ() + 6))) {
             Vec3 point = point(node);
-            if (insidePreparationArea(point) && boss.canSwimAt(point)) {
-                positions.add(node.immutable());
-                minimumPreparationY = Math.min(minimumPreparationY, point.y);
+            double clearance = preparationClearance(point);
+            if (Double.isFinite(clearance)) {
+                Set<BlockPos> group = clearance < PREFERRED_FLOOR_CLEARANCE ? low
+                        : isOverCenter(point) ? central : nearby;
+                group.add(node.immutable());
             }
         }
-        return positions;
+        return groups;
     }
 
-    private boolean isPreparationPosition(Vec3 point) {
-        return insidePreparationArea(point) && point.y >= minimumPreparationY - 0.01D
-                && point.y <= minimumPreparationY + PREPARATION_HEIGHT_RANGE
-                && boss.canSwimAt(point);
+    /**
+     * Probes below the whole boss body. The virtual floor limits the probe in
+     * open terrain, and solid collision shapes provide the local floor elsewhere.
+     *
+     * @return the usable drop below this start, or infinity for an unsuitable start
+     */
+    private double preparationClearance(Vec3 point) {
+        if (!insidePreparationArea(point) || !boss.canSwimAt(point)) {
+            return Double.POSITIVE_INFINITY;
+        }
+        AABB body = boss.getBoundingBox().move(point.subtract(boss.position()));
+        double probe = Math.min(Math.max(0, point.y - boss.getArenaWaterMinimumY()),
+                MAX_FLOOR_CLEARANCE + COLLISION_EPSILON);
+        double drop = -clipDescent(body, probe);
+        return drop <= MAX_FLOOR_CLEARANCE && (drop == 0 || boss.canSwimAt(point.add(0, -drop, 0)))
+                ? drop : Double.POSITIVE_INFINITY;
     }
 
     /**
@@ -201,15 +209,16 @@ final class WaterMaelstromAttack {
         if (phase == Phase.IDLE || destination == null) {
             return false;
         }
-        if (!Double.isFinite(minimumPreparationY)) {
-            findPreparationPositions();
+        if (phase == Phase.APPROACH && !Double.isFinite(preparationClearance(destination)) && !chooseApproach()) {
+            return false;
         }
-        if ((phase == Phase.APPROACH || phase == Phase.ROTATION) && !isPreparationPosition(destination)
-                && (phase != Phase.APPROACH || !chooseApproach())) {
+        // Once rotation begins, lost support only changes the eventual landing height.
+        if (phase == Phase.ROTATION && (!insidePreparationArea(boss.position()) || !boss.canSwimAt(boss.position()))) {
             return false;
         }
         if (phase == Phase.APPROACH) {
-            if (boss.position().distanceToSqr(destination) <= 0.36D && isPreparationPosition(boss.position())) {
+            if (boss.position().distanceToSqr(destination) <= 0.36D
+                    && Double.isFinite(preparationClearance(boss.position()))) {
                 beginRotation();
             } else if (++phaseTicks >= SheeperConfig
                     .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_CENTER_TIMEOUT.get())) {
@@ -289,15 +298,17 @@ final class WaterMaelstromAttack {
      */
     private boolean descend() {
         holdPosition();
-        double bottom = Math.max(boss.getArenaWaterMinimumY(), minimumPreparationY);
-        double distance = Math.max(0, boss.getY() - bottom);
+        double distance = Math.max(0, boss.getY() - boss.getArenaWaterMinimumY());
         double step = Math.min(distance, WaterSheeperConfig.WATER_MAELSTROM_SLAM_SPEED.get() / 20.0D);
-        double movement = Shapes.collide(Direction.Axis.Y, boss.getBoundingBox(),
-                boss.level.getBlockCollisions(boss, boss.getBoundingBox().expandTowards(0, -step, 0)), -step);
+        double probe = clipDescent(boss.getBoundingBox(), Math.min(distance, step + COLLISION_EPSILON));
+        double movement = Math.max(-step, probe);
+        if (!boss.canSwimAt(boss.position().add(0, movement, 0))) {
+            return false;
+        }
         if (movement < 0) {
             boss.move(MoverType.SELF, new Vec3(0, movement, 0));
         }
-        if (distance <= step + 0.01D || Math.abs(movement) < step - 0.001D || ++phaseTicks >= 200) {
+        if (distance <= step || probe >= -step) {
             // Immunity and suction end immediately at impact; recovery holds the
             // boss still while the independent wave carries and damages players.
             showImpact();
@@ -306,7 +317,13 @@ final class WaterMaelstromAttack {
             phaseTicks = 0;
             holdPosition();
         }
-        return true;
+        return phase == Phase.RECOVERY || ++phaseTicks < 200;
+    }
+
+    /** Returns the vertical displacement permitted by the terrain under the body. */
+    private double clipDescent(AABB body, double distance) {
+        return Shapes.collide(Direction.Axis.Y, body,
+                boss.level.getBlockCollisions(boss, body.expandTowards(0, -distance, 0)), -distance);
     }
 
     /**
@@ -379,6 +396,7 @@ final class WaterMaelstromAttack {
     }
 
     private void beginRotation() {
+        destination = boss.position();
         phase = Phase.ROTATION;
         phaseTicks = 0;
         holdPosition();
@@ -499,7 +517,6 @@ final class WaterMaelstromAttack {
         destination = null;
         phaseTicks = 0;
         replanTicks = 0;
-        minimumPreparationY = Double.NaN;
         ascentStartY = 0;
         ascentTargetY = 0;
         rotationDegrees = 0;
@@ -518,9 +535,6 @@ final class WaterMaelstromAttack {
         tag.putFloat("RotationDegrees", rotationDegrees);
         tag.putDouble("AscentStartY", ascentStartY);
         tag.putDouble("AscentTargetY", ascentTargetY);
-        if (Double.isFinite(minimumPreparationY)) {
-            tag.putDouble("MinimumY", minimumPreparationY);
-        }
         if (destination != null) {
             tag.putDouble("X", destination.x);
             tag.putDouble("Y", destination.y);
@@ -544,10 +558,6 @@ final class WaterMaelstromAttack {
         }
         phase = Phase.values()[savedPhase];
         destination = point;
-        if (tag.contains("MinimumY", Tag.TAG_DOUBLE)
-                && Double.isFinite(tag.getDouble("MinimumY"))) {
-            minimumPreparationY = tag.getDouble("MinimumY");
-        }
         phaseTicks = Mth.clamp(tag.getInt("Ticks"), 0, phase == Phase.APPROACH ? 600 : 200);
         ascentStartY = tag.getDouble("AscentStartY");
         ascentTargetY = tag.getDouble("AscentTargetY");

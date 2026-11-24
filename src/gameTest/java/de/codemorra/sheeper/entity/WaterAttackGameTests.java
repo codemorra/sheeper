@@ -270,8 +270,10 @@ public final class WaterAttackGameTests {
         c.set(WaterSheeperConfig.WATER_SPECIAL_RECOVERY, 0.2D);
         var player = WaterTestScene.player(c, 14, 1, 10);
         boss.setNoAi(false);
+        c.setBlock(10, 1, 10, Blocks.STONE);
+        boss.setPos(c.point(10, 3, 10));
         var attack = new WaterMaelstromAttack(boss);
-        c.expect(attack.start() && attack.isImmune(), "A clear center must start an immune preparation");
+        c.expect(attack.start() && attack.isImmune(), "Clear water above the local floor must allow preparation");
         double before = boss.getY();
         WaterTestScene.ticks(2, attack::tick);
         c.near(boss.getY(), before, "Initial rotation must not ascend yet");
@@ -284,6 +286,7 @@ public final class WaterAttackGameTests {
         c.expect(restored.isImmune(), "Reload must preserve immunity during preparation");
         WaterTestScene.ticks(5, restored::tick);
         c.expect(restored.hasImpacted() && !restored.isImmune(), "Impact must immediately release immunity");
+        c.near(boss.getY(), c.point(10, 2, 10).y, "The slam must stop on solid terrain above the arena floor");
         c.expect(restored.isActive(), "Impact must retain a vulnerable recovery phase");
         WaterTestScene.ticks(4, restored::tick);
         // The scheduler releases the completed phase when tick() returns false.
