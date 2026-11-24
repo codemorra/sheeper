@@ -28,6 +28,7 @@ import net.minecraftforge.fluids.FluidType;
  */
 public final class ArenaWater {
     public static final double BOUNDARY_MARGIN = 0.15D;
+    private static final double LAVA_ASCENT_SPEED = 0.16;
     private static Function<Level, List<WaterArenaData.VolumeBounds>> clientLookup = level -> List.of();
     private static Function<Level, List<AirColumn>> clientAirColumns = level -> List.of();
 
@@ -163,6 +164,26 @@ public final class ArenaWater {
         }
         AirState state = WaterArenaData.airState(player);
         return state == AirState.SHELTERED || state == AirState.REFILLING;
+    }
+
+    /**
+     * Helps players who actively swim up in arena lava. Lava drag, damage and
+     * movement collision still run through the regular fluid and movement code.
+     *
+     * @param entity entity that just applied its vanilla fluid jump
+     * @param type fluid used for that jump
+     */
+    public static void applyLavaSwimLift(LivingEntity entity, FluidType type) {
+        if (type != ForgeMod.LAVA_TYPE.get() || !(entity instanceof Player player)
+                || !supportsSwimming(player) || player.getAbilities().flying || player.isPassenger()
+                || !player.isInLava() || !contains(player.level, player.position())) {
+            return;
+        }
+        Vec3 movement = player.getDeltaMovement();
+        // Set a minimum instead of adding velocity every tick. Stronger impulses stay intact.
+        if (movement.y < LAVA_ASCENT_SPEED) {
+            player.setDeltaMovement(movement.x, LAVA_ASCENT_SPEED, movement.z);
+        }
     }
 
     /** Throttles the vanilla result so Respiration and drowning damage keep their normal behavior. */

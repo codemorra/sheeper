@@ -218,30 +218,48 @@ function initializeCoreMod() {
         return node;
       }
     },
-    arena_water_breathing: {
+    arena_water_fluid_behavior: {
       target: { type: "CLASS", name: "net.minecraftforge.common.extensions.IForgeLivingEntity" },
       transformer: function (node) {
-        var count = 0;
+        var breathing = 0;
+        var lavaLift = 0;
+        var living = "Lnet/minecraft/world/entity/LivingEntity;";
+        var fluidType = "Lnet/minecraftforge/fluids/FluidType;";
         for (var i = 0; i < node.methods.size(); i++) {
           var m = node.methods.get(i);
           if (String(m.name) === "canDrownInFluidType" &&
-              String(m.desc) === "(Lnet/minecraftforge/fluids/FluidType;)Z") {
+              String(m.desc) === "(" + fluidType + ")Z") {
             var code = new List();
             var vanilla = new Label();
             code.add(new Var(O.ALOAD, 0));
             code.add(new Type(O.CHECKCAST, "net/minecraft/world/entity/LivingEntity"));
             code.add(new Var(O.ALOAD, 1));
             code.add(invoke("de/codemorra/sheeper/world/ArenaWater", "allowsBreathing",
-                "(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraftforge/fluids/FluidType;)Z"));
+                "(" + living + fluidType + ")Z"));
             code.add(new Jump(O.IFEQ, vanilla));
             code.add(new Insn(O.ICONST_0));
             code.add(new Insn(O.IRETURN));
             code.add(vanilla);
             m.instructions.insert(code);
-            count++;
+            breathing++;
+          }
+          if (String(m.name) === "jumpInFluid" && String(m.desc) === "(" + fluidType + ")V") {
+            var instructions = m.instructions.toArray();
+            for (var j = 0; j < instructions.length; j++) {
+              if (instructions[j].getOpcode() !== O.RETURN) continue;
+              var code = new List();
+              code.add(new Var(O.ALOAD, 0));
+              code.add(new Type(O.CHECKCAST, "net/minecraft/world/entity/LivingEntity"));
+              code.add(new Var(O.ALOAD, 1));
+              code.add(invoke("de/codemorra/sheeper/world/ArenaWater", "applyLavaSwimLift",
+                  "(" + living + fluidType + ")V"));
+              m.instructions.insertBefore(instructions[j], code);
+              lavaLift++;
+            }
           }
         }
-        check(count, 1, "IForgeLivingEntity.canDrownInFluidType");
+        check(breathing, 1, "IForgeLivingEntity.canDrownInFluidType");
+        check(lavaLift, 1, "IForgeLivingEntity.jumpInFluid");
         return node;
       }
     },
