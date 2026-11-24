@@ -1,5 +1,7 @@
 package de.codemorra.sheeper.world;
 
+import java.util.List;
+
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -32,8 +34,7 @@ public final class WaterArenaBoundaryDrag {
      * @return displacement with only its boundary-normal component reduced
      */
     public static Vec3 limitMovement(Entity entity, MoverType type, Vec3 motion) {
-        if (!(entity instanceof Player player) || type != MoverType.SELF || !player.isAlive()
-                || player.isCreative() || player.isSpectator() || motion.horizontalDistanceSqr() < 1.0E-12D) {
+        if (!(entity instanceof Player player) || !canSlow(player, type, motion)) {
             return motion;
         }
         Settings settings = player.level instanceof ServerLevel
@@ -43,27 +44,37 @@ public final class WaterArenaBoundaryDrag {
         if (settings.width() <= 0 || settings.strength() <= 0) {
             return motion;
         }
-        var volumes = ArenaWater.activeVolumes(player.level);
+        return slowAcrossSides(ArenaWater.activeVolumes(player.level), player.getBoundingBox().getCenter(), motion,
+                settings.width(), settings.strength());
+    }
+
+    static boolean canSlow(Player player, MoverType type, Vec3 motion) {
+        return type == MoverType.SELF && player.isAlive() && !player.isCreative() && !player.isSpectator()
+                && motion.horizontalDistanceSqr() >= 1.0E-12D;
+    }
+
+    /** Applies resistance to the exposed cylinder sides, shared by water and storms. */
+    static Vec3 slowAcrossSides(List<WaterArenaData.VolumeBounds> volumes, Vec3 center, Vec3 motion,
+            double width, double strength) {
         if (volumes.isEmpty()) {
             return motion;
         }
         // Sample swept motion as well as the starting point, keeping work
         // bounded for unusually fast movement. Teleports never use SELF.
         int samples = Mth.clamp((int) Math.ceil(motion.horizontalDistance()
-                / Math.max(0.25D, settings.width() * 0.5D)), 1, 8);
-        Vec3 center = player.getBoundingBox().getCenter();
+                / Math.max(0.25D, width * 0.5D)), 1, 8);
         double strongest = 0;
         Vec3 normal = Vec3.ZERO;
         for (int sample = 0; sample <= samples; sample++) {
             Vec3 point = center.add(motion.scale((double) sample / samples));
-            var boundary = WaterArenaBoundary.lateralBoundary(volumes, point, settings.width());
+            var boundary = WaterArenaBoundary.lateralBoundary(volumes, point, width);
             if (boundary == null) {
                 continue;
             }
             double proximity = Math.max(0, 1 - Math.abs(boundary.distance()) / boundary.width());
-            double strength = settings.strength() * proximity * proximity * (3 - 2 * proximity);
-            if (strength > strongest) {
-                strongest = strength;
+            double resistance = strength * proximity * proximity * (3 - 2 * proximity);
+            if (resistance > strongest) {
+                strongest = resistance;
                 normal = boundary.normal();
             }
         }

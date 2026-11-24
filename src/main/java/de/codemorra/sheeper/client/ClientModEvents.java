@@ -41,6 +41,7 @@ public class ClientModEvents {
     public static void setupArenaLookups(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             de.codemorra.sheeper.world.ArenaWeather.setClientLookup(LightningWeatherVisuals::intensity);
+            de.codemorra.sheeper.world.LightningArenaBoundaryDrag.setClientLookup(LightningWeatherVisuals::visibleArenas);
             de.codemorra.sheeper.world.ArenaWater.setClientLookup(WaterArenaVisuals::activeVolumes);
             de.codemorra.sheeper.world.ArenaWater.setClientAirColumns(WaterArenaVisuals::airColumns);
         });

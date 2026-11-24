@@ -149,11 +149,17 @@ public final class LightningStormData extends SavedData {
         }
     }
 
-    private void sync(ServerLevel level) {
-        List<LightningWeatherPacket.Arena> arenas = hasStorms()
+    /** Uses the same visible storms for local weather and storm wall prediction. */
+    public List<LightningWeatherPacket.Arena> visibleArenas() {
+        return hasStorms()
                 ? storms.values().stream().map(storm -> storm.arena).toList()
                 : List.of();
-        LightningWeatherPacket packet = new LightningWeatherPacket(level.dimension().location(), arenas);
+    }
+
+    private void sync(ServerLevel level) {
+        LightningWeatherPacket packet = new LightningWeatherPacket(level.dimension().location(), visibleArenas(),
+                LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_WIDTH.get(),
+                LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH.get());
         for (var player : level.players()) {
             ModNetwork.sendWeather(player, packet);
         }
