@@ -26,6 +26,7 @@ final class WaterSpecialAttacks {
     private final WaterMaelstromAttack maelstrom;
     private final WaterMineAttack mines;
     private boolean beamActive;
+    private long beamSightDeadline;
     private int beamCooldown;
     private int recoveryTicks;
     private Special lastSpecial = Special.NONE;
@@ -57,6 +58,7 @@ final class WaterSpecialAttacks {
                     1.0F / BEAM_EYE_FADE_TICKS));
         }
         if (participants.isEmpty()) {
+            beamSightDeadline = 0;
             if (maelstrom.isActive()) {
                 finishMaelstrom();
             }
@@ -88,15 +90,28 @@ final class WaterSpecialAttacks {
 
     /**
      * Selects uniformly among eligible specials other than the last one used.
-     * Only beam entry requires a ranged target.
+     * A selected beam gets one brief chance to find clear sight before the
+     * scheduler considers other specials for this opening.
      *
      * @param defaultAttack projectile phase that must have completed both intervals
+     * @param target        current shared movement and attack target
      */
-    void tryStart(WaterDefaultAttack defaultAttack) {
+    void tryStart(WaterDefaultAttack defaultAttack, ServerPlayer target) {
         if (suppressesDefault() || maelstrom.hasExpandingWave() || !defaultAttack.isComplete()) {
             return;
         }
         boolean beamReady = lastSpecial != Special.BEAM && beamCooldown == 0 && !defaultAttack.isClosingOnTarget();
+        long now = boss.level.getGameTime();
+        if (isSeekingBeamSight()) {
+            if (beamReady && now < beamSightDeadline) {
+                if (boss.hasBeamSightFrom(boss.position(), target)) {
+                    startBeam();
+                }
+                return;
+            }
+            beamSightDeadline = 0;
+            beamReady = false;
+        }
         boolean minesReady = lastSpecial != Special.MINES && mineCooldown == 0;
         boolean maelstromReady = lastSpecial != Special.MAELSTROM && maelstromCooldown == 0
                 && (!defaultAttack.isClosingOnTarget()
@@ -115,9 +130,15 @@ final class WaterSpecialAttacks {
         while (!choices.isEmpty()) {
             switch (choices.remove(boss.getRandom().nextInt(choices.size()))) {
                 case BEAM -> {
-                    beam.start();
-                    beamActive = true;
-                    return;
+                    if (boss.hasBeamSightFrom(boss.position(), target)) {
+                        startBeam();
+                        return;
+                    }
+                    int searchTicks = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_SIGHT_SEARCH.get());
+                    if (searchTicks > 0) {
+                        beamSightDeadline = now + searchTicks;
+                        return;
+                    }
                 }
                 case MINES -> {
                     mines.start();
@@ -133,6 +154,17 @@ final class WaterSpecialAttacks {
                 case NONE -> throw new IllegalStateException("No special attack selected");
             }
         }
+    }
+
+    private void startBeam() {
+        beamSightDeadline = 0;
+        beam.start();
+        beamActive = true;
+    }
+
+    /** @return whether navigation has a brief window to find an unobstructed beam position */
+    boolean isSeekingBeamSight() {
+        return beamSightDeadline != 0;
     }
 
     /**
@@ -246,6 +278,7 @@ final class WaterSpecialAttacks {
      */
     void reset() {
         beamActive = false;
+        beamSightDeadline = 0;
         beamCooldown = 0;
         recoveryTicks = 0;
         lastSpecial = Special.NONE;
