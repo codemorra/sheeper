@@ -22,11 +22,13 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Each nearby player's timer can trigger a discharge against everyone in reach,
- * including those behind the boss. Leaving reach clears that player's progress.
+ * Each exposed player's timer can trigger a discharge against everyone in reach
+ * with a clear path from the boss. Leaving reach or taking cover clears that
+ * player's progress.
  */
 final class WaterProximityPush {
     private final WaterSheeperEntity boss;
@@ -40,8 +42,8 @@ final class WaterProximityPush {
     }
 
     /**
-     * Advances only nearby participants' timers. The entity pauses calls for NoAI
-     * so disabling AI does not consume a player's remaining reaction time.
+     * Advances timers for nearby participants who are exposed to the discharge.
+     * The entity pauses calls for NoAI so disabling AI preserves reaction time.
      *
      * @param participants current arena players, excluding dead and outside players
      */
@@ -50,16 +52,23 @@ final class WaterProximityPush {
         double horizontal = WaterSheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH.get();
         double upward = WaterSheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
         double damage = WaterSheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get();
-        if (radius == 0 || horizontal == 0 && upward == 0 && damage == 0) {
+        if (!(boss.level instanceof ServerLevel level) || radius == 0
+                || horizontal == 0 && upward == 0 && damage == 0) {
             remainingTicks.clear();
             return;
         }
+        Vec3 origin = boss.getBoundingBox().getCenter();
         Set<UUID> nearby = new HashSet<>();
         List<ServerPlayer> affected = new ArrayList<>();
         boolean discharged = false;
         int delay = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROXIMITY_PUSH_DELAY.get());
         for (ServerPlayer player : participants) {
             if (!boss.containsAttackPoint(player.position()) || boss.distanceToSqr(player) > radius * radius) {
+                continue;
+            }
+            // Check cover before collecting targets or advancing their reaction timers.
+            var cover = WaterAttackBlocks.clipLoaded(boss, level, origin, player.getBoundingBox().getCenter());
+            if (cover == null || cover.getType() != HitResult.Type.MISS) {
                 continue;
             }
             UUID id = player.getUUID();
@@ -79,7 +88,7 @@ final class WaterProximityPush {
             for (ServerPlayer player : affected) {
                 push(player, horizontal, upward, damage);
             }
-            showPushBubbles();
+            showPushBubbles(level, origin);
         }
     }
 
@@ -108,9 +117,7 @@ final class WaterProximityPush {
      * Surrounds the entire boss with one outward bubble burst per discharge,
      * regardless of how many players are caught in it.
      */
-    private void showPushBubbles() {
-        Vec3 origin = boss.getBoundingBox().getCenter();
-        ServerLevel level = (ServerLevel) boss.level;
+    private void showPushBubbles(ServerLevel level, Vec3 origin) {
         level.playSound(null, origin.x, origin.y, origin.z,
                 SoundEvents.PLAYER_SPLASH_HIGH_SPEED, SoundSource.HOSTILE, 0.8F, 0.8F);
         double radius = boss.getBbWidth() * 0.5D + 0.25D;
@@ -149,8 +156,8 @@ final class WaterProximityPush {
     }
 
     /**
-     * @param tag saved per-player timers, revalidated against arena membership on
-     *            the next tick
+     * @param tag saved per-player timers, revalidated against reach and cover
+     *            on the next tick
      */
     void load(ListTag tag) {
         remainingTicks.clear();
