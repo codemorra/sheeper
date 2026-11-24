@@ -16,6 +16,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -88,9 +89,11 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
         }
         double width = buffer.readDouble();
         double strength = buffer.readDouble();
-        if (!Double.isFinite(width) || width < 0 || width > WaterSheeperConfig.MAX_BOUNDARY_SLOWDOWN_WIDTH
-                || !Double.isFinite(strength) || strength < 0
-                || strength > WaterSheeperConfig.MAX_BOUNDARY_SLOWDOWN_STRENGTH) {
+        ForgeConfigSpec.ValueSpec widthSpec = WaterSheeperConfig.SPEC.getSpec()
+                .get(WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_WIDTH.getPath());
+        ForgeConfigSpec.ValueSpec strengthSpec = WaterSheeperConfig.SPEC.getSpec()
+                .get(WaterSheeperConfig.WATER_BOUNDARY_SLOWDOWN_STRENGTH.getPath());
+        if (!widthSpec.test(width) || !strengthSpec.test(strength)) {
             throw new IllegalArgumentException("Invalid water boundary slowdown settings");
         }
         int columnCount = buffer.readVarInt();
