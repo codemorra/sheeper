@@ -151,6 +151,7 @@ public final class LightningWeatherVisuals {
         Vec3 center = new Vec3(arena.center().getX() + 0.5, cloudCenterY(arena, halfHeight),
                 arena.center().getZ() + 0.5).subtract(camera);
         double radius = arena.radiusAt(time);
+        float stormOpacity = arena.opacityAt(time);
         for (int ring = 0; ring < CLOUD_RINGS; ring++) {
             double upper = Math.PI * (0.5 - (double) ring / CLOUD_RINGS);
             double lower = Math.PI * (0.5 - (double) (ring + 1) / CLOUD_RINGS);
@@ -161,23 +162,23 @@ public final class LightningWeatherVisuals {
             for (int segment = 0; segment < CLOUD_SEGMENTS; segment++) {
                 double a = Math.PI * 2 * segment / CLOUD_SEGMENTS;
                 double b = Math.PI * 2 * (segment + 1) / CLOUD_SEGMENTS;
-                cloudVertex(buffer, center, upperRadius, a, upperHeight, halfHeight, time);
-                cloudVertex(buffer, center, lowerRadius, a, lowerHeight, halfHeight, time);
-                cloudVertex(buffer, center, lowerRadius, b, lowerHeight, halfHeight, time);
-                cloudVertex(buffer, center, upperRadius, b, upperHeight, halfHeight, time);
+                cloudVertex(buffer, center, upperRadius, a, upperHeight, halfHeight, time, stormOpacity);
+                cloudVertex(buffer, center, lowerRadius, a, lowerHeight, halfHeight, time, stormOpacity);
+                cloudVertex(buffer, center, lowerRadius, b, lowerHeight, halfHeight, time, stormOpacity);
+                cloudVertex(buffer, center, upperRadius, b, upperHeight, halfHeight, time, stormOpacity);
             }
         }
     }
 
     private static void cloudVertex(BufferBuilder buffer, Vec3 center,
-            double radius, double angle, double height, double halfHeight, double time) {
+            double radius, double angle, double height, double halfHeight, double time, float stormOpacity) {
         double x = Math.cos(angle) * radius;
         double z = Math.sin(angle) * radius;
         double variation = (Math.sin(x * 0.14 + z * 0.11 - time * 0.018)
                 + Math.sin(z * 0.27 - x * 0.09 + time * 0.011)) * 0.5;
         double y = center.y + halfHeight * (variation * 0.5 + height * (1 + variation * 0.2));
         float shade = (float) (0.23 + variation * 0.06 + height * 0.05);
-        float opacity = (float) (0.56 + variation * 0.09 + Math.abs(height) * 0.14);
+        float opacity = (float) (0.56 + variation * 0.09 + Math.abs(height) * 0.14) * stormOpacity;
         buffer.vertex((float) (center.x + x), (float) y, (float) (center.z + z))
                 .color(shade * 0.8F, shade * 0.92F, shade * 1.15F, opacity).endVertex();
     }
@@ -306,7 +307,13 @@ public final class LightningWeatherVisuals {
             double arc = radius <= FRONT_VISIBILITY - radial ? Math.PI : Math.min(Math.PI, FRONT_VISIBILITY / radius);
             double bearing = Math.atan2(dz, dx);
             int samples = Math.min(64, Math.max(8, (int) Math.ceil(arc * radius)));
+            boolean building = arena.isBuilding(now);
+            boolean draining = arena.isDraining();
+            float opacity = arena.opacityAt(now);
             for (int index = 0; index < samples && remaining > 0; index++) {
+                if (draining && level.random.nextFloat() >= opacity) {
+                    continue;
+                }
                 double angle = bearing + ((index + level.random.nextDouble()) / samples * 2 - 1) * arc;
                 double x = center.x + Math.cos(angle) * radius;
                 double z = center.z + Math.sin(angle) * radius;
@@ -318,14 +325,16 @@ public final class LightningWeatherVisuals {
                 if (!Double.isFinite(y) || camera.distanceToSqr(x, y, z) > FRONT_VISIBILITY * FRONT_VISIBILITY) {
                     continue;
                 }
-                boolean building = arena.isBuilding(now);
                 double height = building ? level.random.nextDouble() * 3 : level.random.nextDouble() * 1.8;
                 if (overWater) {
                     level.addParticle(ParticleTypes.SPLASH, true, x, Math.min(y + 0.05, arena.maximumY() - 0.01),
                             z, 0.15, 0.08, 0.07);
                 }
                 double windY = Math.min(y + 0.3 + height, arena.maximumY() - 0.01);
-                level.addParticle(ParticleTypes.CLOUD, true, x, windY, z, 0.22, 0.02, 0.10);
+                // Wisps follow the retreating ring toward the center during teardown.
+                double windX = draining ? -Math.cos(angle) * 0.22 : 0.22;
+                double windZ = draining ? -Math.sin(angle) * 0.22 : 0.10;
+                level.addParticle(ParticleTypes.CLOUD, true, x, windY, z, windX, 0.02, windZ);
                 if (index % 4 == 0) {
                     level.addParticle(ParticleTypes.ELECTRIC_SPARK, true, x,
                             Math.min(y + 0.18, arena.maximumY() - 0.01), z, 0, 0.02, 0);

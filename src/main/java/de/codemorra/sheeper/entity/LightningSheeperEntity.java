@@ -142,7 +142,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         if (level instanceof ServerLevel server && isAlive()) {
             arena = LightningStormData.get(server).startOrResume(server, getUUID(), getArenaCenter(),
                     getCombatRadius(), getArenaMinimumY(), getArenaMaximumY());
-            entityData.set(DATA_COMBAT_READY, arena != null && !arena.isBuilding(server.getGameTime()));
+            entityData.set(DATA_COMBAT_READY,
+                    arena != null && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
         }
         super.tick();
     }
@@ -208,7 +209,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     public void die(DamageSource source) {
         super.die(source);
         if (dead && level instanceof ServerLevel server) {
-            LightningStormData.get(server).remove(server, getUUID());
+            LightningStormData.get(server).beginDrain(server, getUUID());
         }
     }
 
@@ -217,7 +218,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         super.remove(reason);
         if (level instanceof ServerLevel server
                 && (reason.shouldDestroy() || reason == RemovalReason.CHANGED_DIMENSION)) {
-            LightningStormData.get(server).remove(server, getUUID());
+            LightningStormData.get(server).beginDrain(server, getUUID());
         }
     }
 }
