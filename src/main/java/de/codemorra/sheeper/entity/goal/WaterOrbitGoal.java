@@ -53,7 +53,7 @@ public final class WaterOrbitGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady()
+        return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady() && !boss.isInBubbleForm()
                 && !boss.isPerformingBeam() && !boss.isPerformingMaelstrom()
                 && boss.getTarget() instanceof ServerPlayer && boss.getMovementRadius() > 0
                 && WaterSheeperConfig.WATER_MOVEMENT_SPEED.get() > 0;
@@ -80,7 +80,7 @@ public final class WaterOrbitGoal extends Goal {
 
     @Override
     public void tick() {
-        if (boss.isPerformingMaelstrom()) {
+        if (boss.isPerformingMaelstrom() || boss.isInBubbleForm()) {
             // Special selection runs before goal continuation checks. Do not
             // overwrite the center route during that transition tick.
             return;
@@ -110,6 +110,9 @@ public final class WaterOrbitGoal extends Goal {
         }
         closingOnTarget = closing;
         mineAttack = mining;
+        if (!mining && boss.tryBubbleRecoveryToward(player)) {
+            return;
+        }
         if (closingOnTarget) {
             sprintEndTick = 0;
             if (boss.getBoundingBox().getCenter().distanceToSqr(
@@ -397,6 +400,7 @@ public final class WaterOrbitGoal extends Goal {
         sprintEndTick = 0;
         mineAttack = false;
         mineRetreat = null;
+        boss.resetBubbleRecovery();
         stopSwimming();
     }
 

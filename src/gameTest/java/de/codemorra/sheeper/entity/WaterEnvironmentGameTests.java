@@ -38,6 +38,7 @@ public final class WaterEnvironmentGameTests {
         tests.add(new Scenario("water_air_fountain_refill_and_lift", WaterEnvironmentGameTests::airFountain));
         tests.add(new Scenario("water_swim_bounds_and_config_relationships", WaterEnvironmentGameTests::swimming));
         tests.add(new Scenario("water_swimming_approaches_target", WaterEnvironmentGameTests::movement));
+        tests.add(new Scenario("water_bubbles_escape_reopened_cage", WaterEnvironmentGameTests::bubbleCage));
         tests.add(new Scenario("water_attacks_pierce_leaves_without_air", WaterEnvironmentGameTests::leaves));
         tests.add(new Scenario("water_projectile_difficulty_and_lifetime", WaterEnvironmentGameTests::projectile));
         tests.add(new Scenario("water_projectile_stops_at_own_arena", WaterEnvironmentGameTests::projectileBoundary));
@@ -292,6 +293,52 @@ public final class WaterEnvironmentGameTests {
                     && boss.getY() >= boss.getArenaWaterMinimumY(),
                     "Swimming must retain the captured arena limits");
             c.pass();
+        });
+    }
+
+    private static void bubbleCage(GameTestContext c) {
+        configureSpawn(c);
+        c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 16.0);
+        c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT_RANGE, 0);
+        c.set(WaterSheeperConfig.WATER_ARENA_WATER_HEIGHT, 5);
+        c.set(WaterSheeperConfig.WATER_CLOSE_RANGE_DISTANCE, 3.0);
+        c.set(WaterSheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE, 1.0);
+        var boss = c.readyForCombat(spawnAt(c, c.point(10, 1, 10)));
+        for (int y = 1; y <= 4; y++) {
+            for (int side = 5; side <= 16; side++) {
+                c.setBlock(5, y, side, Blocks.STONE);
+                c.setBlock(16, y, side, Blocks.STONE);
+                c.setBlock(side, y, 5, Blocks.STONE);
+                c.setBlock(side, y, 16, Blocks.STONE);
+            }
+        }
+        for (int x = 5; x <= 16; x++) {
+            for (int z = 5; z <= 16; z++) {
+                c.setBlock(x, 5, z, Blocks.STONE);
+            }
+        }
+        var player = WaterTestScene.player(c, 21, 1, 10);
+        boss.setNoAi(false);
+        c.at(75, () -> {
+            c.expect(boss.getTarget() == player && !boss.isClosingOnTarget(),
+                    "The player outside the cage must be a ranged target");
+            c.expect(!boss.isInBubbleForm() && boss.getX() > c.pos(5, 1, 10).getX(),
+                    "The boss must stay inside a sealed cage and retain its size");
+            // The only opening is on the side facing away from the player.
+            c.setBlock(5, 1, 10, Blocks.AIR);
+            awaitCageExit(c, boss, c.pos(5, 1, 10).getX(), 76);
+        });
+    }
+
+    private static void awaitCageExit(GameTestContext c, WaterSheeperEntity boss, double wallX, int tick) {
+        c.at(tick, () -> {
+            if (!boss.isInBubbleForm() && boss.getBoundingBox().maxX <= wallX) {
+                c.pass();
+                return;
+            }
+            c.expect(tick < 220, "The boss must use the narrow opening and regain full size outside the cage: "
+                    + boss.position() + ", width=" + boss.getBbWidth() + ", bubble=" + boss.isInBubbleForm());
+            awaitCageExit(c, boss, wallX, tick + 1);
         });
     }
 

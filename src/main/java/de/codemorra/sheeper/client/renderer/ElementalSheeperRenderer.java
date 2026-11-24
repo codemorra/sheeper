@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.SheepRenderer;
 import net.minecraft.client.renderer.entity.layers.SheepFurLayer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.entity.animal.Sheep;
@@ -22,6 +23,8 @@ import net.minecraft.world.entity.animal.Sheep;
  * Keeps the sheep body and fleece, adding server-sized elemental presentation.
  */
 public class ElementalSheeperRenderer extends SheepRenderer {
+    private float bodyOpacity = 1;
+
     public ElementalSheeperRenderer(EntityRendererProvider.Context context) {
         super(context);
         model = new ElementalBodyModel(context.bakeLayer(ModelLayers.SHEEP));
@@ -36,6 +39,11 @@ public class ElementalSheeperRenderer extends SheepRenderer {
     @Override
     public void render(Sheep sheep, float yaw, float partialTick, PoseStack poses, MultiBufferSource buffers,
             int light) {
+        bodyOpacity = sheep instanceof WaterSheeperEntity boss ? boss.getBubbleBodyOpacity(partialTick) : 1;
+        if (bodyOpacity <= 0) {
+            shadowRadius = 0;
+            return;
+        }
         poses.pushPose();
         if (sheep instanceof WaterSheeperEntity boss) {
             poses.translate(0, -boss.getDeathSinkOffset(partialTick), 0);
@@ -45,6 +53,15 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         if (sheep instanceof WaterSheeperEntity boss && boss.isAlive() && !boss.isInvisible()) {
             WaterBeamRenderer.render(boss, poses, buffers, light, partialTick);
         }
+    }
+
+    /** Selects alpha blending for the model while it dissolves or rematerializes. */
+    @Override
+    protected RenderType getRenderType(Sheep sheep, boolean visible, boolean translucent, boolean glowing) {
+        if (visible && bodyOpacity < 1) {
+            return RenderType.entityTranslucentCull(getTextureLocation(sheep));
+        }
+        return super.getRenderType(sheep, visible, translucent, glowing);
     }
 
     /**
@@ -70,7 +87,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         float size = ((ElementalSheeperEntity) sheep).getSizeMultiplier();
         float dissolve = sheep instanceof WaterSheeperEntity boss ? boss.getDeathBodyScale(partialTick) : 1;
         poses.scale(size * dissolve, size * dissolve, size * dissolve);
-        shadowRadius = 0.7F * size * dissolve;
+        shadowRadius = 0.7F * size * dissolve * bodyOpacity;
     }
 
     /**
@@ -101,6 +118,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         private float red;
         private float green;
         private float blue;
+        private float opacity;
 
         private ElementalBodyModel(ModelPart root) {
             super(root);
@@ -109,6 +127,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         @Override
         public void prepareMobModel(Sheep sheep, float limbSwing, float limbSwingAmount, float partialTick) {
             super.prepareMobModel(sheep, limbSwing, limbSwingAmount, partialTick);
+            opacity = sheep instanceof WaterSheeperEntity boss ? boss.getBubbleBodyOpacity(partialTick) : 1;
             switch (((ElementalSheeperEntity) sheep).getElement()) {
                 case LAVA -> {
                     red = 0.65F;
@@ -132,7 +151,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         public void renderToBuffer(PoseStack poses, VertexConsumer vertices, int light, int overlay,
                 float red, float green, float blue, float alpha) {
             super.renderToBuffer(poses, vertices, light, overlay,
-                    red * this.red, green * this.green, blue * this.blue, alpha);
+                    red * this.red, green * this.green, blue * this.blue, alpha * opacity);
         }
     }
 }

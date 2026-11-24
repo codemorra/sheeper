@@ -29,6 +29,7 @@ public final class WaterIdleSwimGoal extends Goal {
     @Override
     public boolean canUse() {
         return boss.isAlive() && !boss.isNoAi() && boss.isCombatReady() && boss.isInArenaWater()
+                && !boss.isInBubbleForm()
                 && boss.getTarget() == null && !boss.isPerformingBeam() && !boss.isPerformingMaelstrom()
                 && boss.getMovementRadius() > 0
                 && WaterSheeperConfig.WATER_MOVEMENT_SPEED.get() > 0
@@ -61,6 +62,9 @@ public final class WaterIdleSwimGoal extends Goal {
         double speed = WaterSheeperConfig.WATER_MOVEMENT_SPEED.get() * WaterSheeperConfig.WATER_IDLE_SPEED.get();
         if (boss.getNavigation().isDone() && now >= nextPlanTick) {
             Path path = choosePath();
+            if (boss.tryBubbleRecovery(path != null)) {
+                return;
+            }
             if (path != null) {
                 boss.getNavigation().moveTo(path, speed);
             }
@@ -125,6 +129,7 @@ public final class WaterIdleSwimGoal extends Goal {
 
     @Override
     public void stop() {
+        boss.resetBubbleRecovery();
         boss.getNavigation().stop();
         boss.setDeltaMovement(Vec3.ZERO);
         boss.setXxa(0);
