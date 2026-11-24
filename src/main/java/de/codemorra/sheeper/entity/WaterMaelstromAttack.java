@@ -80,7 +80,8 @@ final class WaterMaelstromAttack {
             return true;
         }
         Path partial = null;
-        for (Set<BlockPos> candidates : findPreparationPositions()) {
+        List<Set<BlockPos>> groups = findPreparationPositions();
+        for (Set<BlockPos> candidates : groups) {
             Path path = approachPath(candidates);
             if (path != null && path.canReach()) {
                 followApproach(path);
@@ -92,6 +93,13 @@ final class WaterMaelstromAttack {
         }
         if (Double.isFinite(clearance)) {
             beginRotation();
+            return true;
+        }
+        Vec3 bubbleDestination = boss.bubbleTravel().tryBegin(
+                groups.stream().flatMap(Set::stream).map(this::point).toList(), false);
+        if (bubbleDestination != null) {
+            destination = bubbleDestination;
+            phase = Phase.APPROACH;
             return true;
         }
         // Beyond the pathfinder's range, keep a progressing route and retry at the next waypoint.
@@ -337,6 +345,11 @@ final class WaterMaelstromAttack {
     /** @return whether the released front is still traveling through the arena */
     boolean hasExpandingWave() {
         return wave.isExpanding();
+    }
+
+    /** @return whether rotation is still waiting for the boss to reach its start */
+    boolean isApproaching() {
+        return phase == Phase.APPROACH;
     }
 
     /** @return whether impact already granted the vulnerable recovery window */

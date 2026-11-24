@@ -139,6 +139,10 @@ final class WaterSpecialAttacks {
      * Advances the active special and its visual effects after movement.
      */
     void tickAttack() {
+        if (boss.isInBubbleForm()) {
+            maelstrom.tickEffects();
+            return;
+        }
         if (maelstrom.isActive() && !maelstrom.tick()) {
             finishMaelstrom();
         }
@@ -168,6 +172,13 @@ final class WaterSpecialAttacks {
      */
     boolean isMaelstromActive() {
         return maelstrom.isActive();
+    }
+
+    /** Releases preparation and immunity when a blocked bubble route must be abandoned. */
+    void cancelMaelstromApproach() {
+        if (maelstrom.isApproaching()) {
+            finishMaelstrom();
+        }
     }
 
     /** Mines pause ordinary firing while allowing the boss to reorient and swim. */

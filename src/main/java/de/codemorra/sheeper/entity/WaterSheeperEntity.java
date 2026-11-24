@@ -27,7 +27,9 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.level.Level;
@@ -50,6 +52,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
     private static final double LAVA_ESCAPE_SPEED = 0.16;
     private static final int DEATH_ANIMATION_TICKS = 60;
+    private static final int BUBBLE_FADE_TICKS = 8;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -65,6 +68,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> DATA_MAELSTROM_ROTATION = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Boolean> DATA_BUBBLE_FORM = SynchedEntityData
+            .defineId(WaterSheeperEntity.class, EntityDataSerializers.BOOLEAN);
 
     @Nullable
     private BlockPos arenaCenter;
@@ -81,8 +86,11 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private final WaterArenaCombat arenaCombat = new WaterArenaCombat(this);
     private final WaterArenaPlayers arenaPlayers = new WaterArenaPlayers(this);
     private final WaterSpecialAttacks specialAttacks = new WaterSpecialAttacks(this);
+    private final WaterBubbleTravel bubbleTravel = new WaterBubbleTravel(this);
     private float previousBeamEyeIntensity;
     private float previousMaelstromRotation;
+    private int previousBubbleFade;
+    private int bubbleFade;
     private WaterOrbitGoal orbitGoal;
     private WaterIdleSwimGoal idleGoal;
 
@@ -115,6 +123,47 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         entityData.define(DATA_BEAM_X, 0.0F);
         entityData.define(DATA_BEAM_Y, 0.0F);
         entityData.define(DATA_BEAM_Z, 0.0F);
+        entityData.define(DATA_BUBBLE_FORM, false);
+    }
+
+    /** @return whether the boss is traversing a narrow route as a bubble cloud */
+    public boolean isInBubbleForm() {
+        return bubbleTravel != null && entityData.get(DATA_BUBBLE_FORM);
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return isInBubbleForm() ? WaterBubbleTravel.DIMENSIONS : super.getDimensions(pose);
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_BUBBLE_FORM.equals(key)) {
+            refreshDimensions();
+            if (level.isClientSide && tickCount == 0 && isInBubbleForm()) {
+                // A newly tracking client should see the form the boss is already in.
+                previousBubbleFade = bubbleFade = BUBBLE_FADE_TICKS;
+            }
+        }
+    }
+
+    /** @return eased body opacity for the client-side transition to or from bubbles */
+    public float getBubbleBodyOpacity(float partialTick) {
+        if (!isAlive()) {
+            return 1;
+        }
+        float fade = Mth.lerp(partialTick, (float) previousBubbleFade, bubbleFade) / BUBBLE_FADE_TICKS;
+        return 1 - fade * fade * (3 - 2 * fade);
+    }
+
+    /** Applies the validated dimensions without using a size change to relocate the boss. */
+    void setBubbleForm(boolean active) {
+        Vec3 feet = position();
+        entityData.set(DATA_BUBBLE_FORM, active);
+        if (!position().equals(feet)) {
+            setPos(feet);
+        }
     }
 
     /** @return interpolated red-eye warning intensity for client presentation */
@@ -235,7 +284,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public double getMovementRadius() {
         double waterRadius = arenaVolume == null ? getCombatRadius()
                 : Math.min(getCombatRadius(), arenaVolume.radius());
-        double bodyMargin = getBbWidth() * Math.sqrt(0.5D) + 0.25D;
+        double bodyMargin = super.getDimensions(getPose()).width * Math.sqrt(0.5D) + 0.25D;
         return Math.max(0, waterRadius - bodyMargin - WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE.get());
     }
 
@@ -312,6 +361,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     /** Surfaces through open lava even when ordinary swim navigation cannot start. */
     @Override
     public void travel(Vec3 input) {
+        if (isInBubbleForm()) {
+            return;
+        }
         if (!level.isClientSide && isAlive() && !isNoAi() && isInLava()
                 && isCombatReady() && containsAttackPoint(position())) {
             Vec3 movement = getDeltaMovement();
@@ -353,6 +405,16 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
      *         position
      */
     public boolean canSwimAt(Vec3 point) {
+        return canSwimAt(point, getBoundingBox().move(point.subtract(position())));
+    }
+
+    /** Checks whether the normal body can safely materialize at the given feet position. */
+    boolean canMaterializeAt(Vec3 point) {
+        AABB fullBody = super.getDimensions(getPose()).makeBoundingBox(point);
+        return canSwimAt(point, fullBody) && !level.getBlockCollisions(this, fullBody).iterator().hasNext();
+    }
+
+    private boolean canSwimAt(Vec3 point, AABB body) {
         if (arenaVolume == null || !(level instanceof ServerLevel server)) {
             return false;
         }
@@ -360,11 +422,23 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // boundary. Nodes outside the new movement area may lead it back inward.
         double allowedRadiusSquared = Math.max(getMovementRadius() * getMovementRadius(),
                 horizontalDistanceSquared(getX(), getZ()));
-        if (Math.abs(point.y - clampSwimmingPosition(point).y) > 1.0E-4D
+        double ceiling = arenaVolume.maximumY() + 1 - ArenaWater.BOUNDARY_MARGIN;
+        if (point.y < arenaVolume.minimumY() - 1.0E-4 || body.maxY > ceiling + 1.0E-4
                 || horizontalDistanceSquared(point.x, point.z) > allowedRadiusSquared + 1.0E-6D) {
             return false;
         }
-        AABB body = getBoundingBox().move(point.subtract(position())).deflate(0.01D);
+        return isClearSwimSpace(body.deflate(0.01D), server);
+    }
+
+    /** Checks the swept bubble shape against the same terrain as the regular swim routes. */
+    boolean canTravelAsBubbles(Vec3 from, Vec3 to) {
+        return level instanceof ServerLevel server && arenaVolume != null
+                && horizontalDistanceSquared(to.x, to.z) <= getMovementRadius() * getMovementRadius() + 1.0E-6
+                && isClearSwimSpace(WaterBubbleTravel.DIMENSIONS.makeBoundingBox(from)
+                        .expandTowards(to.subtract(from)).deflate(0.001), server);
+    }
+
+    private boolean isClearSwimSpace(AABB body, ServerLevel server) {
         for (BlockPos cell : BlockPos.betweenClosed(new BlockPos(body.minX, body.minY, body.minZ),
                 new BlockPos(body.maxX, body.maxY, body.maxZ))) {
             if (!WaterArenaData.isLoaded(server, cell)) {
@@ -375,6 +449,32 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
             }
         }
         return !level.getBlockCollisions(this, body).iterator().hasNext();
+    }
+
+    /** Lets the active movement goal report route progress before considering bubble travel. */
+    public boolean tryBubbleRecovery(boolean hasPath) {
+        return bubbleTravel.tryRecovery(hasPath);
+    }
+
+    /** Looks for a narrow route when ordinary swimming cannot reach the target's side of an obstacle. */
+    public boolean tryBubbleRecoveryToward(ServerPlayer target) {
+        return bubbleTravel.tryTargetRecovery(target);
+    }
+
+    /** Checks a corridor using the normal collision box, even when the boss is in bubble form. */
+    boolean canTravelAtFullSize(Vec3 from, Vec3 to) {
+        return level instanceof ServerLevel server && canMaterializeAt(to)
+                && isClearSwimSpace(super.getDimensions(getPose()).makeBoundingBox(from)
+                        .expandTowards(to.subtract(from)).deflate(0.01), server);
+    }
+
+    /** Forgets stalled motion when a movement goal intentionally stops or switches modes. */
+    public void resetBubbleRecovery() {
+        bubbleTravel.resetProgress();
+    }
+
+    WaterBubbleTravel bubbleTravel() {
+        return bubbleTravel;
     }
 
     /**
@@ -560,8 +660,12 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
         List<ServerPlayer> participants = getCombatParticipants();
         specialAttacks.tickTimers(participants, defaultAttack);
-        ServerPlayer target = defaultAttack.tickTarget(participants, !specialAttacks.suppressesDefault());
+        ServerPlayer target = defaultAttack.tickTarget(participants,
+                !isInBubbleForm() && !specialAttacks.suppressesDefault());
         setTarget(target);
+        if (isInBubbleForm()) {
+            return;
+        }
         // An empty arena leaves navigation to the idle goal instead of cancelling
         // its current route every tick. Goal priorities handle combat transitions.
         if (target != null) {
@@ -698,15 +802,37 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         if (!level.isClientSide && isAlive() && isCombatReady()) {
             if (!isNoAi()) {
                 arenaCombat.tick(getCombatParticipants());
+                if (isInBubbleForm() && bubbleTravel.tick()) {
+                    specialAttacks.cancelMaelstromApproach();
+                }
                 specialAttacks.tickAttack();
-                if (!specialAttacks.suppressesDefault()) {
+                if (!isInBubbleForm() && !specialAttacks.suppressesDefault()) {
                     defaultAttack.tickProjectiles();
                     proximityPush.tick(getCombatParticipants());
                 }
             }
         }
+        if (level.isClientSide && isAlive()) {
+            tickBubbleAnimation();
+        }
         if (level.isClientSide && isAlive() && !isInvisible() && tickCount % 2 == 0) {
             spawnBeamParticles();
+        }
+    }
+
+    /** Crossfades the model with a cloud whose emission follows the same transition. */
+    private void tickBubbleAnimation() {
+        previousBubbleFade = bubbleFade;
+        bubbleFade = Mth.clamp(bubbleFade + (isInBubbleForm() ? 1 : -1), 0, BUBBLE_FADE_TICKS);
+        if (isInvisible()) {
+            return;
+        }
+        int count = Mth.ceil(8 * (1 - getBubbleBodyOpacity(1)));
+        // Keep the cloud compact as the collision box returns to full size.
+        for (int i = 0; i < count; i++) {
+            level.addAlwaysVisibleParticle(ParticleTypes.BUBBLE,
+                    getX() + (random.nextDouble() - 0.5) * 0.7, getY() + random.nextDouble() * 0.7,
+                    getZ() + (random.nextDouble() - 0.5) * 0.7, 0, 0.04, 0);
         }
     }
 
@@ -834,6 +960,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         tag.put("WaterArenaPlayers", arenaPlayers.save());
         tag.put("WaterSpecialAttacks", specialAttacks.save());
         tag.put("WaterAirStations", airStations.save());
+        tag.put("WaterBubbleTravel", bubbleTravel.save());
         tag.putLong("WaterArenaCenter", getArenaCenter().asLong());
         tag.putString("WaterArenaDimension", level.dimension().location().toString());
     }
@@ -862,5 +989,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         // Restore captured bounds immediately for the first combat tick.
         arenaVolume = level instanceof ServerLevel server ? WaterArenaData.get(server).getVolume(getUUID()) : null;
         volumeInitialized = false;
+        bubbleTravel.load(tag.getCompound("WaterBubbleTravel"));
     }
 }

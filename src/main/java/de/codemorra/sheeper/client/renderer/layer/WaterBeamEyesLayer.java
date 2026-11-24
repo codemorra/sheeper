@@ -43,7 +43,7 @@ public final class WaterBeamEyesLayer extends RenderLayer<Sheep, SheepModel<Shee
         if (!(sheep instanceof WaterSheeperEntity boss) || sheep.isInvisible()) {
             return;
         }
-        float intensity = boss.getBeamEyeIntensity(partialTick);
+        float intensity = boss.getBeamEyeIntensity(partialTick) * boss.getBubbleBodyOpacity(partialTick);
         if (intensity <= 0.0F) {
             return;
         }
