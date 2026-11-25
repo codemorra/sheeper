@@ -34,18 +34,23 @@ import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
-    // Isolates the lightning fan during in-game tuning.
-    private static final boolean TEST_FAN_ONLY = true;
+    // Isolates the lightning rod during in-game tuning.
+    private static final boolean TEST_ROD_ONLY = true;
     static final int ARC_TRAVEL_TICKS = 6;
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<CompoundTag> DATA_TRAVEL_ARC = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.COMPOUND_TAG);
 
-    /** World-space endpoints let the client draw the arc without following the boss model. */
-    public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks) {
+    /** World-space endpoints keep the visible lightning and charging form anchored to the attack position. */
+    public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks, float charge) {
         public float progress(double time) {
             return (float) Mth.clamp((time - startTick) / durationTicks, 0, 1);
+        }
+
+        /** @return whether the travelling lightning has condensed at the destination */
+        public boolean isCharging() {
+            return charge >= 0;
         }
     }
 
@@ -148,14 +153,22 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         entityData.set(DATA_TRAVEL_ARC, new CompoundTag());
     }
 
-    /** @return the active lightning-form route for client presentation, or null */
+    /** Turns the existing travel arc into a suspended charge at its endpoint. */
+    void setTravelArcCharge(float progress) {
+        CompoundTag arc = entityData.get(DATA_TRAVEL_ARC).copy();
+        arc.putFloat("Charge", progress);
+        entityData.set(DATA_TRAVEL_ARC, arc);
+    }
+
+    /** @return the active lightning form for client presentation, or null */
     @Nullable
     public TravelArc getTravelArc() {
         CompoundTag arc = entityData.get(DATA_TRAVEL_ARC);
         return arc.isEmpty() || !isAlive() ? null
                 : new TravelArc(new Vec3(arc.getDouble("StartX"), arc.getDouble("StartY"), arc.getDouble("StartZ")),
                         new Vec3(arc.getDouble("EndX"), arc.getDouble("EndY"), arc.getDouble("EndZ")),
-                        arc.getLong("StartTick"), Math.max(1, arc.getInt("DurationTicks")));
+                        arc.getLong("StartTick"), Math.max(1, arc.getInt("DurationTicks")),
+                        arc.contains("Charge", Tag.TAG_FLOAT) ? arc.getFloat("Charge") : -1);
     }
 
     private double horizontalDistanceSquared(double x, double z) {
@@ -216,22 +229,22 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         return entityData.get(DATA_COMBAT_READY);
     }
 
-    /** @return whether the boss has left its physical form and has yet to land */
-    private boolean isInTravelArc() {
+    /** @return whether lightning replaces the boss's physical form */
+    private boolean isInLightningForm() {
         return !entityData.get(DATA_TRAVEL_ARC).isEmpty();
     }
 
     /** Removes the old hit target while the body is displayed in lightning form. */
     @Override
     public boolean isPickable() {
-        return !isInTravelArc() && super.isPickable();
+        return !isInLightningForm() && super.isPickable();
     }
 
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
         return super.isInvulnerableTo(source)
                 || source != DamageSource.OUT_OF_WORLD
-                        && (isInTravelArc() || !arenaCombat.allowsDamage(source));
+                        && (isInLightningForm() || !arenaCombat.allowsDamage(source));
     }
 
     @Override
@@ -241,6 +254,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
+        if (!level.isClientSide && specialAttacks != null && specialAttacks.isRodHovering()) {
+            return;
+        }
         // Teleport pauses are stationary, but the short approach still uses vanilla collisions.
         if (!level.isClientSide && type == MoverType.SELF && !teleports.isWalking()) {
             movement = new Vec3(0, movement.y, 0);
@@ -262,11 +278,11 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 arenaCombat.tick(participants);
             }
             boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
-            specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_FAN_ONLY);
+            specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_ROD_ONLY);
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             tickMovement(participants, canMove);
             storm.tickWind(server, getUUID(), fighting, participants);
-            ambientStrikes.tick(server, participants, fighting && !TEST_FAN_ONLY);
+            ambientStrikes.tick(server, participants, fighting && !TEST_ROD_ONLY);
         }
         super.tick();
     }
@@ -290,7 +306,10 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 }
             }
         }
-        if (!teleports.isWalking()) {
+        if (specialAttacks.isRodHovering()) {
+            setDeltaMovement(Vec3.ZERO);
+            fallDistance = 0;
+        } else if (!teleports.isWalking()) {
             setDeltaMovement(0, getDeltaMovement().y, 0);
         }
     }

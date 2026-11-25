@@ -624,6 +624,19 @@ public final class LightningSheeperConfig {
             .comment("Damage in health points at first contact with the ground impacts and at most once per second.")
             .defineInRange("fan.damagePerSecond", 6.0, 0.0, 24.0);
 
+    /** Lightning rod special attack (lightningRod). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_ROD_ENABLED = BUILDER
+            .comment("Enables the lightning rod special attack.")
+            .define("lightningRod.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_COOLDOWN = BUILDER
+            .comment("Combat seconds before the lightning rod is ready, both at fight start and after each use.")
+            .defineInRange("lightningRod.cooldownSeconds", 60.0, 1.0, 120.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CHARGE_DURATION = BUILDER
+            .comment("Seconds the Sheeper hovers and charges above the arena before releasing the attack.")
+            .defineInRange("lightningRod.chargeSeconds", 8.0, 2.0, 20.0);
+
     /**
      * Shared proximity charge and defensive discharge
      * (proximityPush).

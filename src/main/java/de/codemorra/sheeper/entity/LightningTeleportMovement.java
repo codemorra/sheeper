@@ -363,6 +363,11 @@ final class LightningTeleportMovement {
         if (!isSafe(target)) {
             return 0;
         }
+        return startAttackTravel(target);
+    }
+
+    /** Starts a visible flight to an attack position already checked by its caller. */
+    int startAttackTravel(Vec3 target) {
         int ticks = attackTravelTicks(target);
         faceDestination(target);
         boss.startTravelArc(target, ticks);
@@ -380,6 +385,12 @@ final class LightningTeleportMovement {
         return safe;
     }
 
+    /** Checks the scaled body and the arena bounds without requiring a floor below the destination. */
+    boolean isSafeHoverPosition(Vec3 target) {
+        AABB bounds = boss.getBoundingBox().move(target.subtract(boss.position()));
+        return isSafeBody((ServerLevel) boss.level, bounds);
+    }
+
     /** Keeps the source position until the visible lightning form reaches the destination. */
     private void beginArc() {
         arcTicks = LightningSheeperEntity.ARC_TRAVEL_TICKS;
@@ -387,7 +398,8 @@ final class LightningTeleportMovement {
         showDeparture();
     }
 
-    private void teleportTo(Vec3 target) {
+    /** Moves the boss to a destination that the caller has already checked. */
+    void teleportTo(Vec3 target) {
         boss.getNavigation().stop();
         boss.teleportTo(target.x, target.y, target.z);
         boss.setDeltaMovement(Vec3.ZERO);
