@@ -372,12 +372,12 @@ final class LightningTeleportMovement {
 
     /** Arrives when the visible bolt reaches its destination and rechecks the landing conditions. */
     boolean landAttackTeleport(Vec3 target) {
-        boss.clearTravelArc();
-        if (!isSafe(target)) {
-            return false;
+        boolean safe = isSafe(target);
+        if (safe) {
+            teleportTo(target);
         }
-        teleportTo(target);
-        return true;
+        boss.clearTravelArc();
+        return safe;
     }
 
     /** Keeps the source position until the visible lightning form reaches the destination. */
