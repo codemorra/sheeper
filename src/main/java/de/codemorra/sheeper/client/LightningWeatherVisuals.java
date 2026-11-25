@@ -12,6 +12,8 @@ import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.util.ResourceLocations;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
+import de.codemorra.sheeper.world.LightningWindField;
+import de.codemorra.sheeper.world.LightningWindGust;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
@@ -48,6 +50,8 @@ public final class LightningWeatherVisuals {
     private static final int RAIN_SPACING = 2;
     private static ClientLevel snapshotLevel;
     private static List<LightningWeatherPacket.Arena> arenas = List.of();
+    private static final LightningWindLines WIND_LINES = new LightningWindLines();
+    private static List<LightningWindField> winds = List.of();
     private static long lastSnapshot;
 
     private LightningWeatherVisuals() {
@@ -56,8 +60,12 @@ public final class LightningWeatherVisuals {
     public static void receive(LightningWeatherPacket packet) {
         ClientLevel level = Minecraft.getInstance().level;
         if (level != null && packet.dimension().equals(level.dimension().location())) {
+            if (snapshotLevel != level) {
+                WIND_LINES.clear();
+            }
             snapshotLevel = level;
             arenas = packet.arenas();
+            winds = packet.winds();
             lastSnapshot = level.getGameTime();
             LightningArenaBoundaryDrag.receive(packet.boundarySlowdownWidth(), packet.boundarySlowdownStrength());
         }
@@ -66,6 +74,11 @@ public final class LightningWeatherVisuals {
     /** @return current storm snapshots for local movement prediction */
     public static List<LightningWeatherPacket.Arena> visibleArenas(Level level) {
         return hasSnapshot(level) ? arenas : List.of();
+    }
+
+    /** @return the wind fields shared by rendering and client movement prediction */
+    public static List<LightningWindField> windFields(Level level) {
+        return hasSnapshot(level) ? winds : List.of();
     }
 
     public static float intensity(Level level, BlockPos pos) {
@@ -115,6 +128,12 @@ public final class LightningWeatherVisuals {
                 drawClouds(buffer, arena, camera, time);
             }
         }
+        for (LightningWindField field : winds) {
+            WIND_LINES.draw(buffer, level, field, camera, time);
+            for (LightningWindGust gust : field.gusts()) {
+                drawGust(buffer, level, field, gust, camera, time);
+            }
+        }
         Tesselator.getInstance().end();
 
         mc.gameRenderer.lightTexture().turnOnLightLayer();
@@ -138,6 +157,74 @@ public final class LightningWeatherVisuals {
         double radius = arena.radiusAt(time);
         return radius >= 0.1
                 && Math.hypot(center.x - camera.x, center.z - camera.z) <= radius + viewDistance;
+    }
+
+    /** Draws staggered translucent ribbons above the ground. */
+    private static void drawGust(BufferBuilder buffer, ClientLevel level, LightningWindField field,
+            LightningWindGust gust, Vec3 camera, double time) {
+        float opacity = gust.opacityAt(time);
+        Vec3 center = gust.centerAt(field, time);
+        if (opacity <= 0 || camera.distanceToSqr(center) > 48 * 48) {
+            return;
+        }
+        int ribbons = switch (gust.size()) {
+            case MEDIUM -> 3;
+            case LARGE -> 4;
+        };
+        Vec3 direction = field.directionAt(time);
+        float crestOpacity = opacity * (0.22F + (ribbons - 2) * 0.08F);
+        double separation = gust.wakeLength(time) * 0.75 / (ribbons - 1);
+        for (int ribbon = 0; ribbon < ribbons; ribbon++) {
+            Vec3 crest = center.subtract(direction.scale(ribbon * separation));
+            drawGustRibbon(buffer, level, field, gust, camera, crest, direction, ribbon, crestOpacity, time);
+        }
+    }
+
+    /** Breaks the ribbon at terrain changes and fades its edges into the rain. */
+    private static void drawGustRibbon(BufferBuilder buffer, ClientLevel level, LightningWindField field,
+            LightningWindGust gust, Vec3 camera, Vec3 crest, Vec3 direction, int ribbon, float opacity, double time) {
+        Vec3 side = new Vec3(-direction.z, 0, direction.x);
+        double width = gust.width() * (1 - ribbon * 0.13);
+        double halfHeight = 0.058 + width * 0.012;
+        double baseHeight = 0.36 + ribbon * 0.40;
+        Vec3 previous = null;
+        float previousAlpha = 0;
+        for (int index = 0; index <= 12; index++) {
+            double across = index / 6.0 - 1;
+            Vec3 sample = crest.add(side.scale(across * width / 2))
+                    .add(direction.scale(gust.bend(across) + ribbon * 0.075 * Math.sin(across * 4)));
+            double floor = gust.groundAt(level, field, sample);
+            double height = floor + baseHeight + 0.14 * Math.cos(across * 4.2 + ribbon * 0.6);
+            float intensity = field.arena().intensityAt(time, sample.x, height + halfHeight, sample.z);
+            if (!Double.isFinite(height) || intensity <= 0) {
+                previous = null;
+                continue;
+            }
+            BlockPos pos = new BlockPos(sample.x, height, sample.z);
+            if (!level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
+                previous = null;
+                continue;
+            }
+            Vec3 point = new Vec3(sample.x, height, sample.z).subtract(camera);
+            float alpha = opacity * intensity * (float) ((1 - across * across) * (1 - ribbon * 0.10));
+            if (previous != null && Math.abs(previous.y - point.y) < 0.7) {
+                gustVertex(buffer, previous, -halfHeight, 0);
+                gustVertex(buffer, point, -halfHeight, 0);
+                gustVertex(buffer, point, 0, alpha);
+                gustVertex(buffer, previous, 0, previousAlpha);
+                gustVertex(buffer, previous, 0, previousAlpha);
+                gustVertex(buffer, point, 0, alpha);
+                gustVertex(buffer, point, halfHeight, 0);
+                gustVertex(buffer, previous, halfHeight, 0);
+            }
+            previous = point;
+            previousAlpha = alpha;
+        }
+    }
+
+    private static void gustVertex(BufferBuilder buffer, Vec3 point, double height, float alpha) {
+        buffer.vertex((float) point.x, (float) (point.y + height), (float) point.z)
+                .color(0.76F, 0.84F, 0.91F, alpha).endVertex();
     }
 
     /**
@@ -259,9 +346,11 @@ public final class LightningWeatherVisuals {
         }
         ClientLevel level = mc.level;
         if (!hasSnapshot(level)) {
+            WIND_LINES.clear();
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
+        WIND_LINES.tick(level, winds, camera);
         if (level.getGameTime() % 3 == 0) {
             showFront(level, camera);
         }
@@ -387,6 +476,8 @@ public final class LightningWeatherVisuals {
     @SubscribeEvent
     public static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
         arenas = List.of();
+        winds = List.of();
+        WIND_LINES.clear();
         snapshotLevel = null;
     }
 }

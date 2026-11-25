@@ -201,6 +201,24 @@ public final class LightningSheeperConfig {
             .comment("Seconds of Speed I after an outer-ring hit. 0 disables the speed bonus.")
             .defineInRange("ambientLightning.speedBonusSeconds", 4.0, 0.0, 8.0);
 
+    /** Local gusts that share a changing wind direction (wind). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_WIND_ENABLED = BUILDER
+            .comment("Enables continuous wind in formed arenas and stronger gusts during combat.")
+            .define("wind.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_WIND_DIRECTION_MIN = BUILDER
+            .comment("Minimum seconds between changes in wind direction.")
+            .defineInRange("wind.directionMinSeconds", 8.0, 3.0, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_WIND_DIRECTION_MAX = BUILDER
+            .comment("Maximum seconds between changes in wind direction.",
+                    "If set below the minimum, the minimum is used.")
+            .defineInRange("wind.directionMaxSeconds", 14.0, 3.0, 30.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_WIND_LARGE_CHANCE = BUILDER
+            .comment("Chance in percent that a combat gust is wide and adds stronger drift and resistance.")
+            .defineInRange("wind.largeGustChancePercent", 12, 0, 30);
+
     /** Lightning attack selection (attack). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER
             .comment("Relative weight of lightning storm phases; 0 disables this type.")

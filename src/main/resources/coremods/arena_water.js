@@ -172,6 +172,12 @@ function initializeCoreMod() {
           if (String(method.desc) !== "(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V") continue;
           var code = new List();
           code.add(new Var(O.ALOAD, 0));
+          code.add(new Var(O.ALOAD, 1));
+          code.add(new Var(O.ALOAD, 2));
+          code.add(invoke("de/codemorra/sheeper/world/LightningArenaWind", "applyWind",
+              "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"));
+          code.add(new Var(O.ASTORE, 2));
+          code.add(new Var(O.ALOAD, 0));
           code.add(new Var(O.ALOAD, 2));
           code.add(invoke("de/codemorra/sheeper/world/WaterArenaPushProtection", "limitMovement",
               "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"));

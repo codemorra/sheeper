@@ -234,7 +234,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     @Override
     public void tick() {
         if (level instanceof ServerLevel server && isAlive()) {
-            arena = LightningStormData.get(server).startOrResume(server, getUUID(), getArenaCenter(),
+            LightningStormData storm = LightningStormData.get(server);
+            arena = storm.startOrResume(server, getUUID(), getArenaCenter(),
                     getCombatRadius(), getArenaMinimumY(), getArenaMaximumY());
             entityData.set(DATA_COMBAT_READY,
                     arena != null && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
@@ -259,7 +260,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             if (canMove) {
                 arenaCombat.tick(participants);
             }
-            if (canMove && !participants.isEmpty() && tickCombatEntry()) {
+            boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
+            storm.tickWind(server, getUUID(), fighting, participants);
+            if (fighting) {
                 ambientStrikes.tick(server, participants);
             } else {
                 ambientStrikes.clearWarnings();

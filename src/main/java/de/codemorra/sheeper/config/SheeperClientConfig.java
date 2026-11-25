@@ -100,6 +100,11 @@ public final class SheeperClientConfig {
             .comment("Local volume multiplier for cooked internal explosions (normally quieter). 0 mutes them.")
             .defineInRange("sound.cookedInternalExplosionVolume", 1.0, 0.0, 4.0);
 
+    /** Local density of the continuous wind lines in lightning arenas. */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_WIND_LINE_DENSITY = BUILDER
+            .comment("Multiplier for the number of background wind lines in lightning arenas. 0 hides them.")
+            .defineInRange("lightning.windLineDensity", 2.0, 0.0, 3.0);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     /** Converts an exponential per-update retention factor to its 90% duration. */
