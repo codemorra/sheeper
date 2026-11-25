@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.LightningRingSurface;
+import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.network.ModNetwork;
@@ -105,9 +106,10 @@ public final class LightningStormData extends SavedData {
             setDirty();
         }
         if (hasStorms()) {
-            for (Storm storm : storms.values()) {
+            for (var entry : storms.entrySet()) {
+                Storm storm = entry.getValue();
                 if (!storm.arena.isDraining()) {
-                    tickAtmosphere(level, storm, now);
+                    tickAtmosphere(level, entry.getKey(), storm, now);
                 }
             }
         }
@@ -117,11 +119,23 @@ public final class LightningStormData extends SavedData {
     }
 
     /** Storm lightning uses the visual bolt alone, keeping warnings reserved for combat. */
-    private static void tickAtmosphere(ServerLevel level, Storm storm, long now) {
+    private static void tickAtmosphere(ServerLevel level, UUID owner, Storm storm, long now) {
         boolean building = storm.arena.isBuilding(now);
         if (now >= storm.nextFlash) {
-            flashAtFront(level, storm.arena, now);
-            storm.nextFlash = now + (building ? 8 + level.random.nextInt(10) : 100 + level.random.nextInt(140));
+            if (building) {
+                flash(level, storm.arena, now, true);
+                storm.nextFlash = now + 8 + level.random.nextInt(10);
+            } else {
+                if (!(level.getEntity(owner) instanceof LightningSheeperEntity boss)
+                        || boss.getCombatParticipants().isEmpty()) {
+                    int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
+                    for (int index = 0; index < count; index++) {
+                        flash(level, storm.arena, now, false);
+                    }
+                }
+                storm.nextFlash = now
+                        + SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_INTERVAL.get());
+            }
         }
         if (now >= storm.nextRumble) {
             float volume = LightningSheeperConfig.LIGHTNING_STORM_RUMBLE_VOLUME.get().floatValue();
@@ -136,16 +150,22 @@ public final class LightningStormData extends SavedData {
         }
     }
 
-    private static void flashAtFront(ServerLevel level, LightningWeatherPacket.Arena arena, long now) {
+    private static void flash(ServerLevel level, LightningWeatherPacket.Arena arena, long now, boolean atFront) {
         BlockPos center = arena.center();
-        double angle = level.random.nextDouble() * Math.PI * 2;
-        double radius = arena.radiusAt(now) * (0.9 + level.random.nextDouble() * 0.1);
-        double x = center.getX() + 0.5 + Math.cos(angle) * radius;
-        double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
-        double ground = LightningRingSurface.find(level, x, z, center.getY(),
-                arena.minimumY(), arena.maximumY() - 1);
-        if (Double.isFinite(ground)) {
-            LightningStrikeEffect.spawnAmbient(level, new Vec3(x, ground, z));
+        for (int attempt = 0; attempt < 4; attempt++) {
+            double angle = level.random.nextDouble() * Math.PI * 2;
+            double fraction = atFront ? 0.9 + level.random.nextDouble() * 0.1
+                    : Math.sqrt(level.random.nextDouble());
+            double radius = arena.radiusAt(now) * fraction;
+            double x = center.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
+            double ground = LightningRingSurface.find(level, x, z, center.getY(),
+                    arena.minimumY(), arena.maximumY() - 1);
+            if (Double.isFinite(ground)) {
+                LightningStrikeEffect.spawnWeatherBolt(level, new Vec3(x, ground, z),
+                        arena.cloudStrikeY(x, z, now), false);
+                return;
+            }
         }
     }
 

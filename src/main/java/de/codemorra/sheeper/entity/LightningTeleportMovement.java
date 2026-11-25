@@ -360,12 +360,25 @@ final class LightningTeleportMovement {
     }
 
     private void finish() {
+        clearDestination();
+        cooldown = nextInterval();
+    }
+
+    private void clearDestination() {
         destination = null;
         warningRemaining = 0;
         arcTicks = 0;
         boss.clearTravelArc();
         walkRemaining = 0;
-        cooldown = nextInterval();
+    }
+
+    /** Clears the movement plan and its pause after full encounter recovery. */
+    void reset() {
+        clearDestination();
+        cooldown = -1;
+        walking = false;
+        idle = false;
+        focusId = null;
     }
 
     CompoundTag save() {

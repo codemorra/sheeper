@@ -1,14 +1,15 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import de.codemorra.sheeper.world.LightningStormData;
@@ -50,11 +51,23 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private BlockPos arenaCenter;
     @Nullable
     private LightningWeatherPacket.Arena arena;
-    private Set<UUID> admittedPlayers = Set.of();
+    private final Set<UUID> admittedPlayers = new HashSet<>();
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
+    private final LightningAmbientStrikes ambientStrikes = new LightningAmbientStrikes(this);
+    private final ElementalArenaCombat arenaCombat = new ElementalArenaCombat(this, this::canPlayerDamage,
+            this::resetArenaEncounter, LightningSheeperConfig.LIGHTNING_MAX_HEALTH::get,
+            LightningSheeperConfig.LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER::get,
+            LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_GRACE::get,
+            LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_REGENERATION::get);
+    private int encounterEntryTicks = -1;
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
+    }
+
+    @Override
+    protected double getConfiguredMaxHealth() {
+        return arenaCombat == null ? super.getConfiguredMaxHealth() : arenaCombat.getScaledMaxHealth();
     }
 
     @Override
@@ -89,6 +102,12 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     public int getArenaMaximumY() {
         return arena == null ? Math.min(level.getMaxBuildHeight(),
                 getArenaCenter().getY() + LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT.get()) : arena.maximumY();
+    }
+
+    /** @return absolute height of the local cloud bank used by arena strikes */
+    double getStormCloudY(Vec3 position) {
+        return arena == null ? LightningWeatherPacket.Arena.cloudCenterY(getArenaCenter().getY(), getArenaMaximumY())
+                : arena.cloudStrikeY(position.x, position.z, level.getGameTime());
     }
 
     /** @return whether the position falls between the arena floor and ceiling */
@@ -151,20 +170,30 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
      */
     public List<ServerPlayer> getCombatParticipants() {
         if (!(level instanceof ServerLevel server) || !isAlive() || isRemoved() || !isCombatReady()) {
-            admittedPlayers = Set.of();
+            admittedPlayers.clear();
             return List.of();
         }
-        double radius = getCombatRadius();
-        double innerRadius = radius - LightningArenaBoundaryDrag.entryInset(radius);
-        List<ServerPlayer> participants = server.players().stream()
-                .filter(player -> player.level == level && player.isAlive() && !player.isRemoved()
-                        && !player.isCreative() && !player.isSpectator()
-                        && horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
-                        && isWithinArenaHeight(player.getBoundingBox().getCenter().y)
-                        && (admittedPlayers.contains(player.getUUID()) || fitsBehindStorm(player, innerRadius)))
+        // Retain creative damage permission through the side band without counting it as participation.
+        List<ServerPlayer> admitted = server.players().stream().filter(this::canPlayerDamage).toList();
+        admittedPlayers.clear();
+        admitted.forEach(player -> admittedPlayers.add(player.getUUID()));
+        return admitted.stream().filter(player -> !player.isCreative())
                 .toList();
-        admittedPlayers = participants.stream().map(ServerPlayer::getUUID).collect(Collectors.toSet());
-        return participants;
+    }
+
+    /** Resolves arena permission at the moment damage is applied, including indirect attacks. */
+    private boolean canPlayerDamage(ServerPlayer player) {
+        double radius = getCombatRadius();
+        UUID id = player.getUUID();
+        if (!isCombatReady() || !isAlive() || isRemoved() || player.level != level
+                || !player.isAlive() || player.isRemoved() || player.isSpectator()
+                || horizontalDistanceSquared(player.getX(), player.getZ()) > radius * radius
+                || !isWithinArenaHeight(player.getBoundingBox().getCenter().y)) {
+            admittedPlayers.remove(id);
+            return false;
+        }
+        double innerRadius = radius - LightningArenaBoundaryDrag.entryInset(radius);
+        return admittedPlayers.contains(id) || fitsBehindStorm(player, innerRadius) && admittedPlayers.add(id);
     }
 
     /** Requires the player's horizontal footprint to clear the side band on entry. */
@@ -184,8 +213,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
-        // Preserve administrative removal and void damage during startup.
-        return !isCombatReady() && source != DamageSource.OUT_OF_WORLD || super.isInvulnerableTo(source);
+        return super.isInvulnerableTo(source)
+                || source != DamageSource.OUT_OF_WORLD && !arenaCombat.allowsDamage(source);
     }
 
     @Override
@@ -227,8 +256,31 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             if (!teleports.isWalking()) {
                 setDeltaMovement(0, getDeltaMovement().y, 0);
             }
+            if (canMove) {
+                arenaCombat.tick(participants);
+            }
+            if (canMove && !participants.isEmpty() && tickCombatEntry()) {
+                ambientStrikes.tick(server, participants);
+            } else {
+                ambientStrikes.clearWarnings();
+            }
         }
         super.tick();
+    }
+
+    /** Pauses the entry countdown while the arena is empty or the boss AI is disabled. */
+    private boolean tickCombatEntry() {
+        if (encounterEntryTicks < 0) {
+            encounterEntryTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_COMBAT_ENTRY_DELAY.get());
+        }
+        return encounterEntryTicks == 0 || --encounterEntryTicks == 0;
+    }
+
+    private void resetArenaEncounter() {
+        encounterEntryTicks = -1;
+        ambientStrikes.reset();
+        teleports.reset();
+        setTarget(null);
     }
 
     @Override
@@ -303,6 +355,10 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.putLong("LightningArenaCenter", getArenaCenter().asLong());
         tag.putString("LightningArenaDimension", level.dimension().location().toString());
         tag.put("LightningMovement", teleports.save());
+        CompoundTag combat = arenaCombat.save();
+        combat.putInt("EntryTicks", encounterEntryTicks);
+        tag.put("LightningArenaCombat", combat);
+        tag.put("LightningAmbientStrikes", ambientStrikes.save());
     }
 
     @Override
@@ -314,8 +370,13 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 ? BlockPos.of(tag.getLong("LightningArenaCenter"))
                 : null;
         arena = null;
-        admittedPlayers = Set.of();
+        admittedPlayers.clear();
         teleports.load(sameDimension ? tag.getCompound("LightningMovement") : new CompoundTag());
+        CompoundTag combat = sameDimension ? tag.getCompound("LightningArenaCombat") : new CompoundTag();
+        arenaCombat.load(combat);
+        encounterEntryTicks = combat.contains("EntryTicks", Tag.TAG_INT)
+                ? Mth.clamp(combat.getInt("EntryTicks"), -1, 200) : -1;
+        ambientStrikes.load(sameDimension ? tag.getCompound("LightningAmbientStrikes") : new CompoundTag());
     }
 
     @Override

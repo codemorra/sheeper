@@ -4,6 +4,9 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -14,14 +17,26 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.network.NetworkHooks;
 
 /**
- * Uses the vanilla bolt renderer without running lightning's world
- * interactions.
+ * Short-lived visual lightning with a synchronized cloud-to-ground height.
  */
 public final class LightningStrikeEffect extends LightningBolt {
+    private static final EntityDataAccessor<Float> DATA_HEIGHT = SynchedEntityData
+            .defineId(LightningStrikeEffect.class, EntityDataSerializers.FLOAT);
     private int age;
 
     public LightningStrikeEffect(EntityType<? extends LightningBolt> type, Level level) {
         super(type, level);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        entityData.define(DATA_HEIGHT, 1.0F);
+    }
+
+    /** @return rendered height above the fixed impact point */
+    public float getStrikeHeight() {
+        return entityData.get(DATA_HEIGHT);
     }
 
     /** Shared warning marker for both stationary storm centers and moving lanes. */
@@ -42,9 +57,7 @@ public final class LightningStrikeEffect extends LightningBolt {
      */
     static void spawn(LightningSheeperEntity boss, Vec3 pos) {
         ServerLevel level = (ServerLevel) boss.level;
-        LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
-        effect.setPos(pos);
-        level.addFreshEntity(effect);
+        spawnVisual(level, pos, boss.getStormCloudY(pos));
         float thunder = LightningSheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
         float impact = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (thunder > 0) {
@@ -57,19 +70,21 @@ public final class LightningStrikeEffect extends LightningBolt {
         }
     }
 
-    /**
-     * Ambient strikes reuse the harmless renderer without requiring a loaded boss
-     * entity.
-     */
-    public static void spawnAmbient(ServerLevel level, Vec3 pos) {
-        LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
-        effect.setPos(pos);
-        level.addFreshEntity(effect);
+    /** Spawns a cosmetic weather bolt. Combat strikes may also play the positional impact cue. */
+    public static void spawnWeatherBolt(ServerLevel level, Vec3 pos, double cloudY, boolean playImpact) {
+        spawnVisual(level, pos, cloudY);
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (volume > 0) {
+        if (playImpact && volume > 0) {
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                     SoundSource.WEATHER, volume, 0.9F + level.random.nextFloat() * 0.2F);
         }
+    }
+
+    private static void spawnVisual(ServerLevel level, Vec3 pos, double cloudY) {
+        LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
+        effect.setPos(pos);
+        effect.entityData.set(DATA_HEIGHT, (float) Math.max(0.15, cloudY - pos.y));
+        level.addFreshEntity(effect);
     }
 
     @Override

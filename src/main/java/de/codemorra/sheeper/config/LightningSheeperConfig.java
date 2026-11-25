@@ -11,8 +11,15 @@ public final class LightningSheeperConfig {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Lightning boss settings and combat bounds. */
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = ElementalConfigValues
-            .elementalHealth(BUILDER, "lightning", 200.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = BUILDER
+            .comment("Solo maximum health in health points (2 = one heart).",
+                    "Multiplayer scaling adds health up to 1024 and preserves the remaining health percentage.")
+            .defineInRange("boss.maxHealth", 300.0, 1.0, 1024.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER = BUILDER
+            .comment("Extra percentage of solo health per additional player present for at least 3 seconds.",
+                    "The highest simultaneous player count applies until the boss fully recovers.")
+            .defineInRange("healthScaling.additionalPlayerPercent", 50.0, 0.0, 100.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SIZE = ElementalConfigValues.elementalSize(BUILDER,
             "lightning");
@@ -54,6 +61,20 @@ public final class LightningSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ARENA_DRAIN_DURATION = BUILDER
             .comment("Seconds for the storm front to retreat and fade after the boss is defeated or removed.")
             .defineInRange("arena.drainDurationSeconds", 8.0, 1.0, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_ENTRY_DELAY = BUILDER
+            .comment("Seconds after the first player enters the ready arena before combat hazards begin.")
+            .defineInRange("arena.entryDelaySeconds", 2.0, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_GRACE = BUILDER
+            .comment("Seconds the arena must stay empty before the boss starts healing.",
+                    "Returning players stop recovery immediately.")
+            .defineInRange("arenaRecovery.graceSeconds", 10.0, 0.0, 30.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_REGENERATION = BUILDER
+            .comment("Percentage of maximum health restored per second after the grace period.",
+                    "Full recovery resets the encounter.")
+            .defineInRange("arenaRecovery.healthPercentPerSecond", 5.0, 0.1, 25.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_PREPARATION_WAVE_COUNT = BUILDER
             .comment("Number of outward preparation waves before storm awakening begins.")
@@ -141,6 +162,44 @@ public final class LightningSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_PLAYER_DISTANCE = BUILDER
             .comment("Minimum distance in blocks from the teleport destination to a living, non-spectator player.")
             .defineInRange("teleport.playerDistance", 4.0, 0.0, 32.0);
+
+    /** Random arena strikes during combat (ambientLightning). */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_INTERVAL = BUILDER
+            .comment("Seconds between groups of random arena strikes.")
+            .defineInRange("ambientLightning.intervalSeconds", 0.5, 0.25, 5.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_AMBIENT_STRIKE_COUNT = BUILDER
+            .comment("Random strike locations per interval. 0 disables recurring strikes.",
+                    "Strikes are cosmetic when no players are participating.")
+            .defineInRange("ambientLightning.strikesPerInterval", 2, 0, 4);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_WARNING = BUILDER
+            .comment("Seconds a strike is marked on the ground before it hits.")
+            .defineInRange("ambientLightning.warningSeconds", 1.75, 0.25, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_CENTER_RADIUS = BUILDER
+            .comment("Radius in blocks of the inner ring where a strike deals full damage.")
+            .defineInRange("ambientLightning.centerRadius", 1.0, 0.25, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_EDGE_WIDTH = BUILDER
+            .comment("Width in blocks beyond the inner ring that grants Speed I and deals reduced damage.")
+            .defineInRange("ambientLightning.edgeWidth", 1.5, 0.25, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_HIT_HEIGHT = BUILDER
+            .comment("How many blocks above the marked surface a strike can hit. Solid cover blocks the hit.")
+            .defineInRange("ambientLightning.hitHeight", 3.0, 0.5, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_CENTER_DAMAGE = BUILDER
+            .comment("Damage in the inner ring, in health points before armor and difficulty scaling.")
+            .defineInRange("ambientLightning.centerDamage", 6.0, 0.0, 20.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_EDGE_DAMAGE_PERCENT = BUILDER
+            .comment("Percentage of the inner ring's damage dealt in the outer ring.")
+            .defineInRange("ambientLightning.edgeDamagePercent", 25.0, 0.0, 75.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_SPEED_DURATION = BUILDER
+            .comment("Seconds of Speed I after an outer-ring hit. 0 disables the speed bonus.")
+            .defineInRange("ambientLightning.speedBonusSeconds", 4.0, 0.0, 8.0);
 
     /** Lightning attack selection (attack). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER

@@ -28,6 +28,35 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             return y >= minimumY && y < maximumY;
         }
 
+        /** Keeps the cloud bank above the spawn point even in a shallow arena. */
+        public double cloudHalfHeight() {
+            return cloudHalfHeight(center.getY(), maximumY);
+        }
+
+        private static double cloudHalfHeight(int originY, int ceilingY) {
+            return Math.min(4.5, (ceilingY - originY) / 3.0);
+        }
+
+        /** Rain and lightning originate inside the same cloud geometry drawn by the client. */
+        public double cloudCenterY() {
+            return cloudCenterY(center.getY(), maximumY);
+        }
+
+        public static double cloudCenterY(int originY, int ceilingY) {
+            return ceilingY - 1.7 * cloudHalfHeight(originY, ceilingY);
+        }
+
+        /** Follows the cloud bank's animated midline at the bolt's horizontal position. */
+        public double cloudStrikeY(double x, double z, double time) {
+            double variation = cloudVariation(x - center.getX() - 0.5, z - center.getZ() - 0.5, time);
+            return cloudCenterY() + cloudHalfHeight() * variation * 0.5;
+        }
+
+        public static double cloudVariation(double x, double z, double time) {
+            return (Math.sin(x * 0.14 + z * 0.11 - time * 0.018)
+                    + Math.sin(z * 0.27 - x * 0.09 + time * 0.011)) * 0.5;
+        }
+
         /** Checks the persisted geometry and the network bounds with the same limits. */
         public boolean isValid() {
             return Double.isFinite(radius) && radius >= 1 && radius <= 128
