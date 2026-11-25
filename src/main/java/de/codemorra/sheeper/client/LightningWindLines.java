@@ -44,7 +44,7 @@ final class LightningWindLines {
         for (LightningWindField field : fields) {
             Arena arena = field.arena();
             List<Line> current = lines.computeIfAbsent(arena, key -> new ArrayList<>());
-            Vec3 travel = field.travelBetween(now - 1, now).scale(SPEED);
+            Vec3 travel = field.travelBetween(now - 1, now).scale(lineSpeed(field));
             current.replaceAll(line -> line.move(travel));
             current.removeIf(line -> now - line.bornAt() >= line.lifetime()
                     || line.position().distanceToSqr(camera) >= (VIEW_DISTANCE + 8) * (VIEW_DISTANCE + 8)
@@ -102,18 +102,23 @@ final class LightningWindLines {
     void draw(BufferBuilder buffer, ClientLevel level, LightningWindField field, Vec3 camera, double time) {
         Arena arena = field.arena();
         Vec3 direction = field.directionAt(time);
-        Vec3 travel = field.travelBetween(level.getGameTime(), time).scale(SPEED);
+        Vec3 travel = field.travelBetween(level.getGameTime(), time).scale(lineSpeed(field));
         for (Line line : lines.getOrDefault(arena, List.of())) {
             Vec3 center = line.position().add(travel);
             if (center.distanceToSqr(camera) > VIEW_DISTANCE * VIEW_DISTANCE) {
                 continue;
             }
             double age = time - line.bornAt();
-            float alpha = (float) (0.14 * Mth.clamp(Math.min(age / 8, (line.lifetime() - age) / 12), 0, 1));
+            float alpha = (float) (0.14 * Math.sqrt(field.strength())
+                    * Mth.clamp(Math.min(age / 8, (line.lifetime() - age) / 12), 0, 1));
             if (alpha > 0 && intensity(arena, time, center) > 0) {
                 drawLine(buffer, level, arena, camera, time, direction, line.length(), center, alpha);
             }
         }
+    }
+
+    private static double lineSpeed(LightningWindField field) {
+        return SPEED * Math.sqrt(field.strength());
     }
 
     private static void drawLine(BufferBuilder buffer, ClientLevel level, Arena arena, Vec3 camera, double time,

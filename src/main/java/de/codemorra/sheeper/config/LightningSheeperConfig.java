@@ -641,6 +641,14 @@ public final class LightningSheeperConfig {
             .comment("Radius of the shelter spheres in blocks, limited by the arena sides and ceiling.")
             .defineInRange("lightningRod.shelterRadius", 3.5, 2.0, 6.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_WIND_MULTIPLIER = BUILDER
+            .comment("Multiplier for the arena-wide wind during the lightning rod charge.")
+            .defineInRange("lightningRod.windMultiplier", 2.5, 1.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CALM_DURATION = BUILDER
+            .comment("Seconds of calm before the lightning rod discharges.")
+            .defineInRange("lightningRod.calmBeforeStrikeSeconds", 0.5, 0.15, 1.5);
+
     /**
      * Shared proximity charge and defensive discharge
      * (proximityPush).

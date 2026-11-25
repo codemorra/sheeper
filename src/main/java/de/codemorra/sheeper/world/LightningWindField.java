@@ -12,8 +12,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Shared wind state for one arena, including the continuous turn and its local gusts. */
 public record LightningWindField(Arena arena, double fromAngle, double turnAngle, long turnStart,
-        List<LightningWindGust> gusts) {
-    private static final int TURN_TICKS = 20;
+        double strength, List<LightningWindGust> gusts) {
+    static final int TURN_TICKS = 20;
 
     public double angleAt(double time) {
         return fromAngle + turnAngle * Mth.clamp((time - turnStart) / TURN_TICKS, 0, 1);

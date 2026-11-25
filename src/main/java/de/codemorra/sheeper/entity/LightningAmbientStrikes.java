@@ -45,8 +45,8 @@ final class LightningAmbientStrikes {
         this.boss = boss;
     }
 
-    /** Keeps ground sparks briefly visible during exits while pausing new strikes and bonuses. */
-    void tick(ServerLevel level, List<ServerPlayer> participants, boolean fighting) {
+    /** Doubles random strikes during the charge and reserves the calm window for the special attack. */
+    void tick(ServerLevel level, List<ServerPlayer> participants, boolean fighting, int intensifiedTicksRemaining) {
         int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
         if (count == 0) {
             clearEffects();
@@ -71,16 +71,18 @@ final class LightningAmbientStrikes {
                 showWarning(level, strike, remaining);
             }
         }
-        if (--intervalTicks > 0) {
+        int warningTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_WARNING.get());
+        boolean intensified = intensifiedTicksRemaining > 0;
+        if (--intervalTicks > 0 || intensified && warningTicks >= intensifiedTicksRemaining) {
             return;
         }
         intervalTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_INTERVAL.get());
-        long impactTick = now
-                + SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_WARNING.get());
+        long impactTick = now + warningTicks;
         double centerRadius = LightningSheeperConfig.LIGHTNING_AMBIENT_CENTER_RADIUS.get();
         double outerRadius = centerRadius + LightningSheeperConfig.LIGHTNING_AMBIENT_EDGE_WIDTH.get();
         double height = LightningSheeperConfig.LIGHTNING_AMBIENT_HIT_HEIGHT.get();
-        for (int index = 0; index < count && pending.size() < MAX_PENDING; index++) {
+        int multiplier = intensified ? 2 : 1;
+        for (int index = 0; index < count * multiplier && pending.size() < MAX_PENDING * multiplier; index++) {
             randomStrike(level, impactTick, centerRadius, outerRadius, height).ifPresent(strike -> {
                 pending.add(strike);
                 showWarning(level, strike, impactTick - now);

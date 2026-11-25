@@ -155,15 +155,16 @@ public final class LightningStormData extends SavedData {
                 .filter(tornado -> tornado.sampleTick() + 5 >= now && tornado.endTick() > now).toList();
     }
 
-    /** Keeps wind active in a fully formed arena and adds stronger gusts during combat. */
-    public void tickWind(ServerLevel level, UUID owner, boolean fighting, List<ServerPlayer> participants) {
+    /** Keeps wind active in a fully formed arena unless the finale needs a calm window. */
+    public void tickWind(ServerLevel level, UUID owner, LightningArenaWind.Mode mode, List<ServerPlayer> participants) {
         Storm storm = storms.get(owner);
         if (storm == null) {
             return;
         }
         boolean active = hasStorms() && !storm.arena.isBuilding(level.getGameTime()) && !storm.arena.isDraining()
-                && LightningSheeperConfig.LIGHTNING_WIND_ENABLED.get();
-        boolean changed = active ? storm.wind.tick(level, storm.arena, fighting ? participants : List.of())
+                && LightningSheeperConfig.LIGHTNING_WIND_ENABLED.get() && mode != LightningArenaWind.Mode.CALM;
+        boolean changed = active ? storm.wind.tick(level, storm.arena, participants,
+                mode == LightningArenaWind.Mode.INTENSIFIED)
                 : storm.wind.clear();
         if (changed) {
             sync(level);

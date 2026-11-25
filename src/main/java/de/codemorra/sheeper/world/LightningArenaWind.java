@@ -23,6 +23,10 @@ import net.minecraft.world.phys.Vec3;
 
 /** Runs continuous wind and stronger local gusts in each lightning arena. */
 public final class LightningArenaWind {
+    public enum Mode {
+        NORMAL, INTENSIFIED, CALM
+    }
+
     private static Function<Level, List<LightningWindField>> clientFields = level -> List.of();
 
     private final List<LightningWindGust> active = new ArrayList<>();
@@ -31,6 +35,9 @@ public final class LightningArenaWind {
     private long turnStart;
     private long nextTurn = -1;
     private long nextGust;
+    private boolean intensified;
+    private double stormTurn;
+    private double strength = 1;
 
     public static void setClientLookup(Function<Level, List<LightningWindField>> lookup) {
         clientFields = lookup;
@@ -38,7 +45,8 @@ public final class LightningArenaWind {
 
     @Nullable
     LightningWindField snapshot(Arena arena) {
-        return nextTurn < 0 ? null : new LightningWindField(arena, fromAngle, turnAngle, turnStart, List.copyOf(active));
+        return nextTurn < 0 ? null
+                : new LightningWindField(arena, fromAngle, turnAngle, turnStart, strength, List.copyOf(active));
     }
 
     /** Stops wind and reports whether the clients' snapshot needs clearing. */
@@ -49,27 +57,17 @@ public final class LightningArenaWind {
         return hadWind;
     }
 
-    /** Turns the wind continuously while new gusts follow the usual spawn rhythm. */
-    boolean tick(ServerLevel level, Arena arena, List<ServerPlayer> participants) {
+    /** Advances the arena wind, switching to continuous rotation during the lightning rod charge. */
+    boolean tick(ServerLevel level, Arena arena, List<ServerPlayer> participants, boolean intensify) {
         long now = level.getGameTime();
         boolean changed = active.removeIf(gust -> gust.expired(now));
-        if (nextTurn < 0) {
-            fromAngle = level.random.nextDouble() * Math.PI * 2;
-            turnAngle = 0;
-            turnStart = now;
-            nextGust = now + 12;
-            nextTurn = now + turnDelay(level);
+        if (nextTurn < 0 || now >= nextTurn || intensified != intensify) {
+            updateHeading(level, arena, now, intensify);
             changed = true;
-        } else if (now >= nextTurn) {
-            LightningWindField previous = snapshot(arena);
-            active.replaceAll(gust -> gust.rebase(previous, now));
-            fromAngle = (fromAngle + turnAngle) % (2 * Math.PI);
-            turnAngle = Math.PI / 4 + level.random.nextDouble() * Math.PI * 1.5;
-            if (turnAngle > Math.PI) {
-                turnAngle -= 2 * Math.PI;
-            }
-            turnStart = now;
-            nextTurn = now + turnDelay(level);
+        }
+        double targetStrength = intensify ? LightningSheeperConfig.LIGHTNING_ROD_WIND_MULTIPLIER.get() : 1;
+        if (strength != targetStrength) {
+            strength = targetStrength;
             changed = true;
         }
         LightningWindField field = snapshot(arena);
@@ -87,6 +85,35 @@ public final class LightningArenaWind {
             }
         }
         return changed;
+    }
+
+    /** Rebases existing gusts so a change of mode keeps their current positions and heading. */
+    private void updateHeading(ServerLevel level, Arena arena, long now, boolean intensify) {
+        LightningWindField previous = snapshot(arena);
+        if (previous == null) {
+            fromAngle = level.random.nextDouble() * Math.PI * 2;
+            nextGust = now + 12;
+        } else {
+            active.replaceAll(gust -> gust.rebase(previous, now));
+            fromAngle = previous.angleAt(now) % (2 * Math.PI);
+        }
+
+        if (intensify) {
+            if (previous == null || !intensified) {
+                stormTurn = level.random.nextBoolean() ? Math.PI / 3 : -Math.PI / 3;
+            }
+            turnAngle = stormTurn;
+        } else if (previous == null || intensified) {
+            turnAngle = 0;
+        } else {
+            turnAngle = Math.PI / 4 + level.random.nextDouble() * Math.PI * 1.5;
+            if (turnAngle > Math.PI) {
+                turnAngle -= 2 * Math.PI;
+            }
+        }
+        intensified = intensify;
+        turnStart = now;
+        nextTurn = now + (intensify ? LightningWindField.TURN_TICKS : turnDelay(level));
     }
 
     private static int turnDelay(ServerLevel level) {
@@ -192,16 +219,19 @@ public final class LightningArenaWind {
             if (!LightningWindField.isExposed(level, player, direction)) {
                 continue;
             }
-            double drift = 0.018;
-            double resistance = 0.13;
+            double drift = 0.018 * field.strength();
+            double resistance = 0.13 * field.strength();
+            double gustDrift = 0;
+            double gustResistance = 0;
             for (LightningWindGust gust : field.gusts()) {
                 double exposure = gust.exposure(level, field, player, direction, now);
                 boolean large = gust.size() == Size.LARGE;
-                drift = Math.max(drift, 0.018 + exposure * (large ? 0.080 : 0.044));
-                resistance = Math.max(resistance, 0.13 + exposure * (large ? 0.51 : 0.32));
+                gustDrift = Math.max(gustDrift, exposure * (large ? 0.080 : 0.044));
+                gustResistance = Math.max(gustResistance, exposure * (large ? 0.51 : 0.32));
             }
             double against = Math.max(0, -motion.dot(direction));
-            Vec3 candidate = direction.scale((drift + against * resistance) * intensity);
+            Vec3 candidate = direction.scale(
+                    (drift + gustDrift + against * Math.min(0.9, resistance + gustResistance)) * intensity);
             if (candidate.lengthSqr() > correction.lengthSqr()) {
                 correction = candidate;
             }

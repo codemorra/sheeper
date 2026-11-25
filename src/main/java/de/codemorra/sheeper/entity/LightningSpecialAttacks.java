@@ -5,6 +5,7 @@ import java.util.List;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.LightningArenaWind;
 import de.codemorra.sheeper.world.LightningTornado;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -46,6 +47,17 @@ final class LightningSpecialAttacks {
 
     boolean isRodHovering() {
         return rod.isHovering();
+    }
+
+    LightningArenaWind.Mode windMode() {
+        if (!rod.isActive()) {
+            return LightningArenaWind.Mode.NORMAL;
+        }
+        return rod.stormTicksRemaining() > 0 ? LightningArenaWind.Mode.INTENSIFIED : LightningArenaWind.Mode.CALM;
+    }
+
+    int intensifiedStormTicksRemaining() {
+        return rod.stormTicksRemaining();
     }
 
     List<LightningTornado> tornadoSnapshots() {

@@ -26,6 +26,7 @@ final class LightningRodAttack {
     private int travelTicks;
     private int chargeTicks;
     private int chargeDuration;
+    private int calmTicks;
     private int releaseTicks;
 
     LightningRodAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
@@ -43,6 +44,7 @@ final class LightningRodAttack {
         hoverPosition = position;
         boss.setTarget(null);
         chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION.get());
+        calmTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION.get());
         chargeTicks = chargeDuration;
         travelTicks = teleports.startAttackTravel(hoverPosition);
         shelters.tick(level);
@@ -55,6 +57,11 @@ final class LightningRodAttack {
 
     boolean isHovering() {
         return isActive() && travelTicks == 0;
+    }
+
+    /** @return ticks before the wind stops, including the remaining flight to the center */
+    int stormTicksRemaining() {
+        return Math.max(0, travelTicks + chargeTicks - calmTicks);
     }
 
     /** Retains lightning form through travel, charge and the final visible strike. */
