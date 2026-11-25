@@ -29,7 +29,7 @@ final class LightningProximityGameTests {
     private static LightningSheeperEntity boss(GameTestContext context) {
         context.difficulty(Difficulty.NORMAL);
         context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE, 16.0D);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_STRIKE_WEIGHT, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_FRONT_WEIGHT, 0.0D);

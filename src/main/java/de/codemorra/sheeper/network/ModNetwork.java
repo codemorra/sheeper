@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "13";
+    private static final String VERSION = "14";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
