@@ -264,7 +264,8 @@ final class LightningTeleportMovement {
         return true;
     }
 
-    private void faceDestination(Vec3 target) {
+    /** Turns the boss toward a planned destination without moving it. */
+    void faceDestination(Vec3 target) {
         Vec3 direction = target.subtract(boss.position());
         if (direction.horizontalDistanceSqr() > 1.0E-8) {
             float yaw = (float) (Mth.atan2(direction.z, direction.x) * Mth.RAD_TO_DEG) - 90;
@@ -321,11 +322,60 @@ final class LightningTeleportMovement {
      * sequence.
      */
     boolean teleportForAttack() {
-        Vec3 target = findDestination(null);
-        if (target == null || boss.getMovementRadius() <= 0) {
+        Vec3 target = findAttackDestination();
+        if (target == null) {
             return false;
         }
+        faceDestination(target);
         showDeparture();
+        return landAttackTeleport(target);
+    }
+
+    /** Picks a safe destination anywhere within the attack's allowed movement area. */
+    @Nullable
+    Vec3 findAttackDestination() {
+        ServerLevel level = (ServerLevel) boss.level;
+        double radius = boss.getMovementRadius();
+        if (radius <= 0) {
+            return null;
+        }
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter()).add(0, boss.getY() - boss.getArenaCenter().getY(), 0);
+        // Sample the whole allowed area independently of the current target or position.
+        for (int attempt = 0; attempt < 36; attempt++) {
+            double angle = boss.getRandom().nextDouble() * 2 * Math.PI;
+            double distance = Math.sqrt(boss.getRandom().nextDouble()) * radius;
+            Vec3 point = center.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+            Vec3 target = safeDestination(level, point);
+            if (target != null) {
+                return target;
+            }
+        }
+        return null;
+    }
+
+    /** Gives distant jumps a longer visible path without prolonging short jumps unnecessarily. */
+    int attackTravelTicks(Vec3 target) {
+        return Mth.clamp(Mth.ceil(boss.position().distanceTo(target) / 3.0), 12, 32);
+    }
+
+    /** Starts the same lightning form used for normal movement, with no approach walk. */
+    int beginAttackTravel(Vec3 target) {
+        if (!isSafe(target)) {
+            return 0;
+        }
+        int ticks = attackTravelTicks(target);
+        faceDestination(target);
+        boss.startTravelArc(target, ticks);
+        showDeparture();
+        return ticks;
+    }
+
+    /** Arrives when the visible bolt reaches its destination and rechecks the landing conditions. */
+    boolean landAttackTeleport(Vec3 target) {
+        boss.clearTravelArc();
+        if (!isSafe(target)) {
+            return false;
+        }
         teleportTo(target);
         return true;
     }
@@ -333,7 +383,7 @@ final class LightningTeleportMovement {
     /** Keeps the source position until the visible lightning form reaches the destination. */
     private void beginArc() {
         arcTicks = LightningSheeperEntity.ARC_TRAVEL_TICKS;
-        boss.startTravelArc(destination);
+        boss.startTravelArc(destination, arcTicks);
         showDeparture();
     }
 

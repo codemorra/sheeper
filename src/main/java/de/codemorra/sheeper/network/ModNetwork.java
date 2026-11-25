@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "24";
+    private static final String VERSION = "25";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -50,6 +50,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningStrikeMarkerPacket.class, 5, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningStrikeMarkerPacket::encode).decoder(LightningStrikeMarkerPacket::decode)
                 .consumerMainThread(LightningStrikeMarkerPacket::handle).add();
+        CHANNEL.messageBuilder(LightningRingVisualPacket.class, 6, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningRingVisualPacket::encode).decoder(LightningRingVisualPacket::decode)
+                .consumerMainThread(LightningRingVisualPacket::handle).add();
     }
 
     /**
@@ -101,6 +104,11 @@ public final class ModNetwork {
 
     /** Updates the phase of a ground marker for a nearby observer. */
     public static void sendLightningStrikeMarker(ServerPlayer observer, LightningStrikeMarkerPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /** Refreshes an announced ring attack or a wave that is still travelling. */
+    public static void sendLightningRingVisual(ServerPlayer observer, LightningRingVisualPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 
