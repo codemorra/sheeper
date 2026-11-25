@@ -72,7 +72,9 @@ public final class LightningRingParticle extends TextureSheetParticle {
                             || (camera.x - px) * (camera.x - px) + (camera.z - pz) * (camera.z - pz) > 64.0D * 64.0D) {
                         continue;
                     }
-                    double ground = LightningRingSurface.find(level, px, pz, y, options.minY(), options.maxY());
+                    double ground = options.waterSurface()
+                            ? LightningRingSurface.findWater(level, px, pz, options.minY(), options.maxY())
+                            : LightningRingSurface.find(level, px, pz, y, options.minY(), options.maxY());
                     if (Double.isFinite(ground) && camera.distanceToSqr(px, ground, pz) <= 64.0D * 64.0D) {
                         Minecraft.getInstance().particleEngine.add(new LightningRingParticle(level,
                                 px, ground + 0.08D, pz, stripe == 0, options.opacity(), sprites));

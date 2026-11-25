@@ -15,7 +15,7 @@ import net.minecraft.network.FriendlyByteBuf;
  * One compact visual snapshot lets clients draw an entire dense ring locally.
  */
 public record LightningRingOptions(float radius, float width, float spacing, int minY, int maxY,
-        double arenaX, double arenaZ, float arenaRadius, float opacity) implements ParticleOptions {
+        double arenaX, double arenaZ, float arenaRadius, float opacity, boolean waterSurface) implements ParticleOptions {
     public static final Codec<LightningRingOptions> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.FLOAT.fieldOf("radius").forGetter(LightningRingOptions::radius),
             Codec.FLOAT.fieldOf("width").forGetter(LightningRingOptions::width),
@@ -25,8 +25,14 @@ public record LightningRingOptions(float radius, float width, float spacing, int
             Codec.DOUBLE.fieldOf("arena_x").forGetter(LightningRingOptions::arenaX),
             Codec.DOUBLE.fieldOf("arena_z").forGetter(LightningRingOptions::arenaZ),
             Codec.FLOAT.fieldOf("arena_radius").forGetter(LightningRingOptions::arenaRadius),
-            Codec.FLOAT.optionalFieldOf("opacity", 1.0F).forGetter(LightningRingOptions::opacity))
+            Codec.FLOAT.optionalFieldOf("opacity", 1.0F).forGetter(LightningRingOptions::opacity),
+            Codec.BOOL.optionalFieldOf("water_surface", false).forGetter(LightningRingOptions::waterSurface))
             .apply(instance, LightningRingOptions::new));
+
+    public LightningRingOptions(float radius, float width, float spacing, int minY, int maxY,
+            double arenaX, double arenaZ, float arenaRadius, float opacity) {
+        this(radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius, opacity, false);
+    }
 
     // Minecraft 1.19.2 still requires this deprecated type in ParticleType's
     // constructor.
@@ -52,15 +58,22 @@ public record LightningRingOptions(float radius, float width, float spacing, int
             reader.expect(' ');
             float arenaRadius = reader.readFloat();
             reader.expect(' ');
+            float opacity = reader.readFloat();
+            String remaining = reader.getRemaining();
+            boolean waterSurface = false;
+            if (remaining.startsWith(" true") || remaining.startsWith(" false")) {
+                reader.skip();
+                waterSurface = reader.readBoolean();
+            }
             return new LightningRingOptions(radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius,
-                    reader.readFloat());
+                    opacity, waterSurface);
         }
 
         @Override
         public LightningRingOptions fromNetwork(ParticleType<LightningRingOptions> type, FriendlyByteBuf buffer) {
             return new LightningRingOptions(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
                     buffer.readInt(), buffer.readInt(), buffer.readDouble(), buffer.readDouble(), buffer.readFloat(),
-                    buffer.readFloat());
+                    buffer.readFloat(), buffer.readBoolean());
         }
     };
 
@@ -80,11 +93,12 @@ public record LightningRingOptions(float radius, float width, float spacing, int
         buffer.writeDouble(arenaZ);
         buffer.writeFloat(arenaRadius);
         buffer.writeFloat(opacity);
+        buffer.writeBoolean(waterSurface);
     }
 
     @Override
     public String writeToString() {
-        return String.format(Locale.ROOT, "sheeper:lightning_ring %f %f %f %d %d %f %f %f %f",
-                radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius, opacity);
+        return String.format(Locale.ROOT, "sheeper:lightning_ring %f %f %f %d %d %f %f %f %f %b",
+                radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius, opacity, waterSurface);
     }
 }

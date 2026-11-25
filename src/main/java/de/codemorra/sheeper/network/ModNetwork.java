@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "20";
+    private static final String VERSION = "23";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -44,6 +44,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(WaterArenaExitPacket.class, 3, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(WaterArenaExitPacket::encode).decoder(WaterArenaExitPacket::decode)
                 .consumerMainThread(WaterArenaExitPacket::handle).add();
+        CHANNEL.messageBuilder(LightningWaterChargePacket.class, 4, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningWaterChargePacket::encode).decoder(LightningWaterChargePacket::decode)
+                .consumerMainThread(LightningWaterChargePacket::handle).add();
     }
 
     /**
@@ -88,6 +91,11 @@ public final class ModNetwork {
     public static void sendWaterArenas(ServerPlayer observer, WaterArenaPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
+    /** Starts the visible water discharge for this observer. */
+    public static void sendLightningWaterCharge(ServerPlayer observer, LightningWaterChargePacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
     /** Sends only movement intent; the server decides whether the player is near an exterior boundary. */
     public static void requestWaterArenaExit(WaterArenaExitPacket packet) {
         CHANNEL.sendToServer(packet);
