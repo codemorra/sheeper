@@ -575,6 +575,55 @@ public final class LightningSheeperConfig {
             .comment("Minimum seconds between tornado hits on the same player.")
             .defineInRange("tornado.damageIntervalSeconds", 1.0, 0.5, 3.0);
 
+    /** Targeted ground lightning fan (fan). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_FAN_ENABLED = BUILDER
+            .comment("Enables the ground lightning fan attack.")
+            .define("fan.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_COOLDOWN = BUILDER
+            .comment("Combat seconds after the last fan in the series before the attack is ready again.")
+            .defineInRange("fan.cooldownSeconds", 20.0, 1.0, 120.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_PREPARATION = BUILDER
+            .comment("Seconds the Sheeper visibly charges before firing the first fan in the series.")
+            .defineInRange("fan.preparationSeconds", 2.0, 0.1, 5.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FAN_SHOT_COUNT_MIN = BUILDER
+            .comment("Minimum number of fans in one attack.")
+            .defineInRange("fan.shotCountMin", 3, 1, 6);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_FAN_SHOT_COUNT_MAX = BUILDER
+            .comment("Maximum number of fans in one attack. At least shotCountMin.")
+            .defineInRange("fan.shotCountMax", 5, 1, 6);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_SHOT_PAUSE = BUILDER
+            .comment("Seconds between consecutive fans in the same attack.")
+            .defineInRange("fan.shotPauseSeconds", 1.0, 0.5, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MIN = BUILDER
+            .comment("Minimum active time in seconds for each fan.")
+            .defineInRange("fan.durationMinSeconds", 5.0, 0.5, 15.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MAX = BUILDER
+            .comment("Maximum active time in seconds for each fan. At least durationMinSeconds.")
+            .defineInRange("fan.durationMaxSeconds", 8.0, 0.5, 15.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_LEAD = BUILDER
+            .comment("Maximum starting gap in blocks between the central ground impact and the targeted player.")
+            .defineInRange("fan.leadDistance", 4.0, 1.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_SPEED = BUILDER
+            .comment("Maximum speed in blocks per second at which the ground impacts follow the target.")
+            .defineInRange("fan.speedBlocksPerSecond", 5.2, 2.0, 12.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_TRACKING_RESPONSE = BUILDER
+            .comment("Aim response time in seconds. Larger values make the ground impacts react more slowly.")
+            .defineInRange("fan.trackingResponseSeconds", 0.4, 0.05, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DAMAGE = BUILDER
+            .comment("Damage in health points at first contact with the ground impacts and at most once per second.")
+            .defineInRange("fan.damagePerSecond", 6.0, 0.0, 24.0);
+
     /**
      * Shared proximity charge and defensive discharge
      * (proximityPush).

@@ -40,6 +40,16 @@ public final class LightningRingSurface {
         return y + height;
     }
 
+    /** Finds a ground strike surface, using open water when it lies near the path's current height. */
+    static double findForStrike(Level level, double x, double z, double referenceY, int minY, int maxY) {
+        double ground = find(level, x, z, referenceY, minY, maxY);
+        double water = findWater(level, x, z, minY, maxY);
+        if (water >= minY && water < maxY + 1 && (!Double.isFinite(ground) || Math.abs(water - referenceY) <= 3)) {
+            return water;
+        }
+        return ground;
+    }
+
     /**
      * Returns the nearest exposed floor at this point, or NaN without loading
      * chunks.

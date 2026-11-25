@@ -145,6 +145,19 @@ public class ElementalSheeperEntity extends Sheep {
         return entityData.get(DATA_SIZE);
     }
 
+    /** @return world-space mouth position used by the elemental beams */
+    public Vec3 getBeamOrigin() {
+        return getBeamOrigin(1);
+    }
+
+    /**
+     * @param partialTick interpolation fraction for the owner's position
+     * @return mouth-height origin scaled with the boss
+     */
+    public Vec3 getBeamOrigin(float partialTick) {
+        return getEyePosition(partialTick).add(0, -0.15 * getSizeMultiplier(), 0);
+    }
+
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();

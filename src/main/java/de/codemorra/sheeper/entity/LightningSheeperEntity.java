@@ -34,8 +34,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
-    // Isolates the tornado during in-game tuning.
-    private static final boolean TEST_TORNADO_ONLY = true;
+    // Isolates the lightning fan during in-game tuning.
+    private static final boolean TEST_FAN_ONLY = true;
     static final int ARC_TRAVEL_TICKS = 6;
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
@@ -250,11 +250,11 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 arenaCombat.tick(participants);
             }
             boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
-            specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_TORNADO_ONLY);
+            specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_FAN_ONLY);
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             tickMovement(participants, canMove);
             storm.tickWind(server, getUUID(), fighting, participants);
-            ambientStrikes.tick(server, participants, fighting && !TEST_TORNADO_ONLY);
+            ambientStrikes.tick(server, participants, fighting && !TEST_FAN_ONLY);
         }
         super.tick();
     }

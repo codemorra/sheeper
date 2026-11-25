@@ -194,14 +194,8 @@ final class LightningLineAttack {
         if (dx * dx + dz * dz > boss.getCombatRadius() * boss.getCombatRadius()) {
             return Double.NaN;
         }
-        int minY = boss.getArenaMinimumY();
-        int maxY = boss.getArenaMaximumY() - 1;
-        double ground = LightningRingSurface.find(level, x, z, referenceY, minY, maxY);
-        double water = LightningRingSurface.findWater(level, x, z, minY, maxY);
-        if (boss.isWithinArenaHeight(water) && (!Double.isFinite(ground) || Math.abs(water - referenceY) <= 3)) {
-            return water;
-        }
-        return ground;
+        return LightningRingSurface.findForStrike(level, x, z, referenceY, boss.getArenaMinimumY(),
+                boss.getArenaMaximumY() - 1);
     }
 
     void clear() {

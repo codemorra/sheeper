@@ -66,7 +66,14 @@ public final class LightningAreaDamage {
         }
         Vec3 from = pos.add(0.0D, 0.1D, 0.0D);
         Vec3 to = bounds.getCenter();
-        AABB rayBounds = new AABB(from, to).inflate(1.0D);
+        return chunksLoaded(level, from, to)
+                && level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER,
+                        ClipContext.Fluid.NONE, collisionContext)).getType() == HitResult.Type.MISS;
+    }
+
+    /** Checks the ray's bounding chunks before tracing cover without loading terrain. */
+    static boolean chunksLoaded(ServerLevel level, Vec3 from, Vec3 to) {
+        AABB rayBounds = new AABB(from, to).inflate(1);
         for (int x = Mth.floor(rayBounds.minX) >> 4; x <= Mth.floor(rayBounds.maxX) >> 4; x++) {
             for (int z = Mth.floor(rayBounds.minZ) >> 4; z <= Mth.floor(rayBounds.maxZ) >> 4; z++) {
                 if (!level.getChunkSource().hasChunk(x, z)) {
@@ -74,7 +81,6 @@ public final class LightningAreaDamage {
                 }
             }
         }
-        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, collisionContext)).getType() == HitResult.Type.MISS;
+        return true;
     }
 }

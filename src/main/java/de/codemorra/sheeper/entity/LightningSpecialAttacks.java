@@ -14,27 +14,30 @@ import net.minecraft.util.Mth;
 /** Coordinates stationary special attacks with the teleport intervals between them. */
 final class LightningSpecialAttacks {
     private enum Attack {
-        LINE, RING, TORNADO
+        LINE, RING, TORNADO, FAN
     }
 
     private final LightningSheeperEntity boss;
     private final LightningLineAttack line;
     private final LightningRingBarrage ring;
     private final LightningTornadoAttack tornado;
+    private final LightningFanAttack fan;
     private int restTicks;
     private int lineCooldown;
     private int ringCooldown;
     private int tornadoCooldown;
+    private int fanCooldown;
 
     LightningSpecialAttacks(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
         line = new LightningLineAttack(boss);
         ring = new LightningRingBarrage(boss, teleports);
         tornado = new LightningTornadoAttack(boss);
+        fan = new LightningFanAttack(boss);
     }
 
     boolean isAttacking() {
-        return line.isActive() || ring.isActive() || tornado.isActive();
+        return line.isActive() || ring.isActive() || tornado.isActive() || fan.isActive();
     }
 
     List<LightningTornado> tornadoSnapshots() {
@@ -43,16 +46,18 @@ final class LightningSpecialAttacks {
 
     /** Advances cooldown and recovery only during combat, and lets an announced teleport finish. */
     void tick(ServerLevel level, List<ServerPlayer> players, boolean fighting, boolean teleportPreparing,
-            boolean tornadoOnly) {
+            boolean fanOnly) {
         if (!fighting) {
             line.clear();
             ring.clear();
             tornado.clear();
+            fan.clear();
             return;
         }
-        boolean lineEnabled = !tornadoOnly && LightningSheeperConfig.LIGHTNING_LINE_ENABLED.get();
-        boolean ringEnabled = !tornadoOnly && LightningSheeperConfig.LIGHTNING_RING_ENABLED.get();
-        boolean tornadoEnabled = LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED.get();
+        boolean lineEnabled = !fanOnly && LightningSheeperConfig.LIGHTNING_LINE_ENABLED.get();
+        boolean ringEnabled = !fanOnly && LightningSheeperConfig.LIGHTNING_RING_ENABLED.get();
+        boolean tornadoEnabled = !fanOnly && LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED.get();
+        boolean fanEnabled = LightningSheeperConfig.LIGHTNING_FAN_ENABLED.get();
         if (!lineEnabled) {
             line.clear();
         }
@@ -61,6 +66,12 @@ final class LightningSpecialAttacks {
         }
         if (!tornadoEnabled) {
             tornado.clear();
+        }
+        if (!fanEnabled) {
+            fan.clear();
+        }
+        if (!fan.isActive()) {
+            fanCooldown = Math.max(0, fanCooldown - 1);
         }
         if (!tornado.isActive()) {
             tornadoCooldown = Math.max(0, tornadoCooldown - 1);
@@ -83,11 +94,15 @@ final class LightningSpecialAttacks {
             tornado.tick(level, players);
             return;
         }
+        if (fan.isActive()) {
+            fan.tick(level, players);
+            return;
+        }
         restTicks = Math.max(0, restTicks - 1);
         if (restTicks > 0 || teleportPreparing) {
             return;
         }
-        var ready = new ArrayList<Attack>(3);
+        var ready = new ArrayList<Attack>(4);
         if (lineEnabled && lineCooldown == 0) {
             ready.add(Attack.LINE);
         }
@@ -96,6 +111,9 @@ final class LightningSpecialAttacks {
         }
         if (tornadoEnabled && tornadoCooldown == 0) {
             ready.add(Attack.TORNADO);
+        }
+        if (fanEnabled && fanCooldown == 0) {
+            ready.add(Attack.FAN);
         }
         if (ready.isEmpty()) {
             return;
@@ -116,6 +134,11 @@ final class LightningSpecialAttacks {
                 line.start(level);
                 line.tick(level, players);
             }
+            case FAN -> {
+                fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());
+                fan.start();
+                fan.tick(level, players);
+            }
             case TORNADO -> {
                 tornadoCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_COOLDOWN.get());
                 boss.setTarget(null);
@@ -128,10 +151,12 @@ final class LightningSpecialAttacks {
         line.clear();
         ring.clear();
         tornado.clear();
+        fan.clear();
         restTicks = 0;
         lineCooldown = 0;
         ringCooldown = 0;
         tornadoCooldown = 0;
+        fanCooldown = 0;
     }
 
     /** Persists the timers, but drops transient attacks rather than replaying impacts after a reload. */
@@ -141,6 +166,7 @@ final class LightningSpecialAttacks {
         tag.putInt("LineCooldown", lineCooldown);
         tag.putInt("RingCooldown", ringCooldown);
         tag.putInt("TornadoCooldown", tornadoCooldown);
+        tag.putInt("FanCooldown", fanCooldown);
         return tag;
     }
 
@@ -150,5 +176,6 @@ final class LightningSpecialAttacks {
         lineCooldown = Mth.clamp(tag.getInt("LineCooldown"), 0, 2400);
         ringCooldown = Mth.clamp(tag.getInt("RingCooldown"), 0, 2400);
         tornadoCooldown = Mth.clamp(tag.getInt("TornadoCooldown"), 0, 2400);
+        fanCooldown = Mth.clamp(tag.getInt("FanCooldown"), 0, 2400);
     }
 }
