@@ -36,7 +36,7 @@ final class LightningTeleportGameTests {
         context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
         context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 6.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 4.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE, 1.0D);
         context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 4);
         context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 3);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
@@ -118,7 +118,7 @@ final class LightningTeleportGameTests {
         context.expect(warnings(observer).isEmpty(), "Resuming AI must preserve the remaining interval");
         boss.tick();
         announcedDestination(context, observer);
-        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE, 16.0D);
         tick(boss, 5);
         atPosition(context, boss, target, "Disabling movement must cancel an already announced teleport");
         context.pass();

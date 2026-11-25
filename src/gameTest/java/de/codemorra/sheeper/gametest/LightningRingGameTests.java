@@ -31,7 +31,7 @@ final class LightningRingGameTests {
         context.set(LightningSheeperConfig.LIGHTNING_SIZE, 1.0D);
         context.set(LightningSheeperConfig.LIGHTNING_PROXIMITY_PUSH_RADIUS, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS, 9.0D);
-        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 0.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE, 16.0D);
         context.set(LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT, 5);
         context.set(LightningSheeperConfig.LIGHTNING_ARENA_DEPTH, 4);
         context.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0D);
@@ -74,7 +74,7 @@ final class LightningRingGameTests {
 
     private static void sequence(GameTestContext context) {
         LightningSheeperEntity boss = boss(context);
-        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS, 5.0D);
+        context.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE, 0.0D);
         context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MIN, 3);
         context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_COUNT_MAX, 3);
         context.set(LightningSheeperConfig.LIGHTNING_RING_TELEPORT_INTERVAL, 0.1D);

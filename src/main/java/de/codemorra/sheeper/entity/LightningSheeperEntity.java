@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -32,14 +33,25 @@ import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
+    static final int ARC_TRAVEL_TICKS = 6;
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<CompoundTag> DATA_TRAVEL_ARC = SynchedEntityData
+            .defineId(LightningSheeperEntity.class, EntityDataSerializers.COMPOUND_TAG);
+
+    /** World-space endpoints let the client draw the arc without following the boss model. */
+    public record TravelArc(Vec3 start, Vec3 end, long startTick) {
+        public float progress(double time) {
+            return (float) Mth.clamp((time - startTick) / ARC_TRAVEL_TICKS, 0, 1);
+        }
+    }
 
     @Nullable
     private BlockPos arenaCenter;
     @Nullable
     private LightningWeatherPacket.Arena arena;
     private Set<UUID> admittedPlayers = Set.of();
+    private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -49,6 +61,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+        entityData.define(DATA_TRAVEL_ARC, new CompoundTag());
     }
 
     /**
@@ -84,10 +97,41 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     /**
-     * Teleport destinations must stay inside both the movement and combat bounds.
+     * Uses the same body and edge clearance as the water boss, so changing arena
+     * radius changes the available movement area.
      */
     public double getMovementRadius() {
-        return Math.min(LightningSheeperConfig.LIGHTNING_MOVEMENT_RADIUS.get(), getCombatRadius());
+        double bodyMargin = getBbWidth() * Math.sqrt(0.5) + 0.25;
+        return Math.max(0, getCombatRadius() - bodyMargin - LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE.get());
+    }
+
+    void startTravelArc(Vec3 destination) {
+        Vec3 lift = new Vec3(0, getBbHeight() * 0.5, 0);
+        Vec3 start = position().add(lift);
+        Vec3 end = destination.add(lift);
+        var arc = new CompoundTag();
+        arc.putLong("StartTick", level.getGameTime());
+        arc.putDouble("StartX", start.x);
+        arc.putDouble("StartY", start.y);
+        arc.putDouble("StartZ", start.z);
+        arc.putDouble("EndX", end.x);
+        arc.putDouble("EndY", end.y);
+        arc.putDouble("EndZ", end.z);
+        entityData.set(DATA_TRAVEL_ARC, arc);
+    }
+
+    void clearTravelArc() {
+        entityData.set(DATA_TRAVEL_ARC, new CompoundTag());
+    }
+
+    /** @return the active lightning-form route for client presentation, or null */
+    @Nullable
+    public TravelArc getTravelArc() {
+        CompoundTag arc = entityData.get(DATA_TRAVEL_ARC);
+        return arc.isEmpty() || !isAlive() ? null
+                : new TravelArc(new Vec3(arc.getDouble("StartX"), arc.getDouble("StartY"), arc.getDouble("StartZ")),
+                        new Vec3(arc.getDouble("EndX"), arc.getDouble("EndY"), arc.getDouble("EndZ")),
+                        arc.getLong("StartTick"));
     }
 
     private double horizontalDistanceSquared(double x, double z) {
@@ -151,8 +195,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        // The arena can be tested with gravity and ordinary collisions while AI is being rebuilt.
-        if (!level.isClientSide && type == MoverType.SELF) {
+        // Teleport pauses are stationary, but the short approach still uses vanilla collisions.
+        if (!level.isClientSide && type == MoverType.SELF && !teleports.isWalking()) {
             movement = new Vec3(0, movement.y, 0);
         }
         super.move(type, movement);
@@ -165,9 +209,53 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                     getCombatRadius(), getArenaMinimumY(), getArenaMaximumY());
             entityData.set(DATA_COMBAT_READY,
                     arena != null && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
-            getCombatParticipants();
+            List<ServerPlayer> participants = getCombatParticipants();
+            boolean canMove = isCombatReady() && !isNoAi();
+            ServerPlayer focus = canMove ? getMovementFocus(participants) : null;
+            if (getTarget() != focus) {
+                setTarget(focus);
+            }
+            if (teleports.tick(canMove, focus)) {
+                ServerPlayer nearest = closestParticipant(participants);
+                if (nearest != null) {
+                    if (getTarget() != nearest) {
+                        setTarget(nearest);
+                    }
+                    teleports.focusAfterLanding(nearest);
+                }
+            }
+            if (!teleports.isWalking()) {
+                setDeltaMovement(0, getDeltaMovement().y, 0);
+            }
         }
         super.tick();
+    }
+
+    @Override
+    public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps, boolean teleport) {
+        // Short teleports can use a relative movement packet. Snap across large horizontal jumps
+        // so the model does not slide between the departure and arrival sparks.
+        double dx = x - getX();
+        double dz = z - getZ();
+        if (level.isClientSide && dx * dx + dz * dz > 4) {
+            moveTo(x, y, z, yaw, pitch);
+            steps = 0;
+        }
+        super.lerpTo(x, y, z, yaw, pitch, steps, teleport);
+    }
+
+    /** Keeps the focus between landings while that player is still participating. */
+    @Nullable
+    private ServerPlayer getMovementFocus(List<ServerPlayer> participants) {
+        if (getTarget() instanceof ServerPlayer player && participants.contains(player)) {
+            return player;
+        }
+        return closestParticipant(participants);
+    }
+
+    @Nullable
+    private ServerPlayer closestParticipant(List<ServerPlayer> participants) {
+        return participants.stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
     }
 
     /**
@@ -214,6 +302,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         super.addAdditionalSaveData(tag);
         tag.putLong("LightningArenaCenter", getArenaCenter().asLong());
         tag.putString("LightningArenaDimension", level.dimension().location().toString());
+        tag.put("LightningMovement", teleports.save());
     }
 
     @Override
@@ -226,6 +315,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 : null;
         arena = null;
         admittedPlayers = Set.of();
+        teleports.load(sameDimension ? tag.getCompound("LightningMovement") : new CompoundTag());
     }
 
     @Override

@@ -21,10 +21,10 @@ public final class LightningSheeperConfig {
             .comment("Horizontal lightning Sheeper arena and combat radius around its saved spawn position.")
             .defineInRange("arena.combatRadius", 50.0, 1.0, 128.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_RADIUS = BUILDER
-            .comment(
-                    "Horizontal teleport movement radius around the saved spawn position; capped at combatRadius. 0 disables movement.")
-            .defineInRange("teleport.movementRadius", 10.0, 0.0, 128.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_EDGE_DISTANCE = BUILDER
+            .comment("Minimum horizontal distance in blocks between the boss's body and the arena edge.",
+                    "0 keeps only body clearance. Teleports stop if the remaining area is too small.")
+            .defineInRange("movement.edgeDistance", 2.0, 0.0, 16.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_ARENA_HEIGHT = BUILDER
             .comment("Blocks from the boss's spawn point up to the top of the storm arena.",
@@ -112,22 +112,35 @@ public final class LightningSheeperConfig {
 
     /** Lightning teleport movement (teleport). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MIN = BUILDER
-            .comment("Minimum seconds from a completed teleport to the next announcement.",
-                    "Movement continues without arena participants. NoAI pauses timers. Failed searches wait another interval.")
-            .defineInRange("teleport.intervalMinSeconds", 5.0, 0.05, 600.0);
+            .comment("Minimum seconds the boss waits after a teleport when a player is in the arena.")
+            .defineInRange("teleport.intervalMinSeconds", 1.5, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MAX = BUILDER
-            .comment("Maximum seconds before the next announcement; capped below by intervalMinSeconds.")
-            .defineInRange("teleport.intervalMaxSeconds", 10.0, 0.05, 600.0);
+            .comment("Maximum seconds the boss waits after a teleport when a player is in the arena.",
+                    "If set below the minimum, the minimum is used.")
+            .defineInRange("teleport.intervalMaxSeconds", 3.0, 0.05, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_IDLE_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds the boss waits after a teleport when the arena is empty.")
+            .defineInRange("movement.idle.intervalMinSeconds", 2.0, 0.1, 15.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_IDLE_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds the boss waits after a teleport when the arena is empty.",
+                    "If set below the minimum, the minimum is used.")
+            .defineInRange("movement.idle.intervalMaxSeconds", 5.0, 0.1, 15.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_ORBIT_DISTANCE = BUILDER
+            .comment("Preferred horizontal distance from the selected player when choosing a teleport destination.")
+            .defineInRange("movement.orbitDistance", 16.0, 1.0, 64.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_WARNING = BUILDER
-            .comment("Seconds of sparks at the destination before teleporting. 0 teleports immediately.",
-                    "The destination is checked again before arrival; invalid destinations cancel the teleport.")
-            .defineInRange("teleport.warningSeconds", 0.5, 0.0, 60.0);
+            .comment("Seconds of warning sparks and time for the short walk before teleporting.",
+                    "0 skips the warning and the walk.")
+            .defineInRange("teleport.warningSeconds", 0.75, 0.0, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_PLAYER_DISTANCE = BUILDER
-            .comment("Minimum distance in blocks between the destination and living non-spectator players.")
-            .defineInRange("teleport.playerDistance", 4.0, 0.0, 128.0);
+            .comment("Minimum distance in blocks from the teleport destination to a living, non-spectator player.")
+            .defineInRange("teleport.playerDistance", 4.0, 0.0, 32.0);
 
     /** Lightning attack selection (attack). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_WEIGHT = BUILDER

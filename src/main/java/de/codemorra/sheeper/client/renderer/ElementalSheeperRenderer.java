@@ -6,6 +6,7 @@ import com.mojang.math.Vector3f;
 import de.codemorra.sheeper.client.renderer.layer.ElementalFleeceLayer;
 import de.codemorra.sheeper.client.renderer.layer.WaterBeamEyesLayer;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
+import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import net.minecraft.client.model.SheepModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -39,6 +40,16 @@ public class ElementalSheeperRenderer extends SheepRenderer {
     @Override
     public void render(Sheep sheep, float yaw, float partialTick, PoseStack poses, MultiBufferSource buffers,
             int light) {
+        if (sheep instanceof LightningSheeperEntity bolt) {
+            var arc = bolt.getTravelArc();
+            if (arc != null) {
+                shadowRadius = 0;
+                if (!bolt.isInvisible()) {
+                    LightningTravelArcRenderer.render(bolt, arc, partialTick, poses, buffers);
+                }
+                return;
+            }
+        }
         bodyOpacity = sheep instanceof WaterSheeperEntity boss ? boss.getBubbleBodyOpacity(partialTick) : 1;
         if (bodyOpacity <= 0) {
             shadowRadius = 0;
@@ -70,6 +81,12 @@ public class ElementalSheeperRenderer extends SheepRenderer {
      */
     @Override
     public boolean shouldRender(Sheep sheep, Frustum frustum, double x, double y, double z) {
+        if (sheep instanceof LightningSheeperEntity bolt) {
+            var arc = bolt.getTravelArc();
+            if (arc != null && frustum.isVisible(new AABB(arc.start(), arc.end()).inflate(1.5))) {
+                return true;
+            }
+        }
         if (sheep instanceof WaterSheeperEntity boss && boss.getBeamOffset().lengthSqr() > 0
                 && frustum.isVisible(new AABB(boss.getBeamOrigin(), boss.getBeamOrigin().add(boss.getBeamOffset()))
                         .inflate(WaterSheeperEntity.BEAM_RADIUS))) {
