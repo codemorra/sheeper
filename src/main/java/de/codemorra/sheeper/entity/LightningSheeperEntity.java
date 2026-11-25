@@ -35,8 +35,6 @@ import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
-    // Isolates the lightning rod during in-game tuning.
-    private static final boolean TEST_ROD_ONLY = true;
     static final int ARC_TRAVEL_TICKS = 6;
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
@@ -279,13 +277,12 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 arenaCombat.tick(participants);
             }
             boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
-            specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_ROD_ONLY);
+            specialAttacks.tick(server, participants, fighting, teleports.isPreparing());
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             tickMovement(participants, canMove);
             LightningArenaWind.Mode windMode = specialAttacks.windMode();
             storm.tickWind(server, getUUID(), windMode, fighting ? participants : List.of());
-            boolean randomStrikes = fighting && windMode != LightningArenaWind.Mode.CALM
-                    && (!TEST_ROD_ONLY || windMode == LightningArenaWind.Mode.INTENSIFIED);
+            boolean randomStrikes = fighting && windMode != LightningArenaWind.Mode.CALM;
             ambientStrikes.tick(server, participants, randomStrikes, specialAttacks.intensifiedStormTicksRemaining());
         }
         super.tick();

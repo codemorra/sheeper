@@ -65,8 +65,7 @@ final class LightningSpecialAttacks {
     }
 
     /** Advances cooldown and recovery only during combat, and lets an announced teleport finish. */
-    void tick(ServerLevel level, List<ServerPlayer> players, boolean fighting, boolean teleportPreparing,
-            boolean rodOnly) {
+    void tick(ServerLevel level, List<ServerPlayer> players, boolean fighting, boolean teleportPreparing) {
         if (!fighting) {
             line.clear();
             ring.clear();
@@ -75,10 +74,10 @@ final class LightningSpecialAttacks {
             rod.clear();
             return;
         }
-        boolean lineEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_LINE_ENABLED.get();
-        boolean ringEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_RING_ENABLED.get();
-        boolean tornadoEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED.get();
-        boolean fanEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_FAN_ENABLED.get();
+        boolean lineEnabled = LightningSheeperConfig.LIGHTNING_LINE_ENABLED.get();
+        boolean ringEnabled = LightningSheeperConfig.LIGHTNING_RING_ENABLED.get();
+        boolean tornadoEnabled = LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED.get();
+        boolean fanEnabled = LightningSheeperConfig.LIGHTNING_FAN_ENABLED.get();
         boolean rodEnabled = LightningSheeperConfig.LIGHTNING_ROD_ENABLED.get();
         if (!lineEnabled) {
             line.clear();
