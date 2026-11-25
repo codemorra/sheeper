@@ -524,6 +524,57 @@ public final class LightningSheeperConfig {
             .comment("Spacing of the lightning arcs on the ring. Lower values make the ring denser.")
             .defineInRange("ring.particleSpacing", 0.5, 0.2, 1.0);
 
+    /** Wandering tornado special attack (tornado). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_TORNADO_ENABLED = BUILDER
+            .comment("Enables the tornado special attack.")
+            .define("tornado.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_COOLDOWN = BUILDER
+            .comment("Combat seconds after the tornado dissipates before this attack is ready again.")
+            .defineInRange("tornado.cooldownSeconds", 25.0, 1.0, 120.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_WARNING = BUILDER
+            .comment("Seconds the funnel forms visibly before it starts moving and affecting players.")
+            .defineInRange("tornado.warningSeconds", 1.25, 0.5, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DURATION = BUILDER
+            .comment("Seconds the tornados move through the arena before they start dissolving.")
+            .defineInRange("tornado.durationSeconds", 12.0, 4.0, 22.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DISSOLVE = BUILDER
+            .comment("Seconds the funnels take to dissolve while players still caught inside descend gradually.")
+            .defineInRange("tornado.dissolveSeconds", 1.25, 0.5, 2.5);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADOS_PER_1000_BLOCKS = BUILDER
+            .comment("Number of tornados per 1,000 blocks of arena floor, capped at 12 per attack.",
+                    "For example, 1.25 gives about 10 tornados at a radius of 50 blocks if there are enough safe spots.")
+            .defineInRange("tornado.per1000Blocks", 1.25, 0.1, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_RADIUS = BUILDER
+            .comment("Funnel radius in blocks, before tapering at the base. Small arenas reduce it as needed.")
+            .defineInRange("tornado.radius", 4.5, 2.0, 9.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_HEIGHT = BUILDER
+            .comment("Maximum funnel height in blocks above the ground, limited by the arena ceiling.")
+            .defineInRange("tornado.height", 10.0, 4.0, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_SPEED = BUILDER
+            .comment("Travel speed of the moving funnel in blocks per second.")
+            .defineInRange("tornado.speedBlocksPerSecond", 6.5, 2.0, 9.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_STRENGTH = BUILDER
+            .comment("Multiplier for the tornado's pull, sideways drift and lift. 0 disables forced movement.")
+            .defineInRange("tornado.windStrength", 1.0, 0.0, 1.8);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DAMAGE = BUILDER
+            .comment("Health points dealt during one damage interval before armor and difficulty scaling.",
+                    "0 disables direct tornado damage.")
+            .defineInRange("tornado.damage", 4.0, 0.0, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DAMAGE_INTERVAL = BUILDER
+            .comment("Minimum seconds between tornado hits on the same player.")
+            .defineInRange("tornado.damageIntervalSeconds", 1.0, 0.5, 3.0);
+
     /**
      * Shared proximity charge and defensive discharge
      * (proximityPush).

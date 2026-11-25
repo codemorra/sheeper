@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "25";
+    private static final String VERSION = "28";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -53,6 +53,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningRingVisualPacket.class, 6, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningRingVisualPacket::encode).decoder(LightningRingVisualPacket::decode)
                 .consumerMainThread(LightningRingVisualPacket::handle).add();
+        CHANNEL.messageBuilder(LightningTornadoPacket.class, 7, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningTornadoPacket::encode).decoder(LightningTornadoPacket::decode)
+                .consumerMainThread(LightningTornadoPacket::handle).add();
     }
 
     /**
@@ -109,6 +112,11 @@ public final class ModNetwork {
 
     /** Refreshes an announced ring attack or a wave that is still travelling. */
     public static void sendLightningRingVisual(ServerPlayer observer, LightningRingVisualPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /** Updates the active tornado for a nearby observer. */
+    public static void sendLightningTornado(ServerPlayer observer, LightningTornadoPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 
