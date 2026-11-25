@@ -178,6 +178,12 @@ function initializeCoreMod() {
               "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"));
           code.add(new Var(O.ASTORE, 2));
           code.add(new Var(O.ALOAD, 0));
+          code.add(new Var(O.ALOAD, 1));
+          code.add(new Var(O.ALOAD, 2));
+          code.add(invoke("de/codemorra/sheeper/world/LightningTornadoMotion", "apply",
+              "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"));
+          code.add(new Var(O.ASTORE, 2));
+          code.add(new Var(O.ALOAD, 0));
           code.add(new Var(O.ALOAD, 2));
           code.add(invoke("de/codemorra/sheeper/world/WaterArenaPushProtection", "limitMovement",
               "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"));

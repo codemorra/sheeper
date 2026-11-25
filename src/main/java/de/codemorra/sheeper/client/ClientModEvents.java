@@ -44,6 +44,7 @@ public class ClientModEvents {
             de.codemorra.sheeper.world.ArenaWeather.setClientLookup(LightningWeatherVisuals::intensity);
             de.codemorra.sheeper.world.LightningArenaBoundaryDrag.setClientLookup(LightningWeatherVisuals::visibleArenas);
             de.codemorra.sheeper.world.LightningArenaWind.setClientLookup(LightningWeatherVisuals::windFields);
+            de.codemorra.sheeper.world.LightningTornadoMotion.setClientLookup(LightningTornadoVisuals::activeTornados);
             de.codemorra.sheeper.world.ArenaWater.setClientLookup(WaterArenaVisuals::activeVolumes);
             de.codemorra.sheeper.world.ArenaWater.setClientAirColumns(WaterArenaVisuals::airColumns);
         });

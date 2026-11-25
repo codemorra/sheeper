@@ -13,6 +13,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
+import de.codemorra.sheeper.network.LightningTornadoPacket;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.network.ModNetwork;
 import net.minecraft.core.BlockPos;
@@ -34,6 +35,7 @@ public final class LightningStormData extends SavedData {
         private long nextFlash;
         private long nextRumble;
         private final LightningArenaWind wind = new LightningArenaWind();
+        private List<LightningTornado> tornados = List.of();
 
         private Storm(LightningWeatherPacket.Arena arena) {
             this.arena = arena;
@@ -83,6 +85,7 @@ public final class LightningStormData extends SavedData {
         int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ARENA_DRAIN_DURATION.get());
         storm.arena = storm.arena.beginDrain(level.getGameTime(), duration);
         storm.wind.clear();
+        updateTornados(level, id, List.of());
         setDirty();
         sync(level);
     }
@@ -124,6 +127,32 @@ public final class LightningStormData extends SavedData {
         if (removed || windCleared || now % 10 == 0) {
             sync(level);
         }
+    }
+
+    /** Keeps the server movement snapshot current and sends short visual refreshes to nearby observers. */
+    public void updateTornados(ServerLevel level, UUID owner, List<LightningTornado> tornados) {
+        Storm storm = storms.get(owner);
+        if (storm == null || storm.tornados.isEmpty() && tornados.isEmpty()) {
+            return;
+        }
+        boolean changed = storm.tornados.size() != tornados.size();
+        storm.tornados = tornados;
+        if (!changed && level.getGameTime() % 2 != 0) {
+            return;
+        }
+        var packet = new LightningTornadoPacket(level.dimension().location(), owner, tornados);
+        Vec3 center = Vec3.atBottomCenterOf(storm.arena.center());
+        double range = storm.arena.radius() + 64;
+        for (ServerPlayer observer : level.players()) {
+            if (observer.position().subtract(center).horizontalDistanceSqr() <= range * range) {
+                ModNetwork.sendLightningTornado(observer, packet);
+            }
+        }
+    }
+
+    List<LightningTornado> activeTornados(long now) {
+        return storms.values().stream().flatMap(storm -> storm.tornados.stream())
+                .filter(tornado -> tornado.sampleTick() + 5 >= now && tornado.endTick() > now).toList();
     }
 
     /** Keeps wind active in a fully formed arena and adds stronger gusts during combat. */
