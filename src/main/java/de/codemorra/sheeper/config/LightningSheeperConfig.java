@@ -637,6 +637,10 @@ public final class LightningSheeperConfig {
             .comment("Seconds the Sheeper hovers and charges above the arena before releasing the attack.")
             .defineInRange("lightningRod.chargeSeconds", 8.0, 2.0, 20.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_RADIUS = BUILDER
+            .comment("Radius of the shelter spheres in blocks, limited by the arena sides and ceiling.")
+            .defineInRange("lightningRod.shelterRadius", 3.5, 2.0, 6.0);
+
     /**
      * Shared proximity charge and defensive discharge
      * (proximityPush).

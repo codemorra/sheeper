@@ -1,5 +1,7 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.List;
+
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
@@ -7,6 +9,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +20,7 @@ final class LightningRodAttack {
     private static final double PREFERRED_HOVER_HEIGHT = 6;
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
+    private final LightningRodShelters shelters;
     @Nullable
     private Vec3 hoverPosition;
     private int travelTicks;
@@ -27,18 +31,21 @@ final class LightningRodAttack {
     LightningRodAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
         this.teleports = teleports;
+        shelters = new LightningRodShelters(boss);
     }
 
-    /** @return whether there is a safe position to begin the attack */
-    boolean start(ServerLevel level) {
-        hoverPosition = findHoverPosition(level);
-        if (hoverPosition == null) {
+    /** @return whether the fight has both a safe hover point and nearby shelters */
+    boolean start(ServerLevel level, List<ServerPlayer> players) {
+        Vec3 position = findHoverPosition(level);
+        if (position == null || !shelters.place(level, players)) {
             return false;
         }
+        hoverPosition = position;
         boss.setTarget(null);
         chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION.get());
         chargeTicks = chargeDuration;
         travelTicks = teleports.startAttackTravel(hoverPosition);
+        shelters.tick(level);
         return true;
     }
 
@@ -56,6 +63,7 @@ final class LightningRodAttack {
         if (position == null) {
             return;
         }
+        shelters.tick(level);
         if (travelTicks > 0) {
             if (--travelTicks == 0) {
                 if (teleports.isSafeHoverPosition(position)) {
@@ -152,6 +160,7 @@ final class LightningRodAttack {
     void clear() {
         if (isActive()) {
             boss.clearTravelArc();
+            shelters.clear();
         }
         hoverPosition = null;
         travelTicks = 0;
