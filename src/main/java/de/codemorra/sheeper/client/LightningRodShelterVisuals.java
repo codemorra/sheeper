@@ -1,7 +1,6 @@
 package de.codemorra.sheeper.client;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -16,6 +15,7 @@ import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -31,7 +31,14 @@ public final class LightningRodShelterVisuals {
     private static final Map<UUID, Snapshot> active = new HashMap<>();
     private static ClientLevel currentLevel;
 
-    private record Snapshot(List<LightningRodShelter> shelters, long receivedAt) {
+    private record Snapshot(LightningRodShelterPacket packet, long receivedAt) {
+        double visibilityAt(double time) {
+            if (packet.dissolveTicks() == 0) {
+                return 1;
+            }
+            double progress = Mth.clamp((time - packet.dissolveStart()) / packet.dissolveTicks(), 0, 1);
+            return 1 - progress * progress * (3 - 2 * progress);
+        }
     }
 
     private LightningRodShelterVisuals() {
@@ -50,7 +57,7 @@ public final class LightningRodShelterVisuals {
         if (packet.shelters().isEmpty()) {
             active.remove(packet.owner());
         } else {
-            active.put(packet.owner(), new Snapshot(packet.shelters(), level.getGameTime()));
+            active.put(packet.owner(), new Snapshot(packet, level.getGameTime()));
         }
     }
 
@@ -81,10 +88,15 @@ public final class LightningRodShelterVisuals {
         BufferBuilder buffer = tesselator.getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (Snapshot snapshot : active.values()) {
-            for (LightningRodShelter shelter : snapshot.shelters()) {
+            double visibility = snapshot.visibilityAt(time);
+            if (visibility <= 0) {
+                continue;
+            }
+            for (LightningRodShelter shelter : snapshot.packet().shelters()) {
                 if (camera.distanceToSqr(shelter.center()) <= 64 * 64) {
-                    drawSphere(buffer, shelter.center().subtract(camera), shelter.radius(),
-                            shelter.contains(player), time);
+                    double radius = shelter.radius() * (0.8 + 0.2 * visibility);
+                    drawSphere(buffer, shelter.center().subtract(camera), radius,
+                            shelter.contains(player), time, visibility);
                 }
             }
         }
@@ -95,7 +107,8 @@ public final class LightningRodShelterVisuals {
     }
 
     /** Renders both halves with depth testing so solid terrain hides the buried part. */
-    private static void drawSphere(BufferBuilder buffer, Vec3 center, double radius, boolean inside, double time) {
+    private static void drawSphere(BufferBuilder buffer, Vec3 center, double radius, boolean inside, double time,
+            double visibility) {
         double brightness = inside ? 0.16 : 0.10;
         for (int segment = 0; segment < SEGMENTS; segment++) {
             double angle = segment * Math.PI * 2 / SEGMENTS;
@@ -103,7 +116,8 @@ public final class LightningRodShelterVisuals {
             for (int band = 0; band < BANDS; band++) {
                 double from = band * Math.PI / BANDS - Math.PI / 2;
                 double to = (band + 1) * Math.PI / BANDS - Math.PI / 2;
-                float alpha = (float) (brightness + 0.026 * Math.sin(angle * 3 + from * 4 - time * 0.14));
+                float alpha = (float) (visibility * (brightness
+                        + 0.026 * Math.sin(angle * 3 + from * 4 - time * 0.14)));
                 vertex(buffer, spherePoint(center, radius, angle, from), alpha);
                 vertex(buffer, spherePoint(center, radius, nextAngle, from), alpha);
                 vertex(buffer, spherePoint(center, radius, nextAngle, to), alpha);

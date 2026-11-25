@@ -646,8 +646,20 @@ public final class LightningSheeperConfig {
             .defineInRange("lightningRod.windMultiplier", 2.5, 1.0, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CALM_DURATION = BUILDER
-            .comment("Seconds of calm before the lightning rod discharges.")
+            .comment("Seconds of calm before the lightning rod starts the final barrage.")
             .defineInRange("lightningRod.calmBeforeStrikeSeconds", 0.5, 0.15, 1.5);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_FINALE_DURATION = BUILDER
+            .comment("Seconds the final lightning barrage lasts.")
+            .defineInRange("lightningRod.finaleSeconds", 4.0, 0.5, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_FINALE_DAMAGE = BUILDER
+            .comment("Damage in health points per half-second pulse outside the shelter spheres, before armor and difficulty.")
+            .defineInRange("lightningRod.finaleDamage", 6.0, 0.0, 16.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION = BUILDER
+            .comment("Seconds the shelter spheres take to fade after the final bolt. The Sheeper stays in lightning form.")
+            .defineInRange("lightningRod.shelterDissolveSeconds", 1.5, 0.5, 3.0);
 
     /**
      * Shared proximity charge and defensive discharge
