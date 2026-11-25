@@ -216,10 +216,22 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         return entityData.get(DATA_COMBAT_READY);
     }
 
+    /** @return whether the boss has left its physical form and has yet to land */
+    private boolean isInTravelArc() {
+        return !entityData.get(DATA_TRAVEL_ARC).isEmpty();
+    }
+
+    /** Removes the old hit target while the body is displayed in lightning form. */
+    @Override
+    public boolean isPickable() {
+        return !isInTravelArc() && super.isPickable();
+    }
+
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
         return super.isInvulnerableTo(source)
-                || source != DamageSource.OUT_OF_WORLD && !arenaCombat.allowsDamage(source);
+                || source != DamageSource.OUT_OF_WORLD
+                        && (isInTravelArc() || !arenaCombat.allowsDamage(source));
     }
 
     @Override
