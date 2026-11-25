@@ -34,6 +34,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
+    // Keeps random strikes out of the targeted row playtest.
+    private static final boolean TEST_LINE_ATTACK_ONLY = true;
     static final int ARC_TRAVEL_TICKS = 6;
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
@@ -54,6 +56,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private final Set<UUID> admittedPlayers = new HashSet<>();
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningAmbientStrikes ambientStrikes = new LightningAmbientStrikes(this);
+    private final LightningSpecialAttacks specialAttacks = new LightningSpecialAttacks(this);
     private final ElementalArenaCombat arenaCombat = new ElementalArenaCombat(this, this::canPlayerDamage,
             this::resetArenaEncounter, LightningSheeperConfig.LIGHTNING_MAX_HEALTH::get,
             LightningSheeperConfig.LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER::get,
@@ -241,6 +244,23 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                     arena != null && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
             List<ServerPlayer> participants = getCombatParticipants();
             boolean canMove = isCombatReady() && !isNoAi();
+            if (canMove) {
+                arenaCombat.tick(participants);
+            }
+            boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
+            specialAttacks.tick(server, participants, fighting, teleports.isPreparing());
+            tickMovement(participants, canMove);
+            storm.tickWind(server, getUUID(), fighting, participants);
+            ambientStrikes.tick(server, participants, fighting && !TEST_LINE_ATTACK_ONLY);
+        }
+        super.tick();
+    }
+
+    /** Leaves ordinary teleports available for idle and recovery, and keeps the boss still during a row. */
+    private void tickMovement(List<ServerPlayer> participants, boolean canMove) {
+        if (specialAttacks.isAttacking()) {
+            teleports.tick(false, null);
+        } else {
             ServerPlayer focus = canMove ? getMovementFocus(participants) : null;
             if (getTarget() != focus) {
                 setTarget(focus);
@@ -254,17 +274,10 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                     teleports.focusAfterLanding(nearest);
                 }
             }
-            if (!teleports.isWalking()) {
-                setDeltaMovement(0, getDeltaMovement().y, 0);
-            }
-            if (canMove) {
-                arenaCombat.tick(participants);
-            }
-            boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
-            storm.tickWind(server, getUUID(), fighting, participants);
-            ambientStrikes.tick(server, participants, fighting);
         }
-        super.tick();
+        if (!teleports.isWalking()) {
+            setDeltaMovement(0, getDeltaMovement().y, 0);
+        }
     }
 
     /** Pauses the entry countdown while the arena is empty or the boss AI is disabled. */
@@ -278,6 +291,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private void resetArenaEncounter() {
         encounterEntryTicks = -1;
         ambientStrikes.reset();
+        specialAttacks.reset();
         teleports.reset();
         setTarget(null);
     }
@@ -358,6 +372,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         combat.putInt("EntryTicks", encounterEntryTicks);
         tag.put("LightningArenaCombat", combat);
         tag.put("LightningAmbientStrikes", ambientStrikes.save());
+        tag.put("LightningSpecialAttacks", specialAttacks.save());
     }
 
     @Override
@@ -376,6 +391,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         encounterEntryTicks = combat.contains("EntryTicks", Tag.TAG_INT)
                 ? Mth.clamp(combat.getInt("EntryTicks"), -1, 200) : -1;
         ambientStrikes.load(sameDimension ? tag.getCompound("LightningAmbientStrikes") : new CompoundTag());
+        specialAttacks.load(sameDimension ? tag.getCompound("LightningSpecialAttacks") : new CompoundTag());
     }
 
     @Override
