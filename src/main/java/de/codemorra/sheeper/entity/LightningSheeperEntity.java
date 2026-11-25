@@ -12,6 +12,7 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
+import de.codemorra.sheeper.world.LightningArenaWind;
 import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -281,8 +282,11 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_ROD_ONLY);
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             tickMovement(participants, canMove);
-            storm.tickWind(server, getUUID(), fighting, participants);
-            ambientStrikes.tick(server, participants, fighting && !TEST_ROD_ONLY);
+            LightningArenaWind.Mode windMode = specialAttacks.windMode();
+            storm.tickWind(server, getUUID(), windMode, fighting ? participants : List.of());
+            boolean randomStrikes = fighting && windMode != LightningArenaWind.Mode.CALM
+                    && (!TEST_ROD_ONLY || windMode == LightningArenaWind.Mode.INTENSIFIED);
+            ambientStrikes.tick(server, participants, randomStrikes, specialAttacks.intensifiedStormTicksRemaining());
         }
         super.tick();
     }

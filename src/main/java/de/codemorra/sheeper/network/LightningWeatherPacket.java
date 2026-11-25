@@ -129,6 +129,7 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             buffer.writeDouble(wind.fromAngle());
             buffer.writeDouble(wind.turnAngle());
             buffer.writeLong(wind.turnStart());
+            buffer.writeDouble(wind.strength());
             buffer.writeCollection(wind.gusts(), (output, gust) -> gust.encode(output));
         }
     }
@@ -174,9 +175,11 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             double from = buffer.readDouble();
             double turn = buffer.readDouble();
             long turnStart = buffer.readLong();
+            double windStrength = buffer.readDouble();
             int gustCount = buffer.readVarInt();
             if (!(arenaIndex >= 0 && arenaIndex < count && Math.abs(from) <= 2 * Math.PI
-                    && Math.abs(turn) <= Math.PI && turnStart >= 0 && gustCount >= 0 && gustCount <= 4)) {
+                    && Math.abs(turn) <= Math.PI && turnStart >= 0 && windStrength >= 1 && windStrength <= 4
+                    && gustCount >= 0 && gustCount <= 4)) {
                 throw new IllegalArgumentException("Invalid arena wind data");
             }
             Arena arena = arenas.get(arenaIndex);
@@ -184,7 +187,7 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             for (int gust = 0; gust < gustCount; gust++) {
                 gusts.add(LightningWindGust.decode(buffer, arena));
             }
-            winds.add(new LightningWindField(arena, from, turn, turnStart, List.copyOf(gusts)));
+            winds.add(new LightningWindField(arena, from, turn, turnStart, windStrength, List.copyOf(gusts)));
         }
         return new LightningWeatherPacket(dimension, List.copyOf(arenas), width, strength, List.copyOf(winds));
     }
