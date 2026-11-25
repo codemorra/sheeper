@@ -31,11 +31,17 @@ final class LightningTravelArcRenderer {
             Vec3 from = arcPoint(arc, side, up, segments, Math.max(index, tail)).subtract(offset);
             Vec3 to = arcPoint(arc, side, up, segments, Math.min(index + 1, head)).subtract(offset);
             float alpha = (float) Mth.clamp((index + 1 - tail) / (head - tail), 0.08, 1);
-            ribbon(buffer, matrix, from, to, side.scale(0.16), 0.25F, 0.65F, alpha * 0.55F);
-            ribbon(buffer, matrix, from, to, up.scale(0.16), 0.25F, 0.65F, alpha * 0.55F);
-            ribbon(buffer, matrix, from, to, side.scale(0.055), 0.82F, 0.95F, alpha);
-            ribbon(buffer, matrix, from, to, up.scale(0.055), 0.82F, 0.95F, alpha);
+            drawSegment(buffer, matrix, from, to, side, up, alpha);
         }
+    }
+
+    /** Crossed ribbons keep lightning visible from either side of its path. */
+    static void drawSegment(VertexConsumer buffer, Matrix4f matrix, Vec3 from, Vec3 to, Vec3 side, Vec3 up,
+            float alpha) {
+        ribbon(buffer, matrix, from, to, side.scale(0.16), 0.25F, 0.65F, alpha * 0.55F);
+        ribbon(buffer, matrix, from, to, up.scale(0.16), 0.25F, 0.65F, alpha * 0.55F);
+        ribbon(buffer, matrix, from, to, side.scale(0.055), 0.82F, 0.95F, alpha);
+        ribbon(buffer, matrix, from, to, up.scale(0.055), 0.82F, 0.95F, alpha);
     }
 
     private static Vec3 arcPoint(TravelArc arc, Vec3 side, Vec3 up, int segments, double point) {
@@ -56,10 +62,19 @@ final class LightningTravelArcRenderer {
 
     private static void ribbon(VertexConsumer buffer, Matrix4f matrix, Vec3 from, Vec3 to, Vec3 width,
             float red, float green, float alpha) {
-        vertex(buffer, matrix, from.subtract(width), red, green, alpha);
-        vertex(buffer, matrix, from.add(width), red, green, alpha);
-        vertex(buffer, matrix, to.add(width), red, green, alpha);
-        vertex(buffer, matrix, to.subtract(width), red, green, alpha);
+        Vec3 leftStart = from.subtract(width);
+        Vec3 rightStart = from.add(width);
+        Vec3 rightEnd = to.add(width);
+        Vec3 leftEnd = to.subtract(width);
+        vertex(buffer, matrix, leftStart, red, green, alpha);
+        vertex(buffer, matrix, rightStart, red, green, alpha);
+        vertex(buffer, matrix, rightEnd, red, green, alpha);
+        vertex(buffer, matrix, leftEnd, red, green, alpha);
+        // The vanilla lightning render type culls back faces.
+        vertex(buffer, matrix, leftEnd, red, green, alpha);
+        vertex(buffer, matrix, rightEnd, red, green, alpha);
+        vertex(buffer, matrix, rightStart, red, green, alpha);
+        vertex(buffer, matrix, leftStart, red, green, alpha);
     }
 
     private static void vertex(VertexConsumer buffer, Matrix4f matrix, Vec3 point,

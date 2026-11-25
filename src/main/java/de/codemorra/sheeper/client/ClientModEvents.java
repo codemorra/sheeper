@@ -9,6 +9,7 @@ import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import de.codemorra.sheeper.client.renderer.ElementalSheeperRenderer;
+import de.codemorra.sheeper.client.renderer.LightningStrikeRenderer;
 import de.codemorra.sheeper.client.renderer.SheeperRenderer;
 import de.codemorra.sheeper.client.renderer.WaterProjectileRenderer;
 import de.codemorra.sheeper.client.renderer.PrimedSheeperWoolRenderer;
@@ -23,7 +24,6 @@ import de.codemorra.sheeper.client.particle.LightningRingParticle;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.renderer.entity.LightningBoltRenderer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
@@ -106,7 +106,7 @@ public class ClientModEvents {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.LAVA_SHEEPER.get(), ElementalSheeperRenderer::new);
         event.registerEntityRenderer(ModEntities.LIGHTNING_SHEEPER.get(), ElementalSheeperRenderer::new);
-        event.registerEntityRenderer(ModEntities.LIGHTNING_STRIKE.get(), LightningBoltRenderer::new);
+        event.registerEntityRenderer(ModEntities.LIGHTNING_STRIKE.get(), LightningStrikeRenderer::new);
         event.registerEntityRenderer(ModEntities.WATER_SHEEPER.get(), ElementalSheeperRenderer::new);
         event.registerEntityRenderer(ModEntities.WATER_PROJECTILE.get(), WaterProjectileRenderer::new);
 

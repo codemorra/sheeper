@@ -83,14 +83,6 @@ public final class LightningWeatherVisuals {
         return value;
     }
 
-    private static double cloudHalfHeight(LightningWeatherPacket.Arena arena) {
-        return Math.min(4.5, (arena.maximumY() - arena.minimumY()) / 5.0);
-    }
-
-    private static double cloudCenterY(LightningWeatherPacket.Arena arena, double halfHeight) {
-        return arena.maximumY() - halfHeight * 1.7;
-    }
-
     private static boolean hasSnapshot(Level level) {
         return level == snapshotLevel && !arenas.isEmpty() && level.getGameTime() - lastSnapshot <= 60;
     }
@@ -154,8 +146,8 @@ public final class LightningWeatherVisuals {
      */
     private static void drawClouds(BufferBuilder buffer, LightningWeatherPacket.Arena arena,
             Vec3 camera, double time) {
-        double halfHeight = cloudHalfHeight(arena);
-        Vec3 center = new Vec3(arena.center().getX() + 0.5, cloudCenterY(arena, halfHeight),
+        double halfHeight = arena.cloudHalfHeight();
+        Vec3 center = new Vec3(arena.center().getX() + 0.5, arena.cloudCenterY(),
                 arena.center().getZ() + 0.5).subtract(camera);
         double radius = arena.radiusAt(time);
         float stormOpacity = arena.opacityAt(time);
@@ -181,8 +173,7 @@ public final class LightningWeatherVisuals {
             double radius, double angle, double height, double halfHeight, double time, float stormOpacity) {
         double x = Math.cos(angle) * radius;
         double z = Math.sin(angle) * radius;
-        double variation = (Math.sin(x * 0.14 + z * 0.11 - time * 0.018)
-                + Math.sin(z * 0.27 - x * 0.09 + time * 0.011)) * 0.5;
+        double variation = LightningWeatherPacket.Arena.cloudVariation(x, z, time);
         double y = center.y + halfHeight * (variation * 0.5 + height * (1 + variation * 0.2));
         float shade = (float) (0.23 + variation * 0.06 + height * 0.05);
         float opacity = (float) (0.56 + variation * 0.09 + Math.abs(height) * 0.14) * stormOpacity;
@@ -197,7 +188,7 @@ public final class LightningWeatherVisuals {
     private static void drawRain(BufferBuilder buffer, ClientLevel level,
             LightningWeatherPacket.Arena arena, Vec3 camera, double time) {
         double radius = arena.radiusAt(time);
-        double top = cloudCenterY(arena, cloudHalfHeight(arena));
+        double top = arena.cloudCenterY();
         double centerX = arena.center().getX() + 0.5;
         double centerZ = arena.center().getZ() + 0.5;
         int extent = Mth.ceil(radius / RAIN_SPACING + 0.5);

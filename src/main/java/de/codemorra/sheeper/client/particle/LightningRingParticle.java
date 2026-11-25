@@ -15,12 +15,16 @@ import net.minecraft.world.phys.Vec3;
 
 /** Dense white cores with cyan edges remain bright even on dark ground. */
 public final class LightningRingParticle extends TextureSheetParticle {
-    private LightningRingParticle(ClientLevel level, double x, double y, double z, boolean core, SpriteSet sprites) {
+    private final float opacity;
+
+    private LightningRingParticle(ClientLevel level, double x, double y, double z, boolean core, float opacity,
+            SpriteSet sprites) {
         super(level, x, y, z);
+        this.opacity = opacity;
         pickSprite(sprites);
         lifetime = 3;
         quadSize = core ? 0.28F : 0.20F;
-        alpha = 0.95F;
+        alpha = 0.95F * opacity;
         hasPhysics = false;
         setColor(core ? 1.0F : 0.35F, core ? 1.0F : 0.85F, 1.0F);
     }
@@ -38,7 +42,7 @@ public final class LightningRingParticle extends TextureSheetParticle {
     @Override
     public void tick() {
         super.tick();
-        alpha = age < 2 ? 0.95F : 0.45F;
+        alpha = (age < 2 ? 0.95F : 0.45F) * opacity;
     }
 
     private static final class Emitter extends NoRenderParticle {
@@ -71,7 +75,7 @@ public final class LightningRingParticle extends TextureSheetParticle {
                     double ground = LightningRingSurface.find(level, px, pz, y, options.minY(), options.maxY());
                     if (Double.isFinite(ground) && camera.distanceToSqr(px, ground, pz) <= 64.0D * 64.0D) {
                         Minecraft.getInstance().particleEngine.add(new LightningRingParticle(level,
-                                px, ground + 0.08D, pz, stripe == 0, sprites));
+                                px, ground + 0.08D, pz, stripe == 0, options.opacity(), sprites));
                     }
                 }
             }
@@ -91,6 +95,7 @@ public final class LightningRingParticle extends TextureSheetParticle {
             if (!Float.isFinite(options.radius()) || !Float.isFinite(options.width())
                     || !Float.isFinite(options.spacing()) || options.spacing() <= 0
                     || !Float.isFinite(options.arenaRadius()) || options.arenaRadius() <= 0
+                    || !Float.isFinite(options.opacity()) || options.opacity() <= 0 || options.opacity() > 1
                     || !Double.isFinite(options.arenaX()) || !Double.isFinite(options.arenaZ())
                     || options.minY() > options.maxY()) {
                 return null;

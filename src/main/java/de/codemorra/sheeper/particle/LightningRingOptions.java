@@ -15,7 +15,7 @@ import net.minecraft.network.FriendlyByteBuf;
  * One compact visual snapshot lets clients draw an entire dense ring locally.
  */
 public record LightningRingOptions(float radius, float width, float spacing, int minY, int maxY,
-        double arenaX, double arenaZ, float arenaRadius) implements ParticleOptions {
+        double arenaX, double arenaZ, float arenaRadius, float opacity) implements ParticleOptions {
     public static final Codec<LightningRingOptions> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.FLOAT.fieldOf("radius").forGetter(LightningRingOptions::radius),
             Codec.FLOAT.fieldOf("width").forGetter(LightningRingOptions::width),
@@ -24,7 +24,8 @@ public record LightningRingOptions(float radius, float width, float spacing, int
             Codec.INT.fieldOf("max_y").forGetter(LightningRingOptions::maxY),
             Codec.DOUBLE.fieldOf("arena_x").forGetter(LightningRingOptions::arenaX),
             Codec.DOUBLE.fieldOf("arena_z").forGetter(LightningRingOptions::arenaZ),
-            Codec.FLOAT.fieldOf("arena_radius").forGetter(LightningRingOptions::arenaRadius))
+            Codec.FLOAT.fieldOf("arena_radius").forGetter(LightningRingOptions::arenaRadius),
+            Codec.FLOAT.optionalFieldOf("opacity", 1.0F).forGetter(LightningRingOptions::opacity))
             .apply(instance, LightningRingOptions::new));
 
     // Minecraft 1.19.2 still requires this deprecated type in ParticleType's
@@ -49,13 +50,17 @@ public record LightningRingOptions(float radius, float width, float spacing, int
             reader.expect(' ');
             double arenaZ = reader.readDouble();
             reader.expect(' ');
-            return new LightningRingOptions(radius, width, spacing, minY, maxY, arenaX, arenaZ, reader.readFloat());
+            float arenaRadius = reader.readFloat();
+            reader.expect(' ');
+            return new LightningRingOptions(radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius,
+                    reader.readFloat());
         }
 
         @Override
         public LightningRingOptions fromNetwork(ParticleType<LightningRingOptions> type, FriendlyByteBuf buffer) {
             return new LightningRingOptions(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
-                    buffer.readInt(), buffer.readInt(), buffer.readDouble(), buffer.readDouble(), buffer.readFloat());
+                    buffer.readInt(), buffer.readInt(), buffer.readDouble(), buffer.readDouble(), buffer.readFloat(),
+                    buffer.readFloat());
         }
     };
 
@@ -74,11 +79,12 @@ public record LightningRingOptions(float radius, float width, float spacing, int
         buffer.writeDouble(arenaX);
         buffer.writeDouble(arenaZ);
         buffer.writeFloat(arenaRadius);
+        buffer.writeFloat(opacity);
     }
 
     @Override
     public String writeToString() {
-        return String.format(Locale.ROOT, "sheeper:lightning_ring %f %f %f %d %d %f %f %f",
-                radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius);
+        return String.format(Locale.ROOT, "sheeper:lightning_ring %f %f %f %d %d %f %f %f %f",
+                radius, width, spacing, minY, maxY, arenaX, arenaZ, arenaRadius, opacity);
     }
 }

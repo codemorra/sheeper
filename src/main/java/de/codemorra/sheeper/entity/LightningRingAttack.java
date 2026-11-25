@@ -211,7 +211,7 @@ final class LightningRingAttack {
 
     private void showWave(ServerLevel level, Wave wave) {
         LightningRingOptions options = new LightningRingOptions((float) wave.radius, (float) width, particleSpacing,
-                minY, maxY, arenaCenter.x, arenaCenter.z, (float) arenaRadius);
+                minY, maxY, arenaCenter.x, arenaCenter.z, (float) arenaRadius, 1.0F);
         for (ServerPlayer player : level.players()) {
             if (player.position().distanceToSqr(origin) <= (maxRadius + 32) * (maxRadius + 32)) {
                 // The center can be far away even while the expanding edge is next to this
