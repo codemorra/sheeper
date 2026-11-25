@@ -1,16 +1,18 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.network.LightningStrikeMarkerPacket;
 import de.codemorra.sheeper.network.LightningWaterChargePacket;
 import de.codemorra.sheeper.network.ModNetwork;
-import de.codemorra.sheeper.particle.LightningRingOptions;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,6 +25,7 @@ import net.minecraft.world.phys.Vec3;
 /** Runs the arena's random lightning independently of movement and special attacks. */
 final class LightningAmbientStrikes {
     private static final int MAX_PENDING = 48;
+    private static final int WARNING_REFRESH_TICKS = 5;
     // Ambient bolts have no attacking entity, so normal hurt physics cannot shove players away from the boss.
     private static final DamageSource STRIKE_DAMAGE = new DamageSource("lightningBolt").setScalesWithDifficulty();
 
@@ -30,24 +33,33 @@ final class LightningAmbientStrikes {
             boolean water) {
     }
 
+    private record GroundSparks(Strike strike, long endTick, int speedTicks, Set<UUID> inside, Set<UUID> rewarded) {
+    }
+
     private final LightningSheeperEntity boss;
     private final List<Strike> pending = new ArrayList<>();
+    private final List<GroundSparks> groundSparks = new ArrayList<>();
     private int intervalTicks;
 
     LightningAmbientStrikes(LightningSheeperEntity boss) {
         this.boss = boss;
     }
 
-    /** Advances only while the arena has participants, preserving the encounter clock through short exits. */
-    void tick(ServerLevel level, List<ServerPlayer> participants) {
+    /** Keeps ground sparks briefly visible during exits while pausing new strikes and bonuses. */
+    void tick(ServerLevel level, List<ServerPlayer> participants, boolean fighting) {
         int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
         if (count == 0) {
-            clearWarnings();
+            clearEffects();
             intervalTicks = 0;
             return;
         }
 
         long now = level.getGameTime();
+        tickGroundSparks(fighting ? participants : List.of(), now);
+        if (!fighting) {
+            pending.clear();
+            return;
+        }
         var iterator = pending.iterator();
         while (iterator.hasNext()) {
             Strike strike = iterator.next();
@@ -55,8 +67,8 @@ final class LightningAmbientStrikes {
             if (remaining <= 0) {
                 impact(level, strike, participants);
                 iterator.remove();
-            } else if (remaining % 2 == 0) {
-                showWarning(level, strike);
+            } else if (remaining % WARNING_REFRESH_TICKS == 0) {
+                showWarning(level, strike, remaining);
             }
         }
         if (--intervalTicks > 0) {
@@ -71,10 +83,7 @@ final class LightningAmbientStrikes {
         for (int index = 0; index < count && pending.size() < MAX_PENDING; index++) {
             randomStrike(level, impactTick, centerRadius, outerRadius, height).ifPresent(strike -> {
                 pending.add(strike);
-                showWarning(level, strike);
-                Vec3 position = strike.position();
-                level.sendParticles(ParticleTypes.END_ROD, position.x, position.y + 0.12, position.z,
-                        4, 0.15, 0.05, 0.15, 0.005);
+                showWarning(level, strike, impactTick - now);
             });
         }
     }
@@ -121,29 +130,24 @@ final class LightningAmbientStrikes {
         return boss.isWithinArenaHeight(water) ? water : Double.NaN;
     }
 
-    /** Water gets a single surface marker, while dry ground keeps both damage rings. */
-    private void showWarning(ServerLevel level, Strike strike) {
-        if (strike.water()) {
-            showRing(level, strike, Math.max(1.5, strike.centerRadius()), 0.45F, 0.58F);
-            Vec3 position = strike.position();
-            // The center remains visible even if the ring extends past a narrow stream.
-            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, position.x, position.y + 0.13, position.z,
-                    3, 0.15, 0.05, 0.15, 0.01);
-            return;
-        }
-        showRing(level, strike, strike.centerRadius(), 0.45F, 0.48F);
-        showRing(level, strike, strike.outerRadius(), 0.16F, 0.23F);
+    /** Refreshes brief client markers to keep a cancelled strike from leaving a stale warning. */
+    private void showWarning(ServerLevel level, Strike strike, long remaining) {
+        showMarker(level, strike, (int) Math.min(remaining, WARNING_REFRESH_TICKS + 1), false);
     }
 
-    private void showRing(ServerLevel level, Strike strike, double radius, float width, float opacity) {
-        Vec3 position = strike.position();
-        BlockPos center = boss.getArenaCenter();
-        int minY = Math.max(boss.getArenaMinimumY(), Mth.floor(position.y) - (strike.water() ? 1 : 0));
+    private void showMarker(ServerLevel level, Strike strike, int duration, boolean impact) {
+        Vec3 pos = strike.position();
+        int minY = Math.max(boss.getArenaMinimumY(), Mth.floor(pos.y) - 1);
         int maxY = Math.min(boss.getArenaMaximumY() - 1,
-                Mth.floor(position.y + (strike.water() ? 1 : strike.height())));
-        var options = new LightningRingOptions((float) radius, width, 0.4F, minY, maxY,
-                center.getX() + 0.5, center.getZ() + 0.5, (float) boss.getCombatRadius(), opacity, strike.water());
-        level.sendParticles(options, position.x, position.y, position.z, 1, 0, 0, 0, 0);
+                Mth.floor(pos.y + (strike.water() ? 1 : strike.height())));
+        var marker = new LightningStrikeMarkerPacket(level.dimension().location(), boss.getArenaCenter(),
+                boss.getCombatRadius(), pos, strike.centerRadius(), strike.outerRadius(), minY, maxY,
+                strike.impactTick(), duration, strike.water(), impact);
+        for (ServerPlayer observer : level.players()) {
+            if (observer.position().distanceToSqr(pos) <= 48 * 48) {
+                ModNetwork.sendLightningStrikeMarker(observer, marker);
+            }
+        }
     }
 
     private void impact(ServerLevel level, Strike strike, List<ServerPlayer> participants) {
@@ -156,6 +160,7 @@ final class LightningAmbientStrikes {
         }
         LightningStrikeEffect.spawnWeatherBolt(level, position, boss.getStormCloudY(position), true);
         if (strike.water()) {
+            showMarker(level, strike, 4, true);
             BlockPos water = new BlockPos(position.x, Math.nextDown(position.y), position.z);
             dischargeThroughWater(level, water, participants);
             return;
@@ -163,11 +168,17 @@ final class LightningAmbientStrikes {
         float centerDamage = LightningSheeperConfig.LIGHTNING_AMBIENT_CENTER_DAMAGE.get().floatValue();
         float edgeDamage = (float) (centerDamage
                 * LightningSheeperConfig.LIGHTNING_AMBIENT_EDGE_DAMAGE_PERCENT.get() / 100);
-        int speedTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_SPEED_DURATION.get());
+        double speedSeconds = LightningSheeperConfig.LIGHTNING_AMBIENT_SPEED_DURATION.get();
+        int speedTicks = SheeperConfig.secondsToTicks(speedSeconds);
+        int lingeringTicks = SheeperConfig.secondsToTicks(
+                LightningSheeperConfig.LIGHTNING_AMBIENT_GROUND_SPARK_DURATION.get());
+        showMarker(level, strike, Math.max(3, lingeringTicks), true);
+        var inside = new HashSet<UUID>();
         for (ServerPlayer player : participants) {
             if (!LightningAreaDamage.contains(boss, player, position, strike.outerRadius(), strike.height())) {
                 continue;
             }
+            inside.add(player.getUUID());
             boolean center = LightningAreaDamage.contains(boss, player, position, strike.centerRadius(), strike.height());
             float damage = center ? centerDamage : edgeDamage;
             if (damage > 0) {
@@ -176,6 +187,40 @@ final class LightningAmbientStrikes {
             if (!center && speedTicks > 0 && player.isAlive()) {
                 player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, speedTicks, 0), boss);
             }
+        }
+        if (lingeringTicks > 0) {
+            groundSparks.add(new GroundSparks(strike, level.getGameTime() + lingeringTicks,
+                    SheeperConfig.secondsToTicks(speedSeconds * 0.5), inside, new HashSet<>()));
+        }
+    }
+
+    /** Rewards new entrants once while preserving the impact rules for players already in the area. */
+    private void tickGroundSparks(List<ServerPlayer> participants, long now) {
+        var iterator = groundSparks.iterator();
+        while (iterator.hasNext()) {
+            GroundSparks zone = iterator.next();
+            if (now >= zone.endTick()) {
+                iterator.remove();
+                continue;
+            }
+            Strike strike = zone.strike();
+            if (zone.speedTicks() <= 0) {
+                continue;
+            }
+            var currentlyInside = new HashSet<UUID>();
+            for (ServerPlayer player : participants) {
+                if (!player.isAlive() || !LightningAreaDamage.contains(boss, player, strike.position(),
+                        strike.outerRadius(), strike.height())) {
+                    continue;
+                }
+                UUID id = player.getUUID();
+                currentlyInside.add(id);
+                if (!zone.inside().contains(id) && zone.rewarded().add(id)) {
+                    player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, zone.speedTicks(), 0), boss);
+                }
+            }
+            zone.inside().clear();
+            zone.inside().addAll(currentlyInside);
         }
     }
 
@@ -203,12 +248,13 @@ final class LightningAmbientStrikes {
         }
     }
 
-    void clearWarnings() {
+    private void clearEffects() {
         pending.clear();
+        groundSparks.clear();
     }
 
     void reset() {
-        clearWarnings();
+        clearEffects();
         intervalTicks = 0;
     }
 

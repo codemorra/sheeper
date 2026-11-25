@@ -174,7 +174,7 @@ public final class LightningSheeperConfig {
             .defineInRange("ambientLightning.strikesPerInterval", 2, 0, 4);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_WARNING = BUILDER
-            .comment("Seconds a strike is marked on the ground or water before it hits.")
+            .comment("Seconds that branching ground lines warn of an incoming strike.")
             .defineInRange("ambientLightning.warningSeconds", 1.75, 0.25, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_CENTER_RADIUS = BUILDER
@@ -203,8 +203,14 @@ public final class LightningSheeperConfig {
             .defineInRange("ambientLightning.edgeDamagePercent", 25.0, 0.0, 75.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_SPEED_DURATION = BUILDER
-            .comment("Seconds of Speed I after an outer-ring hit. 0 disables the speed bonus.")
+            .comment("Seconds of Speed I after an outer-ring hit. Entering the lingering ground sparks grants half.",
+                    "0 disables the speed bonus.")
             .defineInRange("ambientLightning.speedBonusSeconds", 4.0, 0.0, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_GROUND_SPARK_DURATION = BUILDER
+            .comment(
+                    "Seconds the impact area keeps sparking and grants Speed I to new entrants. 0 disables the aftereffect.")
+            .defineInRange("ambientLightning.groundSparkSeconds", 2.0, 0.0, 4.0);
 
     /** Local gusts that share a changing wind direction (wind). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_WIND_ENABLED = BUILDER

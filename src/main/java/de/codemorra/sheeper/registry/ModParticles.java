@@ -62,6 +62,9 @@ public final class ModParticles {
                 }
             });
 
+    public static final RegistryObject<SimpleParticleType> LIGHTNING_SURFACE_SPARK = PARTICLES.register(
+            "lightning_surface_spark", () -> new SimpleParticleType(false));
+
     private ModParticles() {
     }
 
