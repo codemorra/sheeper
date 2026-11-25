@@ -129,7 +129,7 @@ final class LightningSpecialAttacks {
             return;
         }
         if (rod.isActive()) {
-            rod.tick(level);
+            rod.tick(level, players);
             return;
         }
         restTicks = Math.max(0, restTicks - 1);

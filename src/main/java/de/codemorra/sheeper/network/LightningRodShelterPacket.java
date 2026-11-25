@@ -14,11 +14,14 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
-/** Refreshes or removes the fixed shelter spheres for one lightning rod attack. */
-public record LightningRodShelterPacket(ResourceLocation dimension, UUID owner, List<LightningRodShelter> shelters) {
+/** Synchronizes the fixed shelter spheres and their fade time for one lightning rod attack. */
+public record LightningRodShelterPacket(ResourceLocation dimension, UUID owner, List<LightningRodShelter> shelters,
+        long dissolveStart, int dissolveTicks) {
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeUUID(owner);
+        buffer.writeLong(dissolveStart);
+        buffer.writeVarInt(dissolveTicks);
         buffer.writeCollection(shelters, (output, shelter) -> {
             output.writeDouble(shelter.center().x);
             output.writeDouble(shelter.center().y);
@@ -30,7 +33,12 @@ public record LightningRodShelterPacket(ResourceLocation dimension, UUID owner, 
     public static LightningRodShelterPacket decode(FriendlyByteBuf buffer) {
         ResourceLocation dimension = buffer.readResourceLocation();
         UUID owner = buffer.readUUID();
+        long dissolveStart = buffer.readLong();
+        int dissolveTicks = buffer.readVarInt();
         int count = buffer.readVarInt();
+        if (dissolveStart < 0 || dissolveTicks < 0 || dissolveTicks > 1200) {
+            throw new IllegalArgumentException("Invalid lightning rod shelter fade");
+        }
         if (count < 0 || count > LightningRodShelter.MAX_SHELTERS) {
             throw new IllegalArgumentException("Invalid lightning rod shelter count");
         }
@@ -44,7 +52,7 @@ public record LightningRodShelterPacket(ResourceLocation dimension, UUID owner, 
             }
             shelters.add(new LightningRodShelter(center, radius));
         }
-        return new LightningRodShelterPacket(dimension, owner, List.copyOf(shelters));
+        return new LightningRodShelterPacket(dimension, owner, List.copyOf(shelters), dissolveStart, dissolveTicks);
     }
 
     public void handle(Supplier<NetworkEvent.Context> context) {

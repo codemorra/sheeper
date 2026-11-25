@@ -14,13 +14,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
-/** Moves the boss into the air above the arena's center and builds an electrical charge. */
+/** Moves the boss over the arena, then holds its lightning form through the final barrage. */
 final class LightningRodAttack {
     private static final int CENTER_SEARCH_RADIUS = 4;
     private static final double PREFERRED_HOVER_HEIGHT = 6;
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final LightningRodShelters shelters;
+    private final LightningRodDischarge discharge;
     @Nullable
     private Vec3 hoverPosition;
     private int travelTicks;
@@ -33,6 +34,7 @@ final class LightningRodAttack {
         this.boss = boss;
         this.teleports = teleports;
         shelters = new LightningRodShelters(boss);
+        discharge = new LightningRodDischarge(boss, shelters);
     }
 
     /** @return whether the fight has both a safe hover point and nearby shelters */
@@ -64,8 +66,8 @@ final class LightningRodAttack {
         return Math.max(0, travelTicks + chargeTicks - calmTicks);
     }
 
-    /** Retains lightning form through travel, charge and the final visible strike. */
-    void tick(ServerLevel level) {
+    /** Retains lightning form through travel, the discharge and the final shelter fade. */
+    void tick(ServerLevel level, List<ServerPlayer> players) {
         Vec3 position = hoverPosition;
         if (position == null) {
             return;
@@ -84,20 +86,34 @@ final class LightningRodAttack {
         }
         if (releaseTicks > 0) {
             if (--releaseTicks == 0) {
+                shelters.beginDissolve(level);
+            }
+            return;
+        }
+        if (shelters.isDissolving()) {
+            if (shelters.hasDissolved(level.getGameTime())) {
                 clear();
             }
             return;
         }
-        if (chargeTicks % 4 == 0) {
-            if (!teleports.isSafeHoverPosition(position)) {
-                clear();
+        if (chargeTicks > 0) {
+            if (chargeTicks % 4 == 0) {
+                if (!teleports.isSafeHoverPosition(position)) {
+                    clear();
+                    return;
+                }
+                showCharge(level);
+            }
+            if (--chargeTicks > 0) {
                 return;
             }
-            showCharge(level);
-        }
-        if (--chargeTicks == 0) {
             boss.setTravelArcCharge(1);
-            LightningStrikeEffect.spawnWeatherBolt(level, boss.getEyePosition(), boss.getStormCloudY(position), true);
+            discharge.start();
+        }
+        if (!discharge.tick(level, players)) {
+            Vec3 impact = boss.getEyePosition();
+            LightningStrikeEffect.spawnWeatherBolt(level, impact, boss.getStormCloudY(position), false);
+            LightningRodDischarge.playImpacts(level, players, List.of(impact));
             releaseTicks = LightningStrikeEffect.VISUAL_DURATION_TICKS;
         }
     }
@@ -168,6 +184,7 @@ final class LightningRodAttack {
         if (isActive()) {
             boss.clearTravelArc();
             shelters.clear();
+            discharge.clear();
         }
         hoverPosition = null;
         travelTicks = 0;

@@ -8,6 +8,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningRodShelterPacket;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.world.LightningRodShelter;
@@ -31,6 +32,8 @@ final class LightningRodShelters {
     private final LightningSheeperEntity boss;
     private List<LightningRodShelter> shelters = List.of();
     private long nextRefresh;
+    private long dissolveStart;
+    private int dissolveTicks;
 
     private record Step(Vec3 feet, int distance) {
     }
@@ -65,8 +68,33 @@ final class LightningRodShelters {
         }
     }
 
+    /** Starts one synchronized fade after the last visible bolt has expired. */
+    void beginDissolve(ServerLevel level) {
+        dissolveStart = level.getGameTime();
+        dissolveTicks = SheeperConfig.secondsToTicks(
+                LightningSheeperConfig.LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION.get());
+        nextRefresh = dissolveStart;
+        tick(level);
+    }
+
+    boolean isDissolving() {
+        return dissolveTicks > 0;
+    }
+
+    boolean hasDissolved(long now) {
+        return now - dissolveStart >= dissolveTicks;
+    }
+
+    /** Uses the same hitbox-center check as the visible shelter indicator. */
+    boolean protects(ServerPlayer player) {
+        Vec3 point = player.getBoundingBox().getCenter();
+        return shelters.stream().anyMatch(shelter -> shelter.contains(point));
+    }
+
     /** Removes the shelters on both sides when the attack finishes or is cancelled. */
     void clear() {
+        dissolveStart = 0;
+        dissolveTicks = 0;
         if (!shelters.isEmpty()) {
             shelters = List.of();
             if (boss.level instanceof ServerLevel level) {
@@ -204,7 +232,8 @@ final class LightningRodShelters {
     }
 
     private void send(ServerLevel level) {
-        var snapshot = new LightningRodShelterPacket(level.dimension().location(), boss.getUUID(), shelters);
+        var snapshot = new LightningRodShelterPacket(level.dimension().location(), boss.getUUID(), shelters,
+                dissolveStart, dissolveTicks);
         double range = boss.getCombatRadius() + 64;
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         for (ServerPlayer observer : level.players()) {
