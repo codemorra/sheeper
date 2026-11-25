@@ -246,11 +246,41 @@ public final class LightningSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MIN = BUILDER
             .comment("Minimum rest seconds between attacks. Normal teleports are allowed during rest.",
                     "An announced teleport finishes before the next attack. NoAI and an empty arena pause the timer.")
-            .defineInRange("attack.pauseMinSeconds", 4.0, 0.05, 600.0);
+            .defineInRange("attack.pauseMinSeconds", 4.0, 0.05, 30.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_PAUSE_MAX = BUILDER
-            .comment("Maximum rest seconds between attacks; capped below by pauseMinSeconds.")
-            .defineInRange("attack.pauseMaxSeconds", 7.0, 0.05, 600.0);
+            .comment("Maximum rest seconds between special attacks. If set below the minimum, the minimum is used.")
+            .defineInRange("attack.pauseMaxSeconds", 7.0, 0.05, 30.0);
+
+    /** Targeted lightning rows (lineAttack). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_LINE_ENABLED = BUILDER
+            .comment("Enables the special attack that fires lightning rows toward arena players.")
+            .define("lineAttack.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_COOLDOWN = BUILDER
+            .comment("Combat seconds after the last row finishes before this special attack is ready again.")
+            .defineInRange("lineAttack.cooldownSeconds", 20.0, 1.0, 120.0);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_SHOTS = BUILDER
+            .comment("Number of lightning rows fired each time the attack is used.")
+            .defineInRange("lineAttack.shotCount", 6, 1, 16);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_SOLO_INTERVAL = BUILDER
+            .comment("Seconds between rows when one player is participating.")
+            .defineInRange("lineAttack.soloIntervalSeconds", 1.5, 0.25, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_MULTIPLAYER_INTERVAL = BUILDER
+            .comment("Seconds between rows when several players are participating.")
+            .defineInRange("lineAttack.multiplayerIntervalSeconds", 0.5, 0.25, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_SPEED = BUILDER
+            .comment("Speed at which each row travels toward the arena edge, in blocks per second.")
+            .defineInRange("lineAttack.speedBlocksPerSecond", 18.0, 8.0, 36.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_DAMAGE = BUILDER
+            .comment("Health points dealt to a player hit by one row before armor and difficulty scaling.",
+                    "Each row can damage a player once. 0 disables damage.")
+            .defineInRange("lineAttack.damage", 5.0, 0.0, 24.0);
 
     /** Lightning storm phase (strike). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_STRIKE_DURATION_MIN = BUILDER
