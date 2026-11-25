@@ -462,9 +462,15 @@ public final class LightningSheeperConfig {
                     "Uses lightning strike sounds; lane impacts produce no follow-up rounds or residual zones.")
             .defineInRange("front.damage", 2.0, 0.0, 1024.0);
 
-    /**
-     * Teleport preparation and terrain-following rings (ring).
-     */
+    /** Direct teleports followed by individual expanding rings (ring). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_RING_ENABLED = BUILDER
+            .comment("Enables the special attack with rapid teleports and expanding ground rings.")
+            .define("ring.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_COOLDOWN = BUILDER
+            .comment("Combat seconds after the last ring finishes before the ring attack is ready again.")
+            .defineInRange("ring.cooldownSeconds", 20.0, 1.0, 120.0);
+
     public static final ForgeConfigSpec.IntValue LIGHTNING_RING_TELEPORT_COUNT_MIN = BUILDER
             .comment("Minimum rapid teleport attempts before charging. Unsafe destinations are skipped.")
             .defineInRange("ring.teleportCountMin", 5, 0, 32);
@@ -477,41 +483,46 @@ public final class LightningSheeperConfig {
             .comment("Seconds between rapid teleports. Uses the normal teleport area and safety checks.")
             .defineInRange("ring.teleportIntervalSeconds", 0.35, 0.05, 10.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_WARNING = BUILDER
+            .comment("Seconds of warning before the first teleport. 0 skips the opening warning.")
+            .defineInRange("ring.warningSeconds", 0.8, 0.0, 2.0);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_CHARGE = BUILDER
-            .comment("Visible stationary charge duration in seconds after the rapid teleports.")
-            .defineInRange("ring.chargeSeconds", 2.0, 0.05, 60.0);
+            .comment("Seconds the boss charges after each landing before releasing one ring.")
+            .defineInRange("ring.chargeSeconds", 1.0, 0.1, 1.5);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_RING_COUNT_MIN = BUILDER
-            .comment("Minimum consecutive ring waves after charging.")
-            .defineInRange("ring.countMin", 3, 1, 16);
+            .comment("Minimum ring waves per attack, with a teleport attempted before each wave.")
+            .defineInRange("ring.countMin", 4, 1, 16);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_RING_COUNT_MAX = BUILDER
-            .comment("Maximum consecutive ring waves; capped below by countMin.")
-            .defineInRange("ring.countMax", 5, 1, 16);
+            .comment("Maximum ring waves per attack. If set below the minimum, the minimum is used.")
+            .defineInRange("ring.countMax", 8, 1, 16);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_INTERVAL = BUILDER
-            .comment("Seconds between releasing ring waves.")
-            .defineInRange("ring.intervalSeconds", 1.25, 0.05, 10.0);
+            .comment("Minimum seconds between ring releases, including the next jump and charge.",
+                    "The jump and charge are allowed to finish if they take longer than this interval.")
+            .defineInRange("ring.intervalSeconds", 3.0, 0.5, 8.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_SPEED = BUILDER
             .comment("Outward speed in blocks per second. Rings finish at the arena boundary.")
-            .defineInRange("ring.speedBlocksPerSecond", 5.0, 0.5, 30.0);
+            .defineInRange("ring.speedBlocksPerSecond", 18.0, 8.0, 36.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_WIDTH = BUILDER
             .comment("Radial thickness of the visible ring and its damage band in blocks.")
-            .defineInRange("ring.width", 0.75, 0.1, 4.0);
+            .defineInRange("ring.width", 0.75, 0.1, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_HIT_HEIGHT = BUILDER
             .comment("Damage height above the local ground in blocks; jumping above it avoids the ring.")
-            .defineInRange("ring.hitHeight", 0.35, 0.05, 2.0);
+            .defineInRange("ring.hitHeight", 0.35, 0.05, 1.25);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_DAMAGE = BUILDER
-            .comment("Damage per ring wave in health points (2 = one heart), at most once per player per wave.")
-            .defineInRange("ring.damage", 2.0, 0.0, 1024.0);
+            .comment("Damage in health points before armor and difficulty scaling. Each ring can damage a player once.")
+            .defineInRange("ring.damage", 6.0, 0.0, 24.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_PARTICLE_SPACING = BUILDER
-            .comment("Distance between glowing ring segments in blocks. Lower values produce denser effects.")
-            .defineInRange("ring.particleSpacing", 0.5, 0.1, 1.0);
+            .comment("Spacing of the lightning arcs on the ring. Lower values make the ring denser.")
+            .defineInRange("ring.particleSpacing", 0.5, 0.2, 1.0);
 
     /**
      * Shared proximity charge and defensive discharge

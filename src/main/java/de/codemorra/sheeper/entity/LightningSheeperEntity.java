@@ -34,8 +34,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
-    // Keeps random strikes out of the targeted row playtest.
-    private static final boolean TEST_LINE_ATTACK_ONLY = true;
+    // Isolates the ring barrage during in-game tuning.
+    private static final boolean TEST_RING_ATTACK_ONLY = true;
     static final int ARC_TRAVEL_TICKS = 6;
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
@@ -43,9 +43,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.COMPOUND_TAG);
 
     /** World-space endpoints let the client draw the arc without following the boss model. */
-    public record TravelArc(Vec3 start, Vec3 end, long startTick) {
+    public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks) {
         public float progress(double time) {
-            return (float) Mth.clamp((time - startTick) / ARC_TRAVEL_TICKS, 0, 1);
+            return (float) Mth.clamp((time - startTick) / durationTicks, 0, 1);
         }
     }
 
@@ -56,7 +56,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private final Set<UUID> admittedPlayers = new HashSet<>();
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningAmbientStrikes ambientStrikes = new LightningAmbientStrikes(this);
-    private final LightningSpecialAttacks specialAttacks = new LightningSpecialAttacks(this);
+    private final LightningSpecialAttacks specialAttacks = new LightningSpecialAttacks(this, teleports);
     private final ElementalArenaCombat arenaCombat = new ElementalArenaCombat(this, this::canPlayerDamage,
             this::resetArenaEncounter, LightningSheeperConfig.LIGHTNING_MAX_HEALTH::get,
             LightningSheeperConfig.LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER::get,
@@ -127,12 +127,14 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         return Math.max(0, getCombatRadius() - bodyMargin - LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE.get());
     }
 
-    void startTravelArc(Vec3 destination) {
+    /** Starts the shared visible lightning form for the caller's travel duration. */
+    void startTravelArc(Vec3 destination, int durationTicks) {
         Vec3 lift = new Vec3(0, getBbHeight() * 0.5, 0);
         Vec3 start = position().add(lift);
         Vec3 end = destination.add(lift);
         var arc = new CompoundTag();
         arc.putLong("StartTick", level.getGameTime());
+        arc.putInt("DurationTicks", durationTicks);
         arc.putDouble("StartX", start.x);
         arc.putDouble("StartY", start.y);
         arc.putDouble("StartZ", start.z);
@@ -153,7 +155,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         return arc.isEmpty() || !isAlive() ? null
                 : new TravelArc(new Vec3(arc.getDouble("StartX"), arc.getDouble("StartY"), arc.getDouble("StartZ")),
                         new Vec3(arc.getDouble("EndX"), arc.getDouble("EndY"), arc.getDouble("EndZ")),
-                        arc.getLong("StartTick"));
+                        arc.getLong("StartTick"), Math.max(1, arc.getInt("DurationTicks")));
     }
 
     private double horizontalDistanceSquared(double x, double z) {
@@ -248,15 +250,15 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 arenaCombat.tick(participants);
             }
             boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
-            specialAttacks.tick(server, participants, fighting, teleports.isPreparing());
+            specialAttacks.tick(server, participants, fighting, teleports.isPreparing(), TEST_RING_ATTACK_ONLY);
             tickMovement(participants, canMove);
             storm.tickWind(server, getUUID(), fighting, participants);
-            ambientStrikes.tick(server, participants, fighting && !TEST_LINE_ATTACK_ONLY);
+            ambientStrikes.tick(server, participants, fighting && !TEST_RING_ATTACK_ONLY);
         }
         super.tick();
     }
 
-    /** Leaves ordinary teleports available for idle and recovery, and keeps the boss still during a row. */
+    /** Leaves ordinary teleports available for idle and recovery, and leaves attack movement to the special attack. */
     private void tickMovement(List<ServerPlayer> participants, boolean canMove) {
         if (specialAttacks.isAttacking()) {
             teleports.tick(false, null);
