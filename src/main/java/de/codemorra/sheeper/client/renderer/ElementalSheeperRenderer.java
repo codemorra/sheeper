@@ -83,8 +83,13 @@ public class ElementalSheeperRenderer extends SheepRenderer {
     public boolean shouldRender(Sheep sheep, Frustum frustum, double x, double y, double z) {
         if (sheep instanceof LightningSheeperEntity bolt) {
             var arc = bolt.getTravelArc();
-            if (arc != null && frustum.isVisible(new AABB(arc.start(), arc.end()).inflate(1.5))) {
-                return true;
+            if (arc != null) {
+                AABB bounds = arc.isCharging()
+                        ? new AABB(arc.end(), arc.end()).inflate(bolt.getBbHeight())
+                        : new AABB(arc.start(), arc.end()).inflate(1.5);
+                if (frustum.isVisible(bounds)) {
+                    return true;
+                }
             }
         }
         if (sheep instanceof WaterSheeperEntity boss && boss.getBeamOffset().lengthSqr() > 0

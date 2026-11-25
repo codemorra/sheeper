@@ -20,6 +20,7 @@ import net.minecraftforge.network.NetworkHooks;
  * Short-lived visual lightning with a synchronized cloud-to-ground height.
  */
 public final class LightningStrikeEffect extends LightningBolt {
+    static final int VISUAL_DURATION_TICKS = 8;
     private static final EntityDataAccessor<Float> DATA_HEIGHT = SynchedEntityData
             .defineId(LightningStrikeEffect.class, EntityDataSerializers.FLOAT);
     private int age;
@@ -93,7 +94,7 @@ public final class LightningStrikeEffect extends LightningBolt {
         // visual-only paths.
         // Only ordinary entity housekeeping is appropriate for this short-lived effect.
         baseTick();
-        if (++age >= 8) {
+        if (++age >= VISUAL_DURATION_TICKS) {
             discard();
         } else if (level.isClientSide && age % 2 == 0) {
             seed = random.nextLong();

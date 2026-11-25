@@ -7,6 +7,7 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.LightningTornado;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -14,7 +15,7 @@ import net.minecraft.util.Mth;
 /** Coordinates stationary special attacks with the teleport intervals between them. */
 final class LightningSpecialAttacks {
     private enum Attack {
-        LINE, RING, TORNADO, FAN
+        LINE, RING, TORNADO, FAN, ROD
     }
 
     private final LightningSheeperEntity boss;
@@ -22,11 +23,13 @@ final class LightningSpecialAttacks {
     private final LightningRingBarrage ring;
     private final LightningTornadoAttack tornado;
     private final LightningFanAttack fan;
+    private final LightningRodAttack rod;
     private int restTicks;
     private int lineCooldown;
     private int ringCooldown;
     private int tornadoCooldown;
     private int fanCooldown;
+    private int rodCooldown = -1;
 
     LightningSpecialAttacks(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
@@ -34,10 +37,15 @@ final class LightningSpecialAttacks {
         ring = new LightningRingBarrage(boss, teleports);
         tornado = new LightningTornadoAttack(boss);
         fan = new LightningFanAttack(boss);
+        rod = new LightningRodAttack(boss, teleports);
     }
 
     boolean isAttacking() {
-        return line.isActive() || ring.isActive() || tornado.isActive() || fan.isActive();
+        return line.isActive() || ring.isActive() || tornado.isActive() || fan.isActive() || rod.isActive();
+    }
+
+    boolean isRodHovering() {
+        return rod.isHovering();
     }
 
     List<LightningTornado> tornadoSnapshots() {
@@ -46,18 +54,20 @@ final class LightningSpecialAttacks {
 
     /** Advances cooldown and recovery only during combat, and lets an announced teleport finish. */
     void tick(ServerLevel level, List<ServerPlayer> players, boolean fighting, boolean teleportPreparing,
-            boolean fanOnly) {
+            boolean rodOnly) {
         if (!fighting) {
             line.clear();
             ring.clear();
             tornado.clear();
             fan.clear();
+            rod.clear();
             return;
         }
-        boolean lineEnabled = !fanOnly && LightningSheeperConfig.LIGHTNING_LINE_ENABLED.get();
-        boolean ringEnabled = !fanOnly && LightningSheeperConfig.LIGHTNING_RING_ENABLED.get();
-        boolean tornadoEnabled = !fanOnly && LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED.get();
-        boolean fanEnabled = LightningSheeperConfig.LIGHTNING_FAN_ENABLED.get();
+        boolean lineEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_LINE_ENABLED.get();
+        boolean ringEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_RING_ENABLED.get();
+        boolean tornadoEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED.get();
+        boolean fanEnabled = !rodOnly && LightningSheeperConfig.LIGHTNING_FAN_ENABLED.get();
+        boolean rodEnabled = LightningSheeperConfig.LIGHTNING_ROD_ENABLED.get();
         if (!lineEnabled) {
             line.clear();
         }
@@ -69,6 +79,14 @@ final class LightningSpecialAttacks {
         }
         if (!fanEnabled) {
             fan.clear();
+        }
+        if (!rodEnabled) {
+            rod.clear();
+        }
+        if (rodCooldown < 0) {
+            rodCooldown = rodCooldownTicks();
+        } else if (!rod.isActive()) {
+            rodCooldown = Math.max(0, rodCooldown - 1);
         }
         if (!fan.isActive()) {
             fanCooldown = Math.max(0, fanCooldown - 1);
@@ -98,11 +116,15 @@ final class LightningSpecialAttacks {
             fan.tick(level, players);
             return;
         }
+        if (rod.isActive()) {
+            rod.tick(level);
+            return;
+        }
         restTicks = Math.max(0, restTicks - 1);
         if (restTicks > 0 || teleportPreparing) {
             return;
         }
-        var ready = new ArrayList<Attack>(4);
+        var ready = new ArrayList<Attack>(5);
         if (lineEnabled && lineCooldown == 0) {
             ready.add(Attack.LINE);
         }
@@ -114,6 +136,9 @@ final class LightningSpecialAttacks {
         }
         if (fanEnabled && fanCooldown == 0) {
             ready.add(Attack.FAN);
+        }
+        if (rodEnabled && rodCooldown == 0) {
+            ready.add(Attack.ROD);
         }
         if (ready.isEmpty()) {
             return;
@@ -144,7 +169,16 @@ final class LightningSpecialAttacks {
                 boss.setTarget(null);
                 tornado.start(level, players);
             }
+            case ROD -> {
+                if (rod.start(level)) {
+                    rodCooldown = rodCooldownTicks();
+                }
+            }
         }
+    }
+
+    private int rodCooldownTicks() {
+        return SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_COOLDOWN.get());
     }
 
     void reset() {
@@ -152,11 +186,13 @@ final class LightningSpecialAttacks {
         ring.clear();
         tornado.clear();
         fan.clear();
+        rod.clear();
         restTicks = 0;
         lineCooldown = 0;
         ringCooldown = 0;
         tornadoCooldown = 0;
         fanCooldown = 0;
+        rodCooldown = -1;
     }
 
     /** Persists the timers, but drops transient attacks rather than replaying impacts after a reload. */
@@ -167,6 +203,7 @@ final class LightningSpecialAttacks {
         tag.putInt("RingCooldown", ringCooldown);
         tag.putInt("TornadoCooldown", tornadoCooldown);
         tag.putInt("FanCooldown", fanCooldown);
+        tag.putInt("RodCooldown", rodCooldown);
         return tag;
     }
 
@@ -177,5 +214,6 @@ final class LightningSpecialAttacks {
         ringCooldown = Mth.clamp(tag.getInt("RingCooldown"), 0, 2400);
         tornadoCooldown = Mth.clamp(tag.getInt("TornadoCooldown"), 0, 2400);
         fanCooldown = Mth.clamp(tag.getInt("FanCooldown"), 0, 2400);
+        rodCooldown = tag.contains("RodCooldown", Tag.TAG_INT) ? Mth.clamp(tag.getInt("RodCooldown"), -1, 2400) : -1;
     }
 }

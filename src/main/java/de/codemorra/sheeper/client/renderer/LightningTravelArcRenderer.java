@@ -10,15 +10,22 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** Draws a moving lightning tip and a fading trail between fixed world-space endpoints. */
+/** Draws the travelling lightning and the compact charge it forms at the arena center. */
 final class LightningTravelArcRenderer {
     private LightningTravelArcRenderer() {
     }
 
     static void render(LightningSheeperEntity boss, TravelArc arc, float partialTick, PoseStack poses,
             MultiBufferSource buffers) {
+        if (arc.isCharging()) {
+            renderCharge(boss, arc, partialTick, poses, buffers);
+            return;
+        }
         Vec3 direction = arc.end().subtract(arc.start());
         Vec3 side = new Vec3(-direction.z, 0, direction.x).normalize();
+        if (side.lengthSqr() == 0) {
+            side = new Vec3(1, 0, 0);
+        }
         Vec3 up = side.cross(direction).normalize();
         int segments = Mth.clamp(Mth.ceil(direction.length() * 1.6), 5, 128);
         double time = boss.level.getGameTime() + (double) partialTick;
@@ -32,6 +39,33 @@ final class LightningTravelArcRenderer {
             Vec3 to = arcPoint(arc, side, up, segments, Math.min(index + 1, head)).subtract(offset);
             float alpha = (float) Mth.clamp((index + 1 - tail) / (head - tail), 0.08, 1);
             drawSegment(buffer, matrix, from, to, side, up, alpha);
+        }
+    }
+
+    /** Connects several flickering paths through a common core at the travel endpoint. */
+    private static void renderCharge(LightningSheeperEntity boss, TravelArc arc, float partialTick, PoseStack poses,
+            MultiBufferSource buffers) {
+        Vec3 center = arc.end().subtract(boss.getPosition(partialTick));
+        double time = boss.level.getGameTime() + (double) partialTick;
+        double radius = boss.getBbWidth() * (0.24 + 0.15 * arc.charge());
+        double height = boss.getBbHeight() * (0.45 + 0.15 * arc.charge());
+        Vec3 side = new Vec3(0.75, 0, 0);
+        Vec3 up = new Vec3(0, 0, 0.75);
+        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
+        Matrix4f matrix = poses.last().pose();
+        for (int index = 0; index < 4; index++) {
+            double phase = time * (0.52 + index * 0.09) + index * 2.51;
+            double x = Math.cos(phase) * radius;
+            double z = Math.sin(phase * 1.27) * radius;
+            Vec3 top = center.add(x * 0.56, height * (0.7 + 0.22 * Math.sin(phase * 1.65)), z * 0.56);
+            Vec3 bend = center.add(x, height * 0.29, z);
+            Vec3 lowerBend = center.add(-x * 0.72, -height * 0.27, -z * 0.72);
+            Vec3 bottom = center.add(x * 0.15, -height * (0.74 + 0.15 * Math.cos(phase)), z * 0.33);
+            float alpha = (float) (0.43 + 0.28 * arc.charge() + 0.19 * Math.sin(phase * 1.91));
+            drawSegment(buffer, matrix, top, bend, side, up, alpha * 0.55F);
+            drawSegment(buffer, matrix, bend, center, side, up, alpha);
+            drawSegment(buffer, matrix, center, lowerBend, side, up, alpha);
+            drawSegment(buffer, matrix, lowerBend, bottom, side, up, alpha * 0.55F);
         }
     }
 
