@@ -170,7 +170,7 @@ final class LightningSpecialAttacks {
                 tornado.start(level, players);
             }
             case ROD -> {
-                if (rod.start(level)) {
+                if (rod.start(level, players)) {
                     rodCooldown = rodCooldownTicks();
                 }
             }
