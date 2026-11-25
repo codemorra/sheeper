@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "28";
+    private static final String VERSION = "29";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -56,6 +56,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningTornadoPacket.class, 7, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningTornadoPacket::encode).decoder(LightningTornadoPacket::decode)
                 .consumerMainThread(LightningTornadoPacket::handle).add();
+        CHANNEL.messageBuilder(LightningFanPacket.class, 8, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningFanPacket::encode).decoder(LightningFanPacket::decode)
+                .consumerMainThread(LightningFanPacket::handle).add();
     }
 
     /**
@@ -117,6 +120,11 @@ public final class ModNetwork {
 
     /** Updates the active tornado for a nearby observer. */
     public static void sendLightningTornado(ServerPlayer observer, LightningTornadoPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /** Sends the charge or current endpoints of a lightning fan to a nearby observer. */
+    public static void sendLightningFan(ServerPlayer observer, LightningFanPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 

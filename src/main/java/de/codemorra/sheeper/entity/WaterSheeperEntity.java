@@ -208,11 +208,6 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         entityData.set(DATA_MAELSTROM_ROTATION, degrees);
     }
 
-    /** @return mouth-height beam origin, scaled with the boss's body */
-    public Vec3 getBeamOrigin() {
-        return getEyePosition().add(0, -0.15D * getSizeMultiplier(), 0);
-    }
-
     /** @return whether the boss is looking for a clear beam position before committing to the attack */
     public boolean isSeekingBeamSight() {
         return specialAttacks.isSeekingBeamSight();
