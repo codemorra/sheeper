@@ -21,6 +21,7 @@ import de.codemorra.sheeper.client.particle.WaterArenaBoundaryParticle;
 import de.codemorra.sheeper.client.particle.WaterMineParticle;
 import de.codemorra.sheeper.client.particle.WaterMineWaveParticle;
 import de.codemorra.sheeper.client.particle.LightningRingParticle;
+import de.codemorra.sheeper.client.particle.LightningSurfaceSparkParticle;
 import de.codemorra.sheeper.registry.ModParticles;
 import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
@@ -68,6 +69,7 @@ public class ClientModEvents {
         event.register(ModParticles.WATER_ARENA_FLOOR.get(), WaterArenaBoundaryParticle.Provider::new);
         event.register(ModParticles.WATER_ARENA_SIDE.get(), WaterArenaBoundaryParticle.Provider::new);
         event.register(ModParticles.LIGHTNING_RING.get(), LightningRingParticle.Provider::new);
+        event.register(ModParticles.LIGHTNING_SURFACE_SPARK.get(), LightningSurfaceSparkParticle.Provider::new);
     }
 
     /**

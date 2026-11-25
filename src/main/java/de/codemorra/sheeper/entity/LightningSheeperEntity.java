@@ -262,11 +262,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             }
             boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
             storm.tickWind(server, getUUID(), fighting, participants);
-            if (fighting) {
-                ambientStrikes.tick(server, participants);
-            } else {
-                ambientStrikes.clearWarnings();
-            }
+            ambientStrikes.tick(server, participants, fighting);
         }
         super.tick();
     }

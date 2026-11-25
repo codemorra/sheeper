@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "23";
+    private static final String VERSION = "24";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -47,6 +47,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningWaterChargePacket.class, 4, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningWaterChargePacket::encode).decoder(LightningWaterChargePacket::decode)
                 .consumerMainThread(LightningWaterChargePacket::handle).add();
+        CHANNEL.messageBuilder(LightningStrikeMarkerPacket.class, 5, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningStrikeMarkerPacket::encode).decoder(LightningStrikeMarkerPacket::decode)
+                .consumerMainThread(LightningStrikeMarkerPacket::handle).add();
     }
 
     /**
@@ -93,6 +96,11 @@ public final class ModNetwork {
     }
     /** Starts the visible water discharge for this observer. */
     public static void sendLightningWaterCharge(ServerPlayer observer, LightningWaterChargePacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /** Updates the phase of a ground marker for a nearby observer. */
+    public static void sendLightningStrikeMarker(ServerPlayer observer, LightningStrikeMarkerPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 
