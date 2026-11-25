@@ -188,8 +188,10 @@ public final class LightningStormData extends SavedData {
             double radius = arena.radiusAt(now) * fraction;
             double x = center.getX() + 0.5 + Math.cos(angle) * radius;
             double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
-            double ground = LightningRingSurface.find(level, x, z, center.getY(),
-                    arena.minimumY(), arena.maximumY() - 1);
+            double ground = LightningRingSurface.findWater(level, x, z, arena.minimumY(), arena.maximumY() - 1);
+            if (!arena.containsY(ground)) {
+                ground = LightningRingSurface.find(level, x, z, center.getY(), arena.minimumY(), arena.maximumY() - 1);
+            }
             if (Double.isFinite(ground)) {
                 LightningStrikeEffect.spawnWeatherBolt(level, new Vec3(x, ground, z),
                         arena.cloudStrikeY(x, z, now), false);

@@ -1,8 +1,10 @@
 package de.codemorra.sheeper.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -11,6 +13,31 @@ import net.minecraft.world.phys.AABB;
  */
 public final class LightningRingSurface {
     private LightningRingSurface() {
+    }
+
+    /** Finds the exposed water surface in a loaded column, within the requested height limits. */
+    public static double findWater(Level level, double x, double z, int minY, int maxY) {
+        int blockX = Mth.floor(x);
+        int blockZ = Mth.floor(z);
+        if (!level.getChunkSource().hasChunk(blockX >> 4, blockZ >> 4)) {
+            return Double.NaN;
+        }
+        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, blockX, blockZ) - 1;
+        if (y < minY || y > maxY) {
+            return Double.NaN;
+        }
+        BlockPos block = new BlockPos(blockX, y, blockZ);
+        var fluid = level.getFluidState(block);
+        if (!fluid.is(FluidTags.WATER) || level.getFluidState(block.above()).is(FluidTags.WATER)) {
+            return Double.NaN;
+        }
+        double height = fluid.getHeight(level, block);
+        for (AABB box : level.getBlockState(block).getCollisionShape(level, block).toAabbs()) {
+            if (box.contains(x - blockX, Math.nextDown(height), z - blockZ)) {
+                return Double.NaN;
+            }
+        }
+        return y + height;
     }
 
     /**

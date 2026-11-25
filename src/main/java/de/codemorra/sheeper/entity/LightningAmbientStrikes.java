@@ -6,6 +6,8 @@ import java.util.Optional;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.network.LightningWaterChargePacket;
+import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.particle.LightningRingOptions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -24,7 +26,8 @@ final class LightningAmbientStrikes {
     // Ambient bolts have no attacking entity, so normal hurt physics cannot shove players away from the boss.
     private static final DamageSource STRIKE_DAMAGE = new DamageSource("lightningBolt").setScalesWithDifficulty();
 
-    private record Strike(Vec3 position, long impactTick, double centerRadius, double outerRadius, double height) {
+    private record Strike(Vec3 position, long impactTick, double centerRadius, double outerRadius, double height,
+            boolean water) {
     }
 
     private final LightningSheeperEntity boss;
@@ -66,10 +69,10 @@ final class LightningAmbientStrikes {
         double outerRadius = centerRadius + LightningSheeperConfig.LIGHTNING_AMBIENT_EDGE_WIDTH.get();
         double height = LightningSheeperConfig.LIGHTNING_AMBIENT_HIT_HEIGHT.get();
         for (int index = 0; index < count && pending.size() < MAX_PENDING; index++) {
-            randomSurface(level).ifPresent(position -> {
-                var strike = new Strike(position, impactTick, centerRadius, outerRadius, height);
+            randomStrike(level, impactTick, centerRadius, outerRadius, height).ifPresent(strike -> {
                 pending.add(strike);
                 showWarning(level, strike);
+                Vec3 position = strike.position();
                 level.sendParticles(ParticleTypes.END_ROD, position.x, position.y + 0.12, position.z,
                         4, 0.15, 0.05, 0.15, 0.005);
             });
@@ -77,16 +80,27 @@ final class LightningAmbientStrikes {
     }
 
     /** Samples area uniformly with no player position in the selection, and avoids unloaded terrain. */
-    private Optional<Vec3> randomSurface(ServerLevel level) {
+    private Optional<Strike> randomStrike(ServerLevel level, long impactTick, double centerRadius, double outerRadius,
+            double height) {
         BlockPos center = boss.getArenaCenter();
         for (int attempt = 0; attempt < 10; attempt++) {
             double angle = boss.getRandom().nextDouble() * Math.PI * 2;
             double radius = Math.sqrt(boss.getRandom().nextDouble()) * boss.getCombatRadius();
             double x = center.getX() + 0.5 + Math.cos(angle) * radius;
             double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
+            double waterX = Mth.floor(x) + 0.5;
+            double waterZ = Mth.floor(z) + 0.5;
+            if (Math.hypot(waterX - center.getX() - 0.5, waterZ - center.getZ() - 0.5) <= boss.getCombatRadius()) {
+                double water = waterSurface(level, waterX, waterZ);
+                if (Double.isFinite(water)) {
+                    return Optional.of(new Strike(new Vec3(waterX, water, waterZ), impactTick, centerRadius, outerRadius,
+                            height, true));
+                }
+            }
             double y = drySurface(level, x, z, center.getY());
             if (Double.isFinite(y)) {
-                return Optional.of(new Vec3(x, y, z));
+                return Optional.of(new Strike(new Vec3(x, y, z), impactTick, centerRadius, outerRadius, height,
+                        false));
             }
         }
         return Optional.empty();
@@ -101,8 +115,22 @@ final class LightningAmbientStrikes {
         return surface;
     }
 
-    /** Keeps the damage ring clearer than the softer warning around the speed zone. */
+    /** Water must be exposed within the arena so the warning and the impact share the same surface. */
+    private double waterSurface(ServerLevel level, double x, double z) {
+        double water = LightningRingSurface.findWater(level, x, z, boss.getArenaMinimumY(), boss.getArenaMaximumY() - 1);
+        return boss.isWithinArenaHeight(water) ? water : Double.NaN;
+    }
+
+    /** Water gets a single surface marker, while dry ground keeps both damage rings. */
     private void showWarning(ServerLevel level, Strike strike) {
+        if (strike.water()) {
+            showRing(level, strike, Math.max(1.5, strike.centerRadius()), 0.45F, 0.58F);
+            Vec3 position = strike.position();
+            // The center remains visible even if the ring extends past a narrow stream.
+            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, position.x, position.y + 0.13, position.z,
+                    3, 0.15, 0.05, 0.15, 0.01);
+            return;
+        }
         showRing(level, strike, strike.centerRadius(), 0.45F, 0.48F);
         showRing(level, strike, strike.outerRadius(), 0.16F, 0.23F);
     }
@@ -110,21 +138,28 @@ final class LightningAmbientStrikes {
     private void showRing(ServerLevel level, Strike strike, double radius, float width, float opacity) {
         Vec3 position = strike.position();
         BlockPos center = boss.getArenaCenter();
-        int minY = Math.max(boss.getArenaMinimumY(), Mth.floor(position.y));
-        int maxY = Math.min(boss.getArenaMaximumY() - 1, Mth.floor(position.y + strike.height()));
+        int minY = Math.max(boss.getArenaMinimumY(), Mth.floor(position.y) - (strike.water() ? 1 : 0));
+        int maxY = Math.min(boss.getArenaMaximumY() - 1,
+                Mth.floor(position.y + (strike.water() ? 1 : strike.height())));
         var options = new LightningRingOptions((float) radius, width, 0.4F, minY, maxY,
-                center.getX() + 0.5, center.getZ() + 0.5, (float) boss.getCombatRadius(), opacity);
+                center.getX() + 0.5, center.getZ() + 0.5, (float) boss.getCombatRadius(), opacity, strike.water());
         level.sendParticles(options, position.x, position.y, position.z, 1, 0, 0, 0, 0);
     }
 
     private void impact(ServerLevel level, Strike strike, List<ServerPlayer> participants) {
         Vec3 position = strike.position();
-        double surface = drySurface(level, position.x, position.z, position.y);
+        double surface = strike.water() ? waterSurface(level, position.x, position.z)
+                : drySurface(level, position.x, position.z, position.y);
         if (!Double.isFinite(surface) || Math.abs(surface - position.y) > 0.01) {
             // Terrain changes can invalidate a warning; a bolt must not relocate onto another surface.
             return;
         }
         LightningStrikeEffect.spawnWeatherBolt(level, position, boss.getStormCloudY(position), true);
+        if (strike.water()) {
+            BlockPos water = new BlockPos(position.x, Math.nextDown(position.y), position.z);
+            dischargeThroughWater(level, water, participants);
+            return;
+        }
         float centerDamage = LightningSheeperConfig.LIGHTNING_AMBIENT_CENTER_DAMAGE.get().floatValue();
         float edgeDamage = (float) (centerDamage
                 * LightningSheeperConfig.LIGHTNING_AMBIENT_EDGE_DAMAGE_PERCENT.get() / 100);
@@ -140,6 +175,30 @@ final class LightningAmbientStrikes {
             }
             if (!center && speedTicks > 0 && player.isAlive()) {
                 player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, speedTicks, 0), boss);
+            }
+        }
+    }
+
+    private void dischargeThroughWater(ServerLevel level, BlockPos strike, List<ServerPlayer> participants) {
+        float damage = LightningSheeperConfig.LIGHTNING_AMBIENT_WATER_DAMAGE.get().floatValue();
+        if (damage > 0) {
+            var conduction = new LightningWaterConduction(level, boss);
+            for (ServerPlayer player : participants) {
+                if (player.isAlive() && conduction.reaches(strike, player)) {
+                    player.hurt(STRIKE_DAMAGE, damage);
+                }
+            }
+        }
+        BlockPos center = boss.getArenaCenter();
+        double radius = boss.getCombatRadius();
+        double visibleRadius = radius + 48;
+        var packet = new LightningWaterChargePacket(level.dimension().location(), strike, center, radius,
+                boss.getArenaMinimumY(), boss.getArenaMaximumY());
+        for (ServerPlayer player : level.players()) {
+            double dx = player.getX() - center.getX() - 0.5;
+            double dz = player.getZ() - center.getZ() - 0.5;
+            if (dx * dx + dz * dz <= visibleRadius * visibleRadius) {
+                ModNetwork.sendLightningWaterCharge(player, packet);
             }
         }
     }

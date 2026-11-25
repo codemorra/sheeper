@@ -174,7 +174,7 @@ public final class LightningSheeperConfig {
             .defineInRange("ambientLightning.strikesPerInterval", 2, 0, 4);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_WARNING = BUILDER
-            .comment("Seconds a strike is marked on the ground before it hits.")
+            .comment("Seconds a strike is marked on the ground or water before it hits.")
             .defineInRange("ambientLightning.warningSeconds", 1.75, 0.25, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_CENTER_RADIUS = BUILDER
@@ -192,6 +192,11 @@ public final class LightningSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_CENTER_DAMAGE = BUILDER
             .comment("Damage in the inner ring, in health points before armor and difficulty scaling.")
             .defineInRange("ambientLightning.centerDamage", 6.0, 0.0, 20.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_WATER_DAMAGE = BUILDER
+            .comment("Damage in health points to players touching connected water when lightning strikes it.",
+                    "Only water within the arena conducts. 0 disables water damage.")
+            .defineInRange("ambientLightning.waterDamage", 10.0, 0.0, 24.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_EDGE_DAMAGE_PERCENT = BUILDER
             .comment("Percentage of the inner ring's damage dealt in the outer ring.")
