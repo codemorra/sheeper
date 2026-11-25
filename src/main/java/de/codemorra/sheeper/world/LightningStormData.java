@@ -3,6 +3,7 @@ package de.codemorra.sheeper.world;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -19,6 +20,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -31,6 +33,7 @@ public final class LightningStormData extends SavedData {
         private LightningWeatherPacket.Arena arena;
         private long nextFlash;
         private long nextRumble;
+        private final LightningArenaWind wind = new LightningArenaWind();
 
         private Storm(LightningWeatherPacket.Arena arena) {
             this.arena = arena;
@@ -79,6 +82,7 @@ public final class LightningStormData extends SavedData {
         }
         int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ARENA_DRAIN_DURATION.get());
         storm.arena = storm.arena.beginDrain(level.getGameTime(), duration);
+        storm.wind.clear();
         setDirty();
         sync(level);
     }
@@ -105,17 +109,42 @@ public final class LightningStormData extends SavedData {
         if (removed) {
             setDirty();
         }
+        boolean windCleared = false;
         if (hasStorms()) {
             for (var entry : storms.entrySet()) {
                 Storm storm = entry.getValue();
                 if (!storm.arena.isDraining()) {
                     tickAtmosphere(level, entry.getKey(), storm, now);
                 }
+                if (!(level.getEntity(entry.getKey()) instanceof LightningSheeperEntity) && storm.wind.clear()) {
+                    windCleared = true;
+                }
             }
         }
-        if (removed || now % 10 == 0) {
+        if (removed || windCleared || now % 10 == 0) {
             sync(level);
         }
+    }
+
+    /** Keeps wind active in a fully formed arena and adds stronger gusts during combat. */
+    public void tickWind(ServerLevel level, UUID owner, boolean fighting, List<ServerPlayer> participants) {
+        Storm storm = storms.get(owner);
+        if (storm == null) {
+            return;
+        }
+        boolean active = hasStorms() && !storm.arena.isBuilding(level.getGameTime()) && !storm.arena.isDraining()
+                && LightningSheeperConfig.LIGHTNING_WIND_ENABLED.get();
+        boolean changed = active ? storm.wind.tick(level, storm.arena, fighting ? participants : List.of())
+                : storm.wind.clear();
+        if (changed) {
+            sync(level);
+        }
+    }
+
+    List<LightningWindField> windFields() {
+        return hasStorms() ? storms.values().stream().map(storm -> storm.wind.snapshot(storm.arena))
+                .filter(Objects::nonNull).toList()
+                : List.of();
     }
 
     /** Storm lightning uses the visual bolt alone, keeping warnings reserved for combat. */
@@ -179,7 +208,7 @@ public final class LightningStormData extends SavedData {
     private void sync(ServerLevel level) {
         LightningWeatherPacket packet = new LightningWeatherPacket(level.dimension().location(), visibleArenas(),
                 LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_WIDTH.get(),
-                LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH.get());
+                LightningSheeperConfig.LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH.get(), windFields());
         for (var player : level.players()) {
             ModNetwork.sendWeather(player, packet);
         }

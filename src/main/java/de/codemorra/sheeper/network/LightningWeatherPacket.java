@@ -6,6 +6,8 @@ import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningWeatherVisuals;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.world.LightningWindField;
+import de.codemorra.sheeper.world.LightningWindGust;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -20,7 +22,7 @@ import net.minecraftforge.network.NetworkEvent;
  * boss.
  */
 public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> arenas, double boundarySlowdownWidth,
-        double boundarySlowdownStrength) {
+        double boundarySlowdownStrength, List<LightningWindField> winds) {
     public record Arena(BlockPos center, double radius, int minimumY, int maximumY, long start, int transition,
             long drainStart, int drainDuration) {
         /** Applies the captured floor and exclusive ceiling to all storm effects. */
@@ -121,6 +123,14 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
         }
         buffer.writeDouble(boundarySlowdownWidth);
         buffer.writeDouble(boundarySlowdownStrength);
+        buffer.writeVarInt(winds.size());
+        for (LightningWindField wind : winds) {
+            buffer.writeVarInt(arenas.indexOf(wind.arena()));
+            buffer.writeDouble(wind.fromAngle());
+            buffer.writeDouble(wind.turnAngle());
+            buffer.writeLong(wind.turnStart());
+            buffer.writeCollection(wind.gusts(), (output, gust) -> gust.encode(output));
+        }
     }
 
     public static LightningWeatherPacket decode(FriendlyByteBuf buffer) {
@@ -154,7 +164,29 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
         if (!widthSpec.test(width) || !strengthSpec.test(strength)) {
             throw new IllegalArgumentException("Invalid storm boundary slowdown settings");
         }
-        return new LightningWeatherPacket(dimension, List.copyOf(arenas), width, strength);
+        int windCount = buffer.readVarInt();
+        if (windCount < 0 || windCount > count) {
+            throw new IllegalArgumentException("Invalid arena wind snapshot size: " + windCount);
+        }
+        List<LightningWindField> winds = new ArrayList<>(windCount);
+        for (int index = 0; index < windCount; index++) {
+            int arenaIndex = buffer.readVarInt();
+            double from = buffer.readDouble();
+            double turn = buffer.readDouble();
+            long turnStart = buffer.readLong();
+            int gustCount = buffer.readVarInt();
+            if (!(arenaIndex >= 0 && arenaIndex < count && Math.abs(from) <= 2 * Math.PI
+                    && Math.abs(turn) <= Math.PI && turnStart >= 0 && gustCount >= 0 && gustCount <= 4)) {
+                throw new IllegalArgumentException("Invalid arena wind data");
+            }
+            Arena arena = arenas.get(arenaIndex);
+            List<LightningWindGust> gusts = new ArrayList<>(gustCount);
+            for (int gust = 0; gust < gustCount; gust++) {
+                gusts.add(LightningWindGust.decode(buffer, arena));
+            }
+            winds.add(new LightningWindField(arena, from, turn, turnStart, List.copyOf(gusts)));
+        }
+        return new LightningWeatherPacket(dimension, List.copyOf(arenas), width, strength, List.copyOf(winds));
     }
 
     public void handle(Supplier<NetworkEvent.Context> context) {
