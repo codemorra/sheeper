@@ -48,7 +48,8 @@ final class LightningRodDischarge {
         showBolts(level, players);
         if (damage > 0 && age % DAMAGE_INTERVAL == 0) {
             for (ServerPlayer player : players) {
-                if (player.isAlive() && !shelters.protects(player) && player.hurt(DAMAGE, damage)) {
+                if (player.isAlive() && !shelters.protects(player)
+                        && LightningAreaDamage.hurtPlayer(boss, player, DAMAGE, damage)) {
                     level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.65,
                             player.getZ(), 7, 0.22, 0.26, 0.22, 0.1);
                 }

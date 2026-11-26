@@ -12,7 +12,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -75,7 +74,7 @@ final class LightningProximityPush {
         for (ServerPlayer player : nearby) {
             Vec3 motion = player.getDeltaMovement();
             if (damage > 0) {
-                player.hurt(new EntityDamageSource("lightningBolt", boss), damage);
+                LightningAreaDamage.hurtPlayer(boss, player, damage);
             }
             Vec3 direction = new Vec3(player.getX() - boss.getX(), 0, player.getZ() - boss.getZ());
             if (direction.lengthSqr() < 1.0E-8D) {

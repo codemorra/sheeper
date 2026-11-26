@@ -23,7 +23,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /** Launches a volley of funnels from one teleport destination and advances each until it dissipates. */
@@ -298,7 +297,7 @@ final class LightningTornadoAttack {
         }
         nextHit.put(id, now + hitInterval);
         Vec3 motion = player.getDeltaMovement();
-        if (player.hurt(new EntityDamageSource("lightningBolt", boss), damage)) {
+        if (LightningAreaDamage.hurtPlayer(boss, player, damage)) {
             player.setDeltaMovement(motion);
         }
     }

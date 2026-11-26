@@ -18,7 +18,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -202,7 +201,7 @@ final class LightningRingAttack {
                 continue;
             }
             Vec3 motion = player.getDeltaMovement();
-            if (player.hurt(new EntityDamageSource("lightningBolt", boss), damage)) {
+            if (LightningAreaDamage.hurtPlayer(boss, player, damage)) {
                 wave.hitPlayers.add(player.getUUID());
                 player.setDeltaMovement(motion);
             }

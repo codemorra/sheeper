@@ -19,7 +19,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -133,7 +132,7 @@ final class LightningAftershockZones {
             if (hit != null) {
                 // Residual damage must not add attacker-relative knockback on every pulse.
                 Vec3 motion = player.getDeltaMovement();
-                if (player.hurt(new EntityDamageSource("lightningBolt", boss), hit.damage)) {
+                if (LightningAreaDamage.hurtPlayer(boss, player, hit.damage)) {
                     player.setDeltaMovement(motion);
                 }
                 damageCooldowns.put(player.getUUID(), hit.interval);
