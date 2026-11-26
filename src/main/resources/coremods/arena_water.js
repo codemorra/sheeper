@@ -24,6 +24,35 @@ function initializeCoreMod() {
     }
   }
   return {
+    arena_server_floating_check: {
+      target: { type: "CLASS", name: "net.minecraft.server.network.ServerGamePacketListenerImpl" },
+      transformer: function (node) {
+        var count = 0;
+        var owner = String(node.name);
+        var player = "Lnet/minecraft/server/level/ServerPlayer;";
+        var floating = API.mapField("f_9736_");
+        for (var i = 0; i < node.methods.size(); i++) {
+          var method = node.methods.get(i);
+          if (String(method.name) !== API.mapMethod("m_9933_") || String(method.desc) !== "()V") continue;
+          var instructions = method.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if (insn.getOpcode() !== O.GETFIELD || String(insn.owner) !== owner ||
+                String(insn.name) !== floating || String(insn.desc) !== "Z") continue;
+            // Use vanilla's reset branch during supported movement without changing the movement-packet checks.
+            var code = new List();
+            code.add(new Var(O.ALOAD, 0));
+            code.add(new Field(O.GETFIELD, owner, API.mapField("f_9743_"), player));
+            code.add(invoke("de/codemorra/sheeper/world/ArenaFlightCheck", "shouldCountFloating",
+                "(Z" + player + ")Z"));
+            method.instructions.insert(insn, code);
+            count++;
+          }
+        }
+        check(count, 1, "ServerGamePacketListenerImpl player floating timer");
+        return node;
+      }
+    },
     arena_virtual_water_entity: {
       target: { type: "CLASS", name: "net.minecraft.world.entity.Entity" },
       transformer: function (node) {
