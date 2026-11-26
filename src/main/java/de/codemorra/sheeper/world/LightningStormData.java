@@ -53,6 +53,13 @@ public final class LightningStormData extends SavedData {
                 "sheeper_lightning_storms");
     }
 
+    /** Returns the captured storm bounds even while the boss is unloaded. */
+    @Nullable
+    public LightningWeatherPacket.Arena getArena(UUID owner) {
+        Storm storm = storms.get(owner);
+        return storm == null ? null : storm.arena;
+    }
+
     /**
      * Registers the storm on the first boss tick and resumes its saved front on reload.
      *
