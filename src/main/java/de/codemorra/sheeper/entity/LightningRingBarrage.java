@@ -62,7 +62,6 @@ final class LightningRingBarrage {
     private double width;
     private double hitHeight;
     private float damage;
-    private float spacing;
 
     LightningRingBarrage(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
@@ -81,7 +80,6 @@ final class LightningRingBarrage {
         width = LightningSheeperConfig.LIGHTNING_RING_WIDTH.get();
         hitHeight = LightningSheeperConfig.LIGHTNING_RING_HIT_HEIGHT.get();
         damage = LightningSheeperConfig.LIGHTNING_RING_DAMAGE.get().floatValue();
-        spacing = LightningSheeperConfig.LIGHTNING_RING_PARTICLE_SPACING.get().floatValue();
         warningTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_RING_WARNING.get());
         warningRemaining = warningTicks;
         if (warningTicks > 0) {
@@ -276,7 +274,7 @@ final class LightningRingBarrage {
     private void sendVisual(ServerLevel level, Vec3 origin, long startTick, int warningDuration, double range) {
         var packet = new LightningRingVisualPacket(level.dimension().location(), boss.getArenaCenter(),
                 boss.getCombatRadius(), boss.getArenaMinimumY(), boss.getArenaMaximumY() - 1, origin, startTick,
-                warningDuration, speed, (float) width, spacing, boss.getBbHeight());
+                warningDuration, speed, (float) width, boss.getBbHeight());
         if (!boss.isWithinArenaHeight(origin.y) || !packet.isWithinArena(origin.x, origin.z)) {
             return;
         }

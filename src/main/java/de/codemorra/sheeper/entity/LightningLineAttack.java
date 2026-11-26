@@ -83,8 +83,8 @@ final class LightningLineAttack {
     /** Charges at the current position before the first jump. */
     void start(ServerLevel level) {
         clear();
-        int minimum = LightningSheeperConfig.LIGHTNING_LINE_WAVE_COUNT_MIN.get();
-        int maximum = LightningSheeperConfig.LIGHTNING_LINE_WAVE_COUNT_MAX.get();
+        int minimum = LightningSheeperConfig.LIGHTNING_LINE_POSITION_COUNT_MIN.get();
+        int maximum = LightningSheeperConfig.LIGHTNING_LINE_POSITION_COUNT_MAX.get();
         positionsRemaining = minimum + boss.getRandom().nextInt(Math.max(0, maximum - minimum) + 1);
         chargeTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_LINE_CHARGE_DURATION.get());
         teleportDistance = LightningSheeperConfig.LIGHTNING_LINE_TELEPORT_DISTANCE.get();

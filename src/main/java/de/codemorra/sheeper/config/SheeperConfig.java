@@ -19,17 +19,17 @@ public class SheeperConfig {
             .defineInRange("sheeper.observationAngle", 120.0, 1.0, 360.0);
 
     public static final ForgeConfigSpec.DoubleValue FUSE_DISTANCE = BUILDER
-            .comment("Maximum distance in blocks for starting and maintaining the fuse.")
+            .comment("Maximum distance in blocks for starting and maintaining the fuse.",
+                    "The effective distance cannot exceed the detection radius.")
             .defineInRange("sheeper.fuseDistance", 3.0, 0.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue FUSE_DURATION = BUILDER
             .comment("Fuse duration in seconds for stealth and fatal-fire self-explosions.",
                     "Fatal-fire duration is captured when the killing hit is accepted.")
-            .defineInRange("sheeper.fuseDuration", 1.5, 0.05, 60.0);
+            .defineInRange("sheeper.fuseDurationSeconds", 1.5, 0.05, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue ADULT_EXPLOSION_STRENGTH = BUILDER
-            .comment("Explosion strength of adult Sheeper.",
-                    "Default: 3.0, matching a normal Creeper.")
+            .comment("Explosion strength of adult Sheeper. A value of 3 matches a normal Creeper.")
             .defineInRange("sheeper.adultExplosionStrength", 3.0, 0.1, 5.0);
 
     /** Adult retaliation (sheeper.retaliation). */
@@ -40,7 +40,7 @@ public class SheeperConfig {
     public static final ForgeConfigSpec.DoubleValue RETALIATION_FUSE_DURATION = BUILDER
             .comment("Minimum ignition time in seconds before contact can trigger a retaliation burst.",
                     "Ignition starts within melee range and resets when the target leaves that range.")
-            .defineInRange("sheeper.retaliation.fuseDuration", 0.5, 0.05, 10.0);
+            .defineInRange("sheeper.retaliation.fuseDurationSeconds", 0.5, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue RETALIATION_PAUSE = BUILDER
             .comment("Pause in seconds after a retaliation burst before pursuing the same player again.")
@@ -81,19 +81,17 @@ public class SheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue BABY_ATTACK_PAUSE_MIN = BUILDER
             .comment("Minimum pause in seconds after a baby Sheeper retreats.")
-            .defineInRange("baby.attackPauseMin", 3.0, 0.0, 60.0);
+            .defineInRange("baby.attackPauseMinSeconds", 3.0, 0.0, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue BABY_ATTACK_PAUSE_MAX = BUILDER
             .comment("Maximum pause in seconds after a baby Sheeper retreats.",
                     "Equal minimum and maximum values produce a fixed pause.",
                     "If the maximum is below the minimum, the pause is fixed at the minimum.")
-            .defineInRange("baby.attackPauseMax", 8.0, 0.0, 60.0);
+            .defineInRange("baby.attackPauseMaxSeconds", 8.0, 0.0, 60.0);
 
     public static final ForgeConfigSpec.DoubleValue BABY_EXPLOSION_STRENGTH = BUILDER
             .comment("Explosion strength when a baby Sheeper takes damage.",
-                    "Default: 0.4; Adult explosion strength is configured separately.",
-                    "Values below 0.4 may cause no noticeable player damage or block destruction.",
-                    "The actual effect depends on distance and surrounding blocks.")
+                    "Weak blasts may cause no noticeable damage or block destruction, depending on distance and cover.")
             .defineInRange("baby.explosionStrength", 0.4, 0.1, 5.0);
 
     /** Breeding (breeding). */

@@ -57,7 +57,7 @@ public final class WaterSheeperConfig {
             .defineInRange("movement.intervalMinSeconds", 1.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MAX = BUILDER
-            .comment("Maximum seconds between local circling waypoints; capped below by the minimum.")
+            .comment("Maximum seconds between circling waypoints. If set below the minimum, the minimum is used.")
             .defineInRange("movement.intervalMaxSeconds", 2.0, 0.05, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPEED = BUILDER
@@ -102,7 +102,7 @@ public final class WaterSheeperConfig {
             .defineInRange("movement.idle.intervalMinSeconds", 2.0, 0.1, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_IDLE_INTERVAL_MAX = BUILDER
-            .comment("Maximum seconds between idle swim plans; capped below by intervalMinSeconds.")
+            .comment("Maximum seconds between idle swim plans. If set below the minimum, the minimum is used.")
             .defineInRange("movement.idle.intervalMaxSeconds", 5.0, 0.1, 15.0);
 
     /** Damage-free transport during arena expansion (spawnPush). */
@@ -143,11 +143,11 @@ public final class WaterSheeperConfig {
             .defineInRange("proximityPush.damage", 3.66, 0.0, 20.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_STRENGTH = BUILDER
-            .comment("Horizontal launch velocity away from the boss for proximity knockback.")
+            .comment("Horizontal launch velocity in blocks per tick away from the boss or an exploding mine.")
             .defineInRange("proximityPush.strength", 2.0, 0.0, 3.9);
 
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_UPWARD_STRENGTH = BUILDER
-            .comment("Upward launch velocity for proximity knockback.")
+            .comment("Upward launch velocity in blocks per tick from proximity pushes and mine blasts.")
             .defineInRange("proximityPush.upwardStrength", 1.0, 0.0, 3.9);
 
     /** Water projectiles (projectile). */
@@ -199,11 +199,11 @@ public final class WaterSheeperConfig {
             .defineInRange("beam.durationMinSeconds", 5.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_DURATION_MAX = BUILDER
-            .comment("Maximum firing duration; capped below by durationMinSeconds.")
+            .comment("Maximum firing duration in seconds. If set below the minimum, the minimum is used.")
             .defineInRange("beam.durationMaxSeconds", 8.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_RANGE = BUILDER
-            .comment("Fixed beam reach in blocks, independent of target distance. Solid blocks stop the beam.")
+            .comment("Maximum beam reach in blocks. Solid blocks and the arena boundary can shorten it.")
             .defineInRange("beam.range", 50.0, 1.0, 128.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_EXTENSION = BUILDER
@@ -231,7 +231,7 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_CENTER_SPEED = BUILDER
             .comment("Navigation speed multiplier while moving to the arena center for Maelstrom.")
-            .defineInRange("maelstrom.centerSpeedMultiplier", 3.0, 0.1, 3.0);
+            .defineInRange("maelstrom.centerSpeedMultiplier", 3.0, 0.1, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_CENTER_TIMEOUT = BUILDER
             .comment("Maximum center-approach seconds before aborting safely and releasing damage immunity.")
@@ -264,12 +264,12 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_MEDIUM_PULL = BUILDER
             .comment("Medium inward acceleration, intended to balance swimming against the current.",
-                    "Capped below by weakPullStrength.")
+                    "If set below weakPullStrength, weakPullStrength is used.")
             .defineInRange("maelstrom.mediumPullStrength", 0.02, 0.0, 0.1);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_STRONG_PULL = BUILDER
             .comment("Strong inward acceleration, intended to pull swimmers inward despite opposing input.",
-                    "Capped below by mediumPullStrength.")
+                    "If set below the effective medium pull strength, that strength is used.")
             .defineInRange("maelstrom.strongPullStrength", 0.04, 0.0, 0.1);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_PULL_SPEED_LIMIT = BUILDER
@@ -335,7 +335,7 @@ public final class WaterSheeperConfig {
             .defineInRange("mines.cooldownSeconds", 20.0, 1.0, 120.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER = BUILDER
-            .comment("Visible bubble diameter in blocks at detonation.")
+            .comment("Mine bubble diameter in blocks at detonation. Larger mines need more room and have a wider damage area and pressure wave.")
             .defineInRange("mines.diameter", 2.5, 0.75, 6.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE = BUILDER
@@ -352,20 +352,7 @@ public final class WaterSheeperConfig {
             .comment("Seconds a full air bar lasts in a Water Sheeper arena without breathing bonuses.")
             .defineInRange("airStations.airDurationSeconds", 40.0, 20.0, 120.0);
 
-    /** Arena water visibility (visuals). */
-    public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
-            .comment(
-                    "Base distance in blocks over which arena water fog becomes dense. Higher values improve visibility.")
-            .defineInRange("visuals.fogDistance", 32.0, 16.0, 96.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_FOG_INTENSITY = BUILDER
-            .comment(
-                    "Arena water fog density multiplier: 0 disables fog, 1 keeps the base density; higher values make it denser.")
-            .defineInRange("visuals.fogIntensity", 1.0, 0.0, 3.0);
-
-    /**
-     * Virtual water arena geometry and surface discovery (arena).
-     */
+    /** Virtual water arena dimensions (arena). */
     public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT = BUILDER
             .comment("Blocks from the boss's spawn point up to the arena's virtual water surface.",
                     "Applies to new arenas.")
@@ -375,10 +362,6 @@ public final class WaterSheeperConfig {
             .comment("Blocks from the boss's spawn point down to the arena floor.",
                     "Applies to new arenas.")
             .defineInRange("arena.depth", 10, 0, 32);
-
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_SEARCH_BUDGET_PER_SECOND = BUILDER
-            .comment("Maximum floor columns examined per second when distributing air fountains.")
-            .defineInRange("arena.searchCandidatesPerSecond", 40960, 20, 81920);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

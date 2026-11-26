@@ -158,8 +158,7 @@ final class WaterAirStations {
             scan = BlockPos.betweenClosed(center.offset(-extent, 0, -extent),
                     center.offset(extent, 0, extent)).iterator();
         }
-        int budget = Math.min(MAX_SCAN_COLUMNS_PER_TICK,
-                WaterSheeperConfig.WATER_ARENA_SEARCH_BUDGET_PER_SECOND.get() / 20);
+        int budget = MAX_SCAN_COLUMNS_PER_TICK;
         while (budget-- > 0 && scan.hasNext()) {
             BlockPos column = scan.next();
             double dx = Math.abs(column.getX() - volume.center().getX()) + 0.5D;

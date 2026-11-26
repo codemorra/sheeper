@@ -11,8 +11,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector4f;
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.config.LightningSheeperConfig;
-import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.config.SheeperClientConfig;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -163,9 +162,9 @@ public final class ArenaFogRenderer {
     private static boolean canRender(Minecraft minecraft, Camera camera) {
         ClientLevel level = minecraft.level;
         return level != null && shader != null && WaterArenaVisuals.canBlendFog(camera)
-                && (LightningSheeperConfig.LIGHTNING_FOG_INTENSITY.get() > 0
+                && (SheeperClientConfig.LIGHTNING_FOG_INTENSITY.get() > 0
                         && !LightningWeatherVisuals.visibleArenas(level).isEmpty()
-                        || WaterSheeperConfig.WATER_FOG_INTENSITY.get() > 0
+                        || SheeperClientConfig.WATER_FOG_INTENSITY.get() > 0
                                 && !WaterArenaVisuals.activeVolumes(level).isEmpty());
     }
 
@@ -183,7 +182,7 @@ public final class ArenaFogRenderer {
         try {
             double renderDistance = minecraft.options.getEffectiveRenderDistance() * 16.0D;
             double time = frame.level().getGameTime() + (double) frame.partialTick();
-            double stormIntensity = LightningSheeperConfig.LIGHTNING_FOG_INTENSITY.get();
+            double stormIntensity = SheeperClientConfig.LIGHTNING_FOG_INTENSITY.get();
             if (stormIntensity > 0) {
                 shader.getUniform("FogDensity").set((float) (0.031 * stormIntensity));
                 for (var arena : LightningWeatherVisuals.visibleArenas(frame.level())) {
@@ -197,11 +196,11 @@ public final class ArenaFogRenderer {
                             arena.maximumY());
                 }
             }
-            double waterIntensity = WaterSheeperConfig.WATER_FOG_INTENSITY.get();
+            double waterIntensity = SheeperClientConfig.WATER_FOG_INTENSITY.get();
             if (waterIntensity > 0) {
                 shader.getUniform("FogColor").set(0.12F, 0.38F, 0.52F, 1.0F);
                 shader.getUniform("FogDensity").set((float) (Math.log(20) * waterIntensity
-                        / WaterSheeperConfig.WATER_FOG_DISTANCE.get()));
+                        / SheeperClientConfig.WATER_FOG_DISTANCE.get()));
                 for (var bounds : WaterArenaVisuals.renderVolumes(frame.level(), frame.partialTick())) {
                     drawVolume(frame.camera(), renderDistance, bounds.center(), bounds.radius(), bounds.minimumY(),
                             bounds.maximumY() + 1);
