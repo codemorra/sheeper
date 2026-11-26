@@ -57,6 +57,13 @@ public final class LightningTornadoMotion {
         return selection == null ? null : selection.tornado();
     }
 
+    /** @return whether the active funnel is carrying the player or guiding their descent */
+    static boolean isCarrying(ServerPlayer player) {
+        Selection selection = select(player);
+        return selection != null && (selection.held()
+                || selection.tornado().supportsDescent(player.position(), player.level.getGameTime()));
+    }
+
     @Nullable
     private static Selection select(Player player) {
         var captures = captures(player);
