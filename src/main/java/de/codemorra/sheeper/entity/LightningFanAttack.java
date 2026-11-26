@@ -12,12 +12,11 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningFanPacket;
 import de.codemorra.sheeper.network.ModNetwork;
+import de.codemorra.sheeper.registry.ModSounds;
 import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
@@ -28,6 +27,8 @@ final class LightningFanAttack {
     private static final double HIT_RADIUS = 0.65;
     private static final double HIT_HEIGHT = 0.8;
     private static final int VISUAL_UPDATE_TICKS = 2;
+    private static final int CHARGE_CRACKLE_INTERVAL = 16;
+    private static final int ACTIVE_CRACKLE_INTERVAL = 20;
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final Map<UUID, Long> nextHitTick = new HashMap<>();
@@ -81,8 +82,7 @@ final class LightningFanAttack {
         startedAt = level.getGameTime();
         boss.setTarget(null);
         boss.startTravelArc(position, liftTicks);
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, volume * 0.8F, 1.35F);
+        playChargeCrackle(level, 0);
         return true;
     }
 
@@ -107,35 +107,57 @@ final class LightningFanAttack {
             lifted = true;
         }
         if (elapsed < preparationTicks) {
+            if (elapsed % CHARGE_CRACKLE_INTERVAL == 0) {
+                playChargeCrackle(level, elapsed);
+            }
             return;
         }
 
         Vec3 origin = boss.getBoundingBox().getCenter();
-        if (elapsed == preparationTicks) {
-            playFiringSound(level, origin);
-        }
         focuses.keySet().retainAll(players.stream().map(ServerPlayer::getUUID).toList());
-        boolean updateVisual = (elapsed - preparationTicks) % VISUAL_UPDATE_TICKS == 0;
+        long activeTicks = elapsed - preparationTicks;
+        boolean updateVisual = activeTicks % VISUAL_UPDATE_TICKS == 0;
+        boolean playCrackle = activeTicks % ACTIVE_CRACKLE_INTERVAL == 0;
         var ends = new HashMap<Integer, List<Vec3>>();
         for (ServerPlayer player : players) {
             Vec3 focus = track(player.position(), focuses.get(player.getUUID()), origin);
             focuses.put(player.getUUID(), focus);
             List<Vec3> arcs = fireAt(level, players, origin, focus);
-            if (updateVisual) {
+            if (updateVisual || playCrackle) {
                 ends.put(player.getId(), arcs);
             }
         }
         if (updateVisual) {
             sendVisual(level, origin, ends);
         }
+        if (playCrackle) {
+            playActiveCrackle(level, origin, ends);
+        }
     }
 
-    private void playFiringSound(ServerLevel level, Vec3 origin) {
+    /** Overlaps the soft-edged crackle samples while raising their pitch and volume. */
+    private void playChargeCrackle(ServerLevel level, long elapsed) {
+        float charge = (float) elapsed / preparationTicks;
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (volume > 0) {
-            level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
-                    SoundSource.HOSTILE, volume * 0.5F, 1.4F);
+        float pitch = 0.9F + charge * 0.45F + level.random.nextFloat() * 0.10F;
+        LightningAttackSounds.play(boss, boss.getBoundingBox().getCenter(), ModSounds.LIGHTNING_FAN_CRACKLE.get(),
+                volume * (0.45F + charge * 0.45F), pitch);
+    }
+
+    /** Refreshes the crackle at the clipped ends as well as at the lightning core. */
+    private void playActiveCrackle(ServerLevel level, Vec3 origin, Map<Integer, List<Vec3>> ends) {
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        var sources = new ArrayList<Vec3>(1 + ends.size() * 3);
+        sources.add(origin);
+        for (var arcs : ends.values()) {
+            for (Vec3 end : arcs) {
+                if (!end.equals(origin)) {
+                    sources.add(end);
+                }
+            }
         }
+        float pitch = 1.18F + level.random.nextFloat() * 0.15F;
+        LightningAttackSounds.playNearest(boss, sources, ModSounds.LIGHTNING_FAN_CRACKLE.get(), volume * 0.75F, pitch);
     }
 
     /** Starts short of the target and closes only part of the remaining gap each tick. */
