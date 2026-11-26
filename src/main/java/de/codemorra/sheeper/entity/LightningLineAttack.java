@@ -12,9 +12,9 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.registry.ModSounds;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
@@ -94,7 +94,8 @@ final class LightningLineAttack {
         chargeEndsAt = level.getGameTime() + chargeTicks;
         nextPositionAt = chargeEndsAt;
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, volume, 1.35F);
+        LightningAttackSounds.play(boss, boss.getEyePosition(), ModSounds.LIGHTNING_FAN_CRACKLE.get(),
+                volume * 0.85F, 0.72F);
     }
 
     boolean isActive() {
