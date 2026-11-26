@@ -285,10 +285,39 @@ public class ElementalSheeperEntity extends Sheep {
     protected void updateBossBarViewers(ServerBossEvent event) {
     }
 
+    /** Updates the audience using the shortest distance to the captured arena cylinder. */
+    protected final void updateArenaBossBarViewers(ServerBossEvent event, BlockPos center, double radius,
+            double minimumY, double maximumY, double displayDistance) {
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+        Vec3 origin = Vec3.atBottomCenterOf(center);
+        double distanceSquared = displayDistance * displayDistance;
+        for (ServerPlayer viewer : List.copyOf(event.getPlayers())) {
+            if (viewer.level != server || viewer.isRemoved()
+                    || distanceToArenaSquared(viewer, origin, radius, minimumY, maximumY) > distanceSquared) {
+                event.removePlayer(viewer);
+            }
+        }
+        for (ServerPlayer player : server.players()) {
+            if (!player.isRemoved() && !event.getPlayers().contains(player)
+                    && distanceToArenaSquared(player, origin, radius, minimumY, maximumY) <= distanceSquared) {
+                event.addPlayer(player);
+            }
+        }
+    }
+
+    private static double distanceToArenaSquared(ServerPlayer player, Vec3 origin, double radius,
+            double minimumY, double maximumY) {
+        double radial = Math.max(0, Math.hypot(player.getX() - origin.x, player.getZ() - origin.z) - radius);
+        double vertical = Math.max(0, Math.max(minimumY - player.getY(), player.getY() - maximumY));
+        return radial * radial + vertical * vertical;
+    }
+
     @Override
     public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
-        if (element != Element.WATER) {
+        if (element == Element.LAVA) {
             bossEvent.addPlayer(player);
         }
     }
@@ -296,7 +325,7 @@ public class ElementalSheeperEntity extends Sheep {
     @Override
     public void stopSeenByPlayer(ServerPlayer player) {
         super.stopSeenByPlayer(player);
-        if (element != Element.WATER) {
+        if (element == Element.LAVA) {
             bossEvent.removePlayer(player);
         }
     }

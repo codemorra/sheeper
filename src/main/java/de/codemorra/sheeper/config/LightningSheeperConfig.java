@@ -28,6 +28,11 @@ public final class LightningSheeperConfig {
             .comment("Horizontal lightning Sheeper arena and combat radius around its saved spawn position.")
             .defineInRange("arena.combatRadius", 50.0, 1.0, 128.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOSS_BAR_DISTANCE = BUILDER
+            .comment("Maximum distance in blocks beyond the arena where the Lightning Sheeper health bar is visible.",
+                    "Set to 0 to show it only inside the arena.")
+            .defineInRange("boss.bossBarDistance", 10.0, 0.0, 64.0);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_EDGE_DISTANCE = BUILDER
             .comment("Minimum horizontal distance in blocks between the boss's body and the arena edge.",
                     "0 keeps only body clearance. Teleports stop if the remaining area is too small.")

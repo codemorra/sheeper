@@ -21,6 +21,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -191,6 +192,15 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         double dx = x - center.getX() - 0.5D;
         double dz = z - center.getZ() - 0.5D;
         return dx * dx + dz * dz;
+    }
+
+    /** Keeps the bar tied to the storm arena while the boss teleports. */
+    @Override
+    protected void updateBossBarViewers(ServerBossEvent event) {
+        if (arena != null) {
+            updateArenaBossBarViewers(event, arena.center(), arena.radius(), arena.minimumY(), arena.maximumY(),
+                    LightningSheeperConfig.LIGHTNING_BOSS_BAR_DISTANCE.get());
+        }
     }
 
     public boolean isWithinMovementArea(double x, double z) {
