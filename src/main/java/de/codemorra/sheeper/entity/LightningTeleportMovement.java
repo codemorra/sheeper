@@ -575,20 +575,6 @@ final class LightningTeleportMovement {
                 destination.x, destination.y + 0.2D, destination.z, 8, 0.35D, 0.15D, 0.35D, 0.02D);
     }
 
-    /**
-     * Performs one safe immediate teleport for an attack's rapid preparation
-     * sequence.
-     */
-    boolean teleportForAttack() {
-        Vec3 target = findAttackDestination();
-        if (target == null) {
-            return false;
-        }
-        faceDestination(target);
-        showDeparture();
-        return landAttackTeleport(target);
-    }
-
     /** Picks a safe destination anywhere within the attack's allowed movement area. */
     @Nullable
     Vec3 findAttackDestination() {

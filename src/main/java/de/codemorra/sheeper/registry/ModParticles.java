@@ -1,7 +1,6 @@
 package de.codemorra.sheeper.registry;
 
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.particle.LightningRingOptions;
 import de.codemorra.sheeper.particle.MaelstromWaveOptions;
 import de.codemorra.sheeper.particle.WaterMineWaveOptions;
 import com.mojang.serialization.Codec;
@@ -53,14 +52,6 @@ public final class ModParticles {
 
     public static final RegistryObject<SimpleParticleType> WATER_ARENA_SIDE = PARTICLES.register("water_arena_side",
             () -> new SimpleParticleType(false));
-
-    public static final RegistryObject<ParticleType<LightningRingOptions>> LIGHTNING_RING = PARTICLES.register(
-            "lightning_ring", () -> new ParticleType<LightningRingOptions>(true, LightningRingOptions.DESERIALIZER) {
-                @Override
-                public Codec<LightningRingOptions> codec() {
-                    return LightningRingOptions.CODEC;
-                }
-            });
 
     public static final RegistryObject<SimpleParticleType> LIGHTNING_SURFACE_SPARK = PARTICLES.register(
             "lightning_surface_spark", () -> new SimpleParticleType(false));

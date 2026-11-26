@@ -51,41 +51,10 @@ public final class LightningStrikeEffect extends LightningBolt {
         return entityData.get(DATA_WIDTH);
     }
 
-    /** Shared warning marker for both stationary storm centers and moving lanes. */
-    public static void showWarning(ServerLevel level, Vec3 pos, double radius) {
-        for (int index = 0; index < 24; index++) {
-            double angle = Math.PI * 2.0D * index / 24;
-            level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                    pos.x + Math.cos(angle) * radius, pos.y + 0.15D,
-                    pos.z + Math.sin(angle) * radius, 1, 0.02D, 0.02D, 0.02D, 0.0D);
-        }
-        level.sendParticles(ParticleTypes.END_ROD, pos.x, pos.y + 0.15D, pos.z,
-                4, 0.1D, 0.1D, 0.1D, 0.005D);
-    }
-
-    /**
-     * Spawns the bolt with shared audio and checks its path for leaves.
-     */
-    static Vec3 spawn(LightningSheeperEntity boss, Vec3 pos) {
-        ServerLevel level = (ServerLevel) boss.level;
-        Vec3 hit = spawnStrike(level, boss.getUUID(), pos, boss.getStormCloudY(pos));
-        float thunder = LightningSheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
-        float impact = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (thunder > 0) {
-            level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_THUNDER,
-                    SoundSource.HOSTILE, thunder, 0.9F + boss.getRandom().nextFloat() * 0.2F);
-        }
-        if (impact > 0) {
-            level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
-                    SoundSource.HOSTILE, impact, 0.9F + boss.getRandom().nextFloat() * 0.2F);
-        }
-        return hit;
-    }
-
     /** Checks leaves along weather bolts and returns the actual impact point. */
     public static Vec3 spawnWeatherBolt(ServerLevel level, UUID owner, Vec3 pos, double cloudY, boolean playImpact) {
         Vec3 hit = spawnStrike(level, owner, pos, cloudY);
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         if (playImpact && volume > 0) {
             level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                     SoundSource.WEATHER, volume, 0.9F + level.random.nextFloat() * 0.2F);

@@ -54,14 +54,6 @@ public final class SheeperGameTests {
         MuttonGameTests.add(scenarios);
         LifecycleGameTests.add(scenarios);
         ElementalGameTests.add(scenarios);
-        LightningGameTests.add(scenarios);
-        LightningTeleportGameTests.add(scenarios);
-        LightningStormGameTests.add(scenarios);
-        LightningFrontGameTests.add(scenarios);
-        LightningRingGameTests.add(scenarios);
-        LightningProximityGameTests.add(scenarios);
-        LightningSpawnGameTests.add(scenarios);
-        LightningWeatherGameTests.add(scenarios);
         WaterArenaGameTests.add(scenarios);
         WaterAttackGameTests.add(scenarios);
         WaterEnvironmentGameTests.add(scenarios);

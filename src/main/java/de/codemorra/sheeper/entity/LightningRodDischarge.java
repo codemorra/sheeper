@@ -46,7 +46,7 @@ final class LightningRodDischarge {
         damage = LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE.get().floatValue();
         previousImpact = null;
         struckMobs.clear();
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.LIGHTNING_BOLT_THUNDER,
                 volume * 2.4F, 0.9F);
     }
@@ -134,7 +134,7 @@ final class LightningRodDischarge {
 
     /** Plays one real impact direction per listener so the barrage stays audible across the arena. */
     static void playImpacts(ServerLevel level, List<ServerPlayer> participants, List<Vec3> impacts) {
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         if (volume <= 0 || impacts.isEmpty()) {
             return;
         }

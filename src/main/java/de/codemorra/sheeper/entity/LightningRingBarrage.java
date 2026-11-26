@@ -229,7 +229,7 @@ final class LightningRingBarrage {
 
     /** Uses the same arena-wide impact cue for the warning and each ring release. */
     private void playRingImpact(Vec3 origin) {
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, origin, SoundEvents.LIGHTNING_BOLT_IMPACT, volume, 1.4F);
     }
 

@@ -87,11 +87,8 @@ public final class GameTestContext implements AutoCloseable {
         active = this;
         MinecraftForge.EVENT_BUS.register(this);
         set(SheeperConfig.NATURAL_SPAWN_CHANCE, 0.0);
-        // Existing combat scenes opt out of the independent ambient storm and
-        // awakening.
+        // Disable local storm weather in shared test scenes.
         set(LightningSheeperConfig.LIGHTNING_STORM_ENABLED, false);
-        set(LightningSheeperConfig.LIGHTNING_STORM_EDGE_ENABLED, false);
-        set(LightningSheeperConfig.LIGHTNING_STORM_AWAKENING, 0.0D);
         rule(GameRules.RULE_MOBGRIEFING, false);
         rule(GameRules.RULE_DOMOBLOOT, true);
         rule(GameRules.RULE_DOBLOCKDROPS, true);

@@ -32,21 +32,6 @@ public final class LightningAreaDamage {
     private LightningAreaDamage() {
     }
 
-    static void hurtPlayers(LightningSheeperEntity boss, List<ServerPlayer> players, Vec3 pos,
-            double radius, double height, float damage) {
-        if (damage > 0) {
-            for (ServerPlayer player : players) {
-                hurtPlayer(boss, player, pos, radius, height, damage);
-            }
-        }
-    }
-
-    static boolean hurtPlayer(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos,
-            double radius, double height, float damage) {
-        return damage > 0 && contains(boss, player, pos, radius, height)
-                && hurtPlayer(boss, player, damage);
-    }
-
     /** Applies lightning damage after the caller has verified range and cover. */
     static boolean hurtPlayer(LightningSheeperEntity boss, ServerPlayer player, float damage) {
         return hurtPlayer(boss, player, new EntityDamageSource("lightningBolt", boss), damage);
@@ -133,22 +118,6 @@ public final class LightningAreaDamage {
 
     static boolean contains(LightningSheeperEntity boss, LivingEntity target, Vec3 pos, double radius, double height) {
         return contains((ServerLevel) boss.level, boss, target, pos, radius, height);
-    }
-
-    /**
-     * Ambient arena strikes remain functional while their boss entity is unloaded.
-     */
-    public static void hurtAmbientPlayers(ServerLevel level, List<ServerPlayer> players, Vec3 pos,
-            double radius, double height, float damage) {
-        if (damage <= 0) {
-            return;
-        }
-        for (ServerPlayer player : players) {
-            if (player.isAlive() && !player.isRemoved() && !player.isCreative() && !player.isSpectator()
-                    && contains(level, player, player, pos, radius, height)) {
-                hurtPlayer(null, player, DamageSource.LIGHTNING_BOLT, damage);
-            }
-        }
     }
 
     private static boolean contains(ServerLevel level, Entity collisionContext, LivingEntity target,
