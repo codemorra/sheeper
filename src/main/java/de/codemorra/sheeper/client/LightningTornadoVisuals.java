@@ -28,6 +28,8 @@ import net.minecraftforge.fml.common.Mod;
 /** Renders a world-anchored funnel with fast layers of wind and occasional lightning. */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LightningTornadoVisuals {
+    private static final int FORMATION_TICKS = 16;
+
     private record Snapshot(List<LightningTornado> tornados, long receivedAt) {
         boolean expired(long now) {
             return now - receivedAt > 8 || tornados.stream().noneMatch(tornado -> now < tornado.endTick());
@@ -102,22 +104,26 @@ public final class LightningTornadoVisuals {
         RenderSystem.disableBlend();
     }
 
+    /** Grows the shell from its ground anchor while its wind and lightning strands fade in. */
     private static void drawFunnel(BufferBuilder buffer, Vec3 camera, LightningTornado tornado, Vec3 center,
             double now) {
-        boolean warning = now < tornado.activeFrom();
-        float intensity = warning
-                ? (float) (0.27 + 0.20 * Mth.clamp(1 - (tornado.activeFrom() - now) / 25, 0, 1))
-                : (float) (0.47 + 0.53 * tornado.powerAt(now));
+        double progress = Mth.clamp((now - tornado.activeFrom()) / FORMATION_TICKS, 0, 1);
+        double formation = progress * progress * (3 - 2 * progress);
+        if (formation <= 0) {
+            return;
+        }
+        double size = 0.18 + 0.82 * formation;
+        float intensity = (float) ((0.47 + 0.53 * tornado.powerAt(now)) * formation);
         float fade = (float) tornado.fadeAt(now);
         double phase = (now % 2000) * 0.29;
-        double shellWidth = 0.64 + 0.36 * fade;
+        double shellWidth = (0.64 + 0.36 * fade) * size;
         for (int strand = 0; strand < 7; strand++) {
             Vec3 previous = null;
             for (int step = 0; step <= 20; step++) {
                 double portion = step / 20.0;
                 double angle = phase + strand * Math.PI * 2 / 7 + portion * 8;
                 double radius = tornado.radiusAtHeight(portion) * shellWidth * (0.71 + 0.20 * Math.sin(strand * 2.7 + portion * 4));
-                double y = 0.18 + portion * (tornado.height() - 0.48);
+                double y = (0.18 + portion * (tornado.height() - 0.48)) * size;
                 Vec3 point = center.add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
                 if (!tornado.isInsideArena(point)) {
                     previous = null;
@@ -126,9 +132,9 @@ public final class LightningTornadoVisuals {
                 Vec3 relative = point.subtract(camera);
                 if (previous != null) {
                     float alpha = (float) (0.30 * intensity * fade * Math.sin(0.18 + Math.PI * 0.94 * portion));
-                    ribbon(buffer, previous, relative, 0.20 + portion * 0.45, 0.40F, 0.51F, 0.65F, alpha);
+                    ribbon(buffer, previous, relative, (0.20 + portion * 0.45) * size, 0.40F, 0.51F, 0.65F, alpha);
                     if (strand % 3 == 0 && (step + (int) (now / 3)) % 5 < 2) {
-                        ribbon(buffer, previous, relative, 0.035, 0.76F, 0.90F, 1, intensity * fade * 0.78F);
+                        ribbon(buffer, previous, relative, 0.035 * size, 0.76F, 0.90F, 1, intensity * fade * 0.78F);
                     }
                 }
                 previous = relative;

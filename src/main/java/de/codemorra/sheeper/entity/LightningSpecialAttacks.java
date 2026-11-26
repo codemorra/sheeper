@@ -13,7 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 
-/** Coordinates stationary special attacks with the teleport intervals between them. */
+/** Coordinates special attacks with ordinary movement and recovery. */
 final class LightningSpecialAttacks {
     private enum Attack {
         LINE, RING, TORNADO, FAN, ROD
@@ -38,13 +38,14 @@ final class LightningSpecialAttacks {
         this.teleports = teleports;
         line = new LightningLineAttack(boss, teleports);
         ring = new LightningRingBarrage(boss, teleports);
-        tornado = new LightningTornadoAttack(boss);
+        tornado = new LightningTornadoAttack(boss, teleports);
         fan = new LightningFanAttack(boss);
         rod = new LightningRodAttack(boss, teleports);
     }
 
-    boolean isAttacking() {
-        return line.isFiring() || ring.isActive() || tornado.isActive() || fan.isActive() || rod.isActive();
+    /** @return whether a special attack is controlling the boss's position */
+    boolean blocksNormalMovement() {
+        return line.isFiring() || ring.isActive() || tornado.isLaunching() || fan.isActive() || rod.isActive();
     }
 
     boolean isRodHovering() {
@@ -132,6 +133,7 @@ final class LightningSpecialAttacks {
             return;
         }
         if (tornado.isActive()) {
+            // Funnels roam independently. Keep all other specials and the recovery timer waiting until they end.
             tornado.tick(level, players);
             return;
         }
@@ -189,7 +191,6 @@ final class LightningSpecialAttacks {
             }
             case TORNADO -> {
                 tornadoCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_COOLDOWN.get());
-                boss.setTarget(null);
                 tornado.start(level, players);
             }
             case ROD -> {

@@ -1,7 +1,6 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +12,6 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import de.codemorra.sheeper.world.LightningTornado;
-import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -25,34 +23,55 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.phys.Vec3;
 
-/** Sends several independently moving funnels across the arena before they gradually dissipate. */
+/** Launches a volley of funnels from one teleport destination and advances each until it dissipates. */
 final class LightningTornadoAttack {
+    private static final int TURN_BEFORE_TELEPORT_TICKS = 10;
+    private static final double LAUNCH_SPEED_MULTIPLIER = 2;
+
     private static final class Funnel {
+        private final Vec3 launchOrigin;
+        private final double launchDistance;
         private LightningTornado snapshot;
         private double heading;
         private double desiredHeading;
         private long nextTurn;
+        private boolean accelerating;
 
-        private Funnel(LightningTornado snapshot, double heading) {
+        private Funnel(LightningTornado snapshot, double heading, double launchDistance) {
+            launchOrigin = snapshot.position();
+            this.launchDistance = launchDistance;
             this.snapshot = snapshot;
             this.heading = heading;
             desiredHeading = heading;
-            nextTurn = snapshot.activeFrom() + 42;
+            accelerating = launchDistance > 0;
+            nextTurn = snapshot.activeFrom();
         }
     }
 
     private final LightningSheeperEntity boss;
+    private final LightningTeleportMovement teleports;
     private final Map<UUID, Long> nextHit = new HashMap<>();
     private final List<Funnel> funnels = new ArrayList<>();
     private double radius;
     private double height;
     private double movementRadius;
     private double speed;
+    private double launchDistance;
     private double strength;
     private float damage;
     private int hitInterval;
-    LightningTornadoAttack(LightningSheeperEntity boss) {
+    private int launchIntervalTicks;
+    private int durationTicks;
+    private int dissolveTicks;
+    private int launchesRemaining;
+    private long nextLaunchAt;
+    private long landingAt = -1;
+    @Nullable
+    private Vec3 destination;
+
+    LightningTornadoAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
+        this.teleports = teleports;
     }
 
     List<LightningTornado> snapshots() {
@@ -60,7 +79,12 @@ final class LightningTornadoAttack {
     }
 
     boolean isActive() {
-        return !funnels.isEmpty();
+        return isLaunching() || !funnels.isEmpty();
+    }
+
+    /** @return whether the boss is travelling to the launch position or still has funnels to launch */
+    boolean isLaunching() {
+        return launchesRemaining > 0;
     }
 
     /** Scales the number of independently moving funnels with the arena floor area. */
@@ -69,7 +93,7 @@ final class LightningTornadoAttack {
         double arenaRadius = boss.getCombatRadius();
         double floorArea = Math.PI * arenaRadius * arenaRadius;
         double density = LightningSheeperConfig.LIGHTNING_TORNADOS_PER_1000_BLOCKS.get();
-        int count = Mth.clamp((int) Math.round(floorArea * density / 1_000), 1,
+        launchesRemaining = Mth.clamp((int) Math.round(floorArea * density / 1_000), 1,
                 LightningTornado.MAX_FUNNELS_PER_ATTACK);
         radius = Math.min(LightningSheeperConfig.LIGHTNING_TORNADO_RADIUS.get(), arenaRadius * 0.35);
         // Keep even the wide end of the funnel behind the arena's entry band.
@@ -77,69 +101,85 @@ final class LightningTornadoAttack {
         movementRadius = Math.max(0, combatArea - radius * 1.35 - 0.3);
         height = LightningSheeperConfig.LIGHTNING_TORNADO_HEIGHT.get();
         speed = LightningSheeperConfig.LIGHTNING_TORNADO_SPEED.get() / 20;
+        launchDistance = LightningSheeperConfig.LIGHTNING_TORNADO_LAUNCH_DISTANCE.get();
         strength = LightningSheeperConfig.LIGHTNING_TORNADO_STRENGTH.get();
         damage = LightningSheeperConfig.LIGHTNING_TORNADO_DAMAGE.get().floatValue();
         hitInterval = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_DAMAGE_INTERVAL.get());
+        launchIntervalTicks = SheeperConfig.secondsToTicks(
+                LightningSheeperConfig.LIGHTNING_TORNADO_LAUNCH_INTERVAL.get());
+        durationTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_DURATION.get());
+        dissolveTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_DISSOLVE.get());
 
-        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
-        List<ServerPlayer> targets = participants.stream().sorted(Comparator.comparingDouble(boss::distanceToSqr)).toList();
-        long now = level.getGameTime();
-        long activeFrom = now + SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_WARNING.get());
-        long dissolveFrom = activeFrom + SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_DURATION.get());
-        long end = dissolveFrom + SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_DISSOLVE.get());
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        for (int index = 0; index < count; index++) {
-            Vec3 focus = index < targets.size() ? targets.get(index).position() : null;
-            Vec3 start = findStart(level, focus, center);
-            if (start == null) {
-                continue;
-            }
-            double heading = focus == null ? boss.getRandom().nextDouble() * 2 * Math.PI
-                    : Math.atan2(focus.z - start.z, focus.x - start.x);
-            var snapshot = buildSnapshot(start, Vec3.ZERO, now, activeFrom, dissolveFrom, end);
-            funnels.add(new Funnel(snapshot, heading));
-            if (volume > 0) {
-                level.playSound(null, start.x, start.y, start.z, SoundEvents.TRIDENT_RIPTIDE_1,
-                        SoundSource.HOSTILE, volume, 0.62F);
-            }
+        double preferredDistance = LightningSheeperConfig.LIGHTNING_TORNADO_TELEPORT_DISTANCE.get();
+        double centerRadius = LightningSheeperConfig.LIGHTNING_TORNADO_TELEPORT_CENTER_RADIUS.get();
+        destination = teleports.findPreferredAttackDestination(participants, preferredDistance, centerRadius);
+        if (destination == null && centerRadius < boss.getMovementRadius()) {
+            destination = teleports.findPreferredAttackDestination(participants, preferredDistance);
+        }
+        nextLaunchAt = level.getGameTime() + TURN_BEFORE_TELEPORT_TICKS;
+        if (destination != null) {
+            teleports.faceDestination(destination);
         }
     }
 
-    @Nullable
-    private Vec3 findStart(ServerLevel level, @Nullable Vec3 focus, Vec3 center) {
-        for (int attempt = 0; attempt < 40; attempt++) {
-            boolean near = focus != null && attempt < 14;
-            double angle = boss.getRandom().nextDouble() * 2 * Math.PI;
-            double distance = near ? radius + 4 + boss.getRandom().nextDouble() * 4
-                    : Math.sqrt(boss.getRandom().nextDouble()) * movementRadius;
-            Vec3 point = (near ? focus : center).add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
-            double spacing = radius * 2.5;
-            if (point.subtract(center).horizontalDistanceSqr() > movementRadius * movementRadius
-                    || funnels.stream().anyMatch(funnel -> point.subtract(funnel.snapshot.position())
-                            .horizontalDistanceSqr() < spacing * spacing)) {
-                continue;
+    /** Launches from the landing position once per interval, including a separate lifetime for each funnel. */
+    private void tickLaunches(ServerLevel level, long now) {
+        if (destination != null) {
+            if (landingAt >= 0) {
+                if (now < landingAt) {
+                    return;
+                }
+                teleports.landPreferredAttackTravel(destination);
+                landingAt = -1;
+                nextLaunchAt = now;
+            } else {
+                teleports.faceDestination(destination);
+                if (now < nextLaunchAt) {
+                    return;
+                }
+                if (teleports.beginPreferredAttackTravel(destination)) {
+                    landingAt = now + LightningSheeperEntity.ARC_TRAVEL_TICKS;
+                    return;
+                }
             }
-            double y = ground(level, point.x, point.z, point.y);
-            if (Double.isFinite(y)) {
-                return new Vec3(point.x, y, point.z);
-            }
+            destination = null;
         }
-        return null;
+        if (now >= nextLaunchAt) {
+            launch(level, now);
+            launchesRemaining--;
+            nextLaunchAt = now + launchIntervalTicks;
+        }
+    }
+
+    private void launch(ServerLevel level, long now) {
+        Vec3 position = boss.position();
+        double y = ground(level, position.x, position.z, position.y);
+        double baseY = Double.isFinite(y) ? y
+                : Mth.clamp(position.y, boss.getArenaMinimumY(), boss.getArenaMaximumY() - 1);
+        Vec3 origin = new Vec3(position.x, baseY, position.z);
+        long dissolveFrom = now + durationTicks;
+        var snapshot = buildSnapshot(origin, Vec3.ZERO, now, now, dissolveFrom, dissolveFrom + dissolveTicks);
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double availableDistance = movementRadius + origin.subtract(center).horizontalDistance();
+        double heading = boss.getRandom().nextDouble() * 2 * Math.PI;
+        funnels.add(new Funnel(snapshot, heading, Math.min(launchDistance, availableDistance)));
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        if (volume > 0) {
+            level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.TRIDENT_RIPTIDE_1,
+                    SoundSource.HOSTILE, volume, 0.62F);
+        }
     }
 
     void tick(ServerLevel level, List<ServerPlayer> participants) {
-        if (funnels.isEmpty()) {
-            return;
-        }
         long now = level.getGameTime();
-        if (now >= funnels.get(0).snapshot.endTick()) {
-            clear();
-            return;
+        if (isLaunching()) {
+            tickLaunches(level, now);
         }
+        funnels.removeIf(funnel -> now >= funnel.snapshot.endTick());
         for (Funnel funnel : funnels) {
             LightningTornado current = funnel.snapshot;
             Vec3 base = current.position();
-            if (now >= current.activeFrom()) {
+            if (now > current.activeFrom()) {
                 base = move(level, funnel, now);
             }
             funnel.snapshot = buildSnapshot(base, base.subtract(current.position()), now, current.activeFrom(),
@@ -148,29 +188,35 @@ final class LightningTornadoAttack {
                 softenFalls(level, funnel.snapshot, participants, now);
             } else if (now >= current.activeFrom()) {
                 damagePlayers(level, funnel.snapshot, participants, now);
-                if ((now - current.activeFrom()) % 7 == 0) {
+                if (now > current.activeFrom() && (now - current.activeFrom()) % 7 == 0) {
                     showDebris(level, base);
                 }
             }
         }
-        boss.lookAt(EntityAnchorArgument.Anchor.EYES, funnels.get(0).snapshot.position().add(0, 1.2, 0));
-        boss.setYHeadRot(boss.getYRot());
     }
 
     /** Turns smoothly, follows nearby ground and slows down as the funnel dissolves. */
     private Vec3 move(ServerLevel level, Funnel funnel, long now) {
         LightningTornado current = funnel.snapshot;
         Vec3 base = current.position();
-        if (now >= funnel.nextTurn && !current.isDissolving(now)) {
+        if (funnel.accelerating && base.subtract(funnel.launchOrigin).horizontalDistanceSqr()
+                >= funnel.launchDistance * funnel.launchDistance) {
+            funnel.accelerating = false;
+        }
+        if (!funnel.accelerating && now >= funnel.nextTurn && !current.isDissolving(now)) {
             funnel.desiredHeading += (boss.getRandom().nextDouble() - 0.5) * Math.PI * 0.95;
             funnel.nextTurn = now + 30 + boss.getRandom().nextInt(28);
         }
         double change = Math.toRadians(Mth.wrapDegrees(Math.toDegrees(funnel.desiredHeading - funnel.heading)));
         funnel.heading += Mth.clamp(change, -0.12, 0.12);
         double travel = speed * current.fadeAt(now);
+        if (funnel.accelerating && !current.isDissolving(now)) {
+            travel *= LAUNCH_SPEED_MULTIPLIER;
+        }
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         Vec3 next = base.add(Math.cos(funnel.heading) * travel, 0, Math.sin(funnel.heading) * travel);
-        if (next.subtract(center).horizontalDistanceSqr() > movementRadius * movementRadius) {
+        double nextRadius = next.subtract(center).horizontalDistanceSqr();
+        if (nextRadius > movementRadius * movementRadius && nextRadius >= base.subtract(center).horizontalDistanceSqr()) {
             funnel.desiredHeading = Math.atan2(center.z - base.z, center.x - base.x);
             return base;
         }
@@ -237,6 +283,12 @@ final class LightningTornadoAttack {
     }
 
     void clear() {
+        if (landingAt >= 0) {
+            boss.clearTravelArc();
+        }
+        launchesRemaining = 0;
+        landingAt = -1;
+        destination = null;
         funnels.clear();
         nextHit.clear();
     }

@@ -538,13 +538,23 @@ public final class LightningSheeperConfig {
             .comment("Combat seconds after the tornado dissipates before this attack is ready again.")
             .defineInRange("tornado.cooldownSeconds", 25.0, 1.0, 120.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_WARNING = BUILDER
-            .comment("Seconds the funnel forms visibly before it starts moving and affecting players.")
-            .defineInRange("tornado.warningSeconds", 1.25, 0.5, 3.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_TELEPORT_DISTANCE = BUILDER
+            .comment("Preferred horizontal distance in blocks to the nearest player when choosing the launch position.",
+                    "The Sheeper can teleport closer if terrain or other players limit the available positions.")
+            .defineInRange("tornado.teleportDistance", 24.0, 1.0, 64.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_TELEPORT_CENTER_RADIUS = BUILDER
+            .comment("Radius in blocks around the arena center where the Sheeper first looks for a tornado launch position.",
+                    "It checks the rest of the arena if it cannot find a safe destination there.")
+            .defineInRange("tornado.teleportCenterRadius", 15.0, 1.0, 64.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_LAUNCH_INTERVAL = BUILDER
+            .comment("Seconds between consecutive tornado launches from the same position.")
+            .defineInRange("tornado.launchIntervalSeconds", 0.5, 0.1, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DURATION = BUILDER
-            .comment("Seconds the tornados move through the arena before they start dissolving.")
-            .defineInRange("tornado.durationSeconds", 12.0, 4.0, 22.0);
+            .comment("Seconds each tornado remains active after launch before it starts dissolving.")
+            .defineInRange("tornado.durationSeconds", 20.0, 4.0, 22.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DISSOLVE = BUILDER
             .comment("Seconds the funnels take to dissolve while players still caught inside descend gradually.")
@@ -552,7 +562,7 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADOS_PER_1000_BLOCKS = BUILDER
             .comment("Number of tornados per 1,000 blocks of arena floor, capped at 12 per attack.",
-                    "For example, 1.25 gives about 10 tornados at a radius of 50 blocks if there are enough safe spots.")
+                    "For example, 1.25 gives about 10 tornados at a radius of 50 blocks.")
             .defineInRange("tornado.per1000Blocks", 1.25, 0.1, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_RADIUS = BUILDER
@@ -566,6 +576,11 @@ public final class LightningSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_SPEED = BUILDER
             .comment("Travel speed of the moving funnel in blocks per second.")
             .defineInRange("tornado.speedBlocksPerSecond", 6.5, 2.0, 9.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_LAUNCH_DISTANCE = BUILDER
+            .comment("Horizontal distance in blocks from the launch point at which the tornado settles to its usual speed.",
+                    "0 disables the initial speed boost.")
+            .defineInRange("tornado.launchDistance", 10.0, 0.0, 24.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_STRENGTH = BUILDER
             .comment("Multiplier for the tornado's pull, sideways drift and lift. 0 disables forced movement.")
