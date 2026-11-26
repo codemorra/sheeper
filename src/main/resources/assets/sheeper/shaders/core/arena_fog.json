@@ -4,8 +4,8 @@
     "srcrgb": "srcalpha",
     "dstrgb": "1-srcalpha"
   },
-  "vertex": "sheeper:arena_water_fog",
-  "fragment": "sheeper:arena_water_fog",
+  "vertex": "sheeper:arena_fog",
+  "fragment": "sheeper:arena_fog",
   "attributes": [
     "Position",
     "UV0"
@@ -50,7 +50,7 @@
       ]
     },
     {
-      "name": "WaterCylinder",
+      "name": "FogCylinder",
       "type": "float",
       "count": 3,
       "values": [
@@ -60,7 +60,7 @@
       ]
     },
     {
-      "name": "WaterHeights",
+      "name": "FogHeights",
       "type": "float",
       "count": 2,
       "values": [
@@ -69,17 +69,18 @@
       ]
     },
     {
-      "name": "WaterColor",
+      "name": "FogColor",
       "type": "float",
-      "count": 3,
+      "count": 4,
       "values": [
         0.12,
         0.38,
-        0.52
+        0.52,
+        1
       ]
     },
     {
-      "name": "WaterDensity",
+      "name": "FogDensity",
       "type": "float",
       "count": 1,
       "values": [

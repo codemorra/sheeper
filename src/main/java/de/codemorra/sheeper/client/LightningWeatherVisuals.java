@@ -96,6 +96,27 @@ public final class LightningWeatherVisuals {
         return level == snapshotLevel && !arenas.isEmpty() && level.getGameTime() - lastSnapshot <= 60;
     }
 
+    /** Reduces the lightmap's skylight for a camera in the storm while leaving block light to vanilla. */
+    public static float stormSkylight(float vanilla, float partialTick) {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        var viewer = mc.getCameraEntity();
+        if (level == null || viewer == null || !hasSnapshot(level) || vanilla <= 0.32F
+                || level.getSkyFlashTime() > 0) {
+            return vanilla;
+        }
+        Vec3 eye = viewer.getEyePosition(partialTick);
+        double time = level.getGameTime() + (double) partialTick;
+        float shade = 0;
+        for (var arena : arenas) {
+            double verticalInset = Math.min(eye.y - arena.minimumY(), arena.maximumY() - eye.y);
+            // Blend at the open floor and ceiling as well as at the moving storm front.
+            float verticalBlend = (float) Mth.clamp(verticalInset / 2, 0, 1);
+            shade = Math.max(shade, arena.intensityAt(time, eye.x, eye.y, eye.z) * verticalBlend);
+        }
+        return Mth.lerp(shade, vanilla, 0.32F);
+    }
+
     @SubscribeEvent
     public static void renderStorm(RenderLevelStageEvent event) {
         Minecraft mc = Minecraft.getInstance();
