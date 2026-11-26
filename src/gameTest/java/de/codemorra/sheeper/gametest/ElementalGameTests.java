@@ -132,14 +132,13 @@ final class ElementalGameTests {
         context.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 16.0D);
         context.set(WaterSheeperConfig.WATER_BOSS_BAR_DISTANCE, 2.5D);
         TestPlayer player = context.player(3, 1, 3);
+        player.bossPackets.clear();
         List<ElementalSheeperEntity> bosses = bosses(context);
         List<BossEvent.BossBarColor> colors = List.of(BossEvent.BossBarColor.RED,
                 BossEvent.BossBarColor.YELLOW, BossEvent.BossBarColor.BLUE);
-        bosses.forEach(boss -> boss.stopSeenByPlayer(player));
-        player.bossPackets.clear();
         BossBarView view = new BossBarView();
-        bosses.forEach(boss -> boss.startSeenByPlayer(player));
-        // The water bar is sent when the arena updates, independent of entity tracking.
+        // The arena bosses send their bars when their arenas update.
+        bosses.get(0).startSeenByPlayer(player);
         bosses.get(2).tick();
         drainBossPackets(player, view);
         context.expect(view.bars.size() == 3, "Each boss must add its own bar within its display range");
