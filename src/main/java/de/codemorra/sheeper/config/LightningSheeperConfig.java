@@ -639,11 +639,11 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MIN = BUILDER
             .comment("Minimum active time in seconds for each fan.")
-            .defineInRange("fan.durationMinSeconds", 5.0, 0.5, 15.0);
+            .defineInRange("fan.durationMinSeconds", 2.5, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MAX = BUILDER
             .comment("Maximum active time in seconds for each fan. At least durationMinSeconds.")
-            .defineInRange("fan.durationMaxSeconds", 8.0, 0.5, 15.0);
+            .defineInRange("fan.durationMaxSeconds", 4.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_LEAD = BUILDER
             .comment("Maximum starting gap in blocks between the central ground impact and the targeted player.")

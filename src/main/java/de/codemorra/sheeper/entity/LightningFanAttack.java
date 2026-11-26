@@ -78,20 +78,28 @@ final class LightningFanAttack {
 
     /** Starts each fan after its pause and advances the impact points while it fires. */
     void tick(ServerLevel level, List<ServerPlayer> players) {
+        if (players.isEmpty()) {
+            clear();
+            return;
+        }
         if (pauseTicks > 0) {
             pauseTicks--;
             return;
         }
+        if (preparationTicks > 0) {
+            if (target == null || !players.contains(target)) {
+                target = boss.closestParticipant(players);
+            }
+            tickPreparation(level, target);
+            return;
+        }
         if (remainingTicks == 0) {
-            target = chooseNextTarget(players);
+            // The closest participant may have changed during the opening charge or the previous shot pause.
+            target = boss.closestParticipant(players);
             remainingTicks = minimumDuration + boss.getRandom().nextInt(maximumDuration - minimumDuration + 1);
         } else if (!players.contains(target)) {
             // Keep the current impact position when an active fan needs a replacement.
-            target = chooseNextTarget(players);
-        }
-        if (preparationTicks > 0) {
-            tickPreparation(level, target);
-            return;
+            target = boss.closestParticipant(players);
         }
         Vec3 feet = target.position();
         Vec3 origin = boss.getBeamOrigin();
@@ -169,17 +177,6 @@ final class LightningFanAttack {
         boss.setTarget(player);
         boss.lookAt(EntityAnchorArgument.Anchor.EYES, aim);
         boss.setYHeadRot(boss.getYRot());
-    }
-
-    /** Excludes the last target whenever another combat participant is available. */
-    private ServerPlayer chooseNextTarget(List<ServerPlayer> players) {
-        if (target == null || players.size() == 1) {
-            return players.get(boss.getRandom().nextInt(players.size()));
-        }
-        List<ServerPlayer> alternatives = players.stream()
-                .filter(player -> !player.getUUID().equals(target.getUUID()))
-                .toList();
-        return alternatives.get(boss.getRandom().nextInt(alternatives.size()));
     }
 
     /** Chooses a nearby surface so cliffs and cave ceilings do not pull an impact far above the target. */
