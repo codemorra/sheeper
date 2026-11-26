@@ -12,6 +12,8 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningRingVisualPacket;
 import de.codemorra.sheeper.network.ModNetwork;
+import de.codemorra.sheeper.world.LightningStormData;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -113,6 +115,7 @@ final class LightningRingBarrage {
             Wave wave = iterator.next();
             double previous = wave.radius;
             wave.radius = Math.min(wave.limit, previous + speed);
+            igniteAlongWave(level, wave, previous);
             hitPlayers(level, wave, previous, players);
             if ((level.getGameTime() - wave.startTick) % 3 == 0) {
                 showWave(level, wave);
@@ -154,6 +157,35 @@ final class LightningRingBarrage {
                 teleports.faceDestination(landing);
             }
             turnRemaining = TURN_TICKS;
+        }
+    }
+
+    /** Samples the moving crest against the same terrain surface used for ring damage. */
+    private void igniteAlongWave(ServerLevel level, Wave wave, double previous) {
+        var storm = LightningStormData.get(level);
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double arenaRadius = boss.getCombatRadius();
+        int passes = Math.max(1, Mth.ceil(wave.radius - previous));
+        for (int pass = 0; pass < passes; pass++) {
+            double radius = Mth.lerp((pass + 0.5) / passes, previous, wave.radius);
+            int samples = Mth.clamp(Mth.ceil(2 * Math.PI * radius), 8, 512);
+            double step = 2 * Math.PI / samples;
+            double turn = (level.getGameTime() % 11) * step / 11;
+            for (int index = 0; index < samples; index++) {
+                double angle = turn + index * step;
+                double x = wave.origin.x + radius * Math.cos(angle);
+                double z = wave.origin.z + radius * Math.sin(angle);
+                double dx = x - center.x;
+                double dz = z - center.z;
+                if (dx * dx + dz * dz > arenaRadius * arenaRadius) {
+                    continue;
+                }
+                double floor = LightningRingSurface.find(level, x, z, wave.origin.y,
+                        boss.getArenaMinimumY(), boss.getArenaMaximumY() - 1);
+                if (Double.isFinite(floor)) {
+                    storm.igniteLeaves(level, boss.getUUID(), new BlockPos(x, Math.nextDown(floor), z));
+                }
+            }
         }
     }
 

@@ -160,7 +160,7 @@ final class LightningAmbientStrikes {
             // Terrain changes can invalidate a warning; a bolt must not relocate onto another surface.
             return;
         }
-        LightningStrikeEffect.spawnWeatherBolt(level, position, boss.getStormCloudY(position), true);
+        LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position, boss.getStormCloudY(position), true);
         if (strike.water()) {
             showMarker(level, strike, 4, true);
             BlockPos water = new BlockPos(position.x, Math.nextDown(position.y), position.z);

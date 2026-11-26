@@ -12,6 +12,7 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.ArenaFallProtection;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
+import de.codemorra.sheeper.world.LightningStormData;
 import de.codemorra.sheeper.world.LightningTornado;
 import de.codemorra.sheeper.world.LightningTornadoMotion;
 import net.minecraft.core.BlockPos;
@@ -188,6 +189,23 @@ final class LightningTornadoAttack {
                     current.dissolveFrom(), current.endTick());
             if (now > current.activeFrom() && !current.isDissolving(now) && (now - current.activeFrom()) % 7 == 0) {
                 showDebris(level, base);
+                igniteStrands(level, funnel.snapshot, now);
+            }
+        }
+    }
+
+    /** Checks the electrical strands of the tornado rather than burning the whole wind volume. */
+    private void igniteStrands(ServerLevel level, LightningTornado tornado, long now) {
+        var storm = LightningStormData.get(level);
+        for (int strand = 0; strand < LightningTornado.STRANDS; strand += 3) {
+            Vec3 previous = tornado.strandPoint(tornado.position(), now, strand, 0);
+            for (int step = 1; step <= LightningTornado.STRAND_STEPS; step++) {
+                Vec3 point = tornado.strandPoint(tornado.position(), now, strand, step);
+                if (tornado.hasLightning(strand, step, now)) {
+                    storm.igniteLeaves(level, boss.getUUID(), new BlockPos(point));
+                    storm.igniteLeaves(level, boss.getUUID(), new BlockPos(previous.lerp(point, 0.5)));
+                }
+                previous = point;
             }
         }
     }

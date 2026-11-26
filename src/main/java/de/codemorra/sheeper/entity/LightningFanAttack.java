@@ -12,7 +12,9 @@ import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningFanPacket;
 import de.codemorra.sheeper.network.ModNetwork;
+import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -206,8 +208,11 @@ final class LightningFanAttack {
         var obstruction = level.clip(new ClipContext(origin, raised, ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, boss));
         if (obstruction.getType() != HitResult.Type.MISS) {
+            LightningStormData.get(level).igniteLeaves(level, boss.getUUID(), obstruction.getBlockPos());
             return obstruction.getLocation();
         }
+        var support = new BlockPos(impact.x, Math.nextDown(impact.y), impact.z);
+        LightningStormData.get(level).igniteLeaves(level, boss.getUUID(), support);
         long now = level.getGameTime();
         for (ServerPlayer player : players) {
             UUID id = player.getUUID();
