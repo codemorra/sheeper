@@ -129,7 +129,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     /** @return absolute height of the local cloud bank used by arena strikes */
     double getStormCloudY(Vec3 position) {
-        return arena == null ? LightningWeatherPacket.Arena.cloudCenterY(getArenaCenter().getY(), getArenaMaximumY())
+        return arena == null ? getArenaMaximumY()
                 : arena.cloudStrikeY(position.x, position.z, level.getGameTime());
     }
 

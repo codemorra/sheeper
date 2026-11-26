@@ -288,13 +288,12 @@ public final class LightningWeatherVisuals {
     }
 
     /**
-     * Distributes rain from the terrain to the cloud base. Each cell has a fixed
+     * Distributes rain between the terrain and the cloud bank. Each cell has a fixed
      * offset and orientation to break up straight sightlines through the rain.
      */
     private static void drawRain(BufferBuilder buffer, ClientLevel level,
             LightningWeatherPacket.Arena arena, Vec3 camera, double time) {
         double radius = arena.radiusAt(time);
-        double top = arena.cloudCenterY();
         double centerX = arena.center().getX() + 0.5;
         double centerZ = arena.center().getZ() + 0.5;
         int extent = Mth.ceil(radius / RAIN_SPACING + 0.5);
@@ -305,12 +304,13 @@ public final class LightningWeatherVisuals {
                 long pattern = RandomSupport.mixStafford13(BlockPos.asLong(cellX, 0, cellZ));
                 double x = cellX + 0.5 + (rainVariation(pattern) - 0.5) * 1.8;
                 double z = cellZ + 0.5 + (rainVariation(pattern >>> 8) - 0.5) * 1.8;
-                float strength = arena.intensityAt(time, x, top, z);
+                float strength = arena.columnIntensityAt(time, x, z);
                 int blockX = Mth.floor(x);
                 int blockZ = Mth.floor(z);
                 if (strength <= 0 || !level.getChunkSource().hasChunk(blockX >> 4, blockZ >> 4)) {
                     continue;
                 }
+                double top = arena.cloudStrikeY(x, z, time);
                 int floor = Math.max(arena.minimumY(), level.getHeight(Heightmap.Types.MOTION_BLOCKING, blockX, blockZ));
                 if (floor >= top) {
                     continue;
