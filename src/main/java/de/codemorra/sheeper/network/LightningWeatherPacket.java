@@ -24,16 +24,60 @@ import net.minecraftforge.network.NetworkEvent;
 public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> arenas, double boundarySlowdownWidth,
         double boundarySlowdownStrength, List<LightningWindField> winds) {
     public record Arena(BlockPos center, double radius, int minimumY, int maximumY, long start, int transition,
-            long drainStart, int drainDuration, boolean quiet) {
+            long drainStart, int drainDuration, long quietStart, int quietFadeTicks,
+            boolean rodDarkened, long rodDarkeningChangedAt) {
         public Arena(BlockPos center, double radius, int minimumY, int maximumY, long start, int transition,
                 long drainStart, int drainDuration) {
-            this(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, false);
+            this(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, -1, 0, false, -1);
         }
 
-        /** Updates the temporary silence without changing the captured arena or its animation clocks. */
-        public Arena withQuiet(boolean value) {
-            return new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, value);
+        public boolean quiet() {
+            return quietStart >= 0;
         }
+
+        /** Captures when the weather sound fade started so all listeners use the same clock. */
+        public Arena withQuiet(long time, int fadeTicks) {
+            return new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration,
+                    time, fadeTicks, rodDarkened, rodDarkeningChangedAt);
+        }
+
+        public Arena withoutQuiet() {
+            return withQuiet(-1, 0);
+        }
+
+        /** Shares the darkening transition with clients, including observers outside the storm. */
+        public Arena withRodDarkening(boolean darkened, long time) {
+            return new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration,
+                    quietStart, quietFadeTicks, darkened, time);
+        }
+
+        /** Keeps wind lines keyed to arena geometry across changes in attack effects. */
+        public Arena withoutAttackEffects() {
+            return new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration);
+        }
+
+        /** @return the extra darkness from Lightning Rod, between zero and full strength */
+        public float rodDarknessAt(double time) {
+            if (rodDarkeningChangedAt < 0) {
+                return 0;
+            }
+            float progress = (float) Mth.clamp((time - rodDarkeningChangedAt) / 20, 0, 1);
+            return rodDarkened ? progress : 1 - progress;
+        }
+
+        /** @return the weather volume multiplier at the current storm tick */
+        public float weatherGainAt(long time) {
+            if (!quiet()) {
+                return 1;
+            }
+            if (quietFadeTicks == 0) {
+                return 0.25F;
+            }
+            // Include the start tick so the final quiet tick reaches full attenuation.
+            float progress = Mth.clamp((time - quietStart + 1) / (float) quietFadeTicks, 0, 1);
+            return Mth.lerp(progress, 1, 0.25F);
+        }
+
         /** Applies the captured floor and exclusive ceiling to all storm effects. */
         public boolean containsY(double y) {
             return y >= minimumY && y < maximumY;
@@ -65,7 +109,10 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             return Double.isFinite(radius) && radius >= 1 && radius <= 128
                     && containsY(center.getY()) && minimumY >= -2032 && maximumY <= 2032
                     && maximumY - minimumY <= 128 && transition >= 0 && transition <= 1200
-                    && drainDuration >= 0 && drainDuration <= 600 && (!isDraining() || drainStart >= start);
+                    && drainDuration >= 0 && drainDuration <= 600 && (!isDraining() || drainStart >= start)
+                    && quietStart >= -1 && (!quiet() || quietStart >= start)
+                    && quietFadeTicks >= 0 && quietFadeTicks <= 1200
+                    && ((!rodDarkened && rodDarkeningChangedAt == -1) || rodDarkeningChangedAt >= start);
         }
 
         public boolean isBuilding(double time) {
@@ -126,7 +173,10 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             buffer.writeVarInt(arena.transition());
             buffer.writeLong(arena.drainStart());
             buffer.writeVarInt(arena.drainDuration());
-            buffer.writeBoolean(arena.quiet());
+            buffer.writeLong(arena.quietStart());
+            buffer.writeVarInt(arena.quietFadeTicks());
+            buffer.writeBoolean(arena.rodDarkened());
+            buffer.writeLong(arena.rodDarkeningChangedAt());
         }
         buffer.writeDouble(boundarySlowdownWidth);
         buffer.writeDouble(boundarySlowdownStrength);
@@ -157,8 +207,12 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             int transition = buffer.readVarInt();
             long drainStart = buffer.readLong();
             int drainDuration = buffer.readVarInt();
-            boolean quiet = buffer.readBoolean();
-            var arena = new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, quiet);
+            long quietStart = buffer.readLong();
+            int quietFadeTicks = buffer.readVarInt();
+            boolean rodDarkened = buffer.readBoolean();
+            long rodDarkeningChangedAt = buffer.readLong();
+            var arena = new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration,
+                    quietStart, quietFadeTicks, rodDarkened, rodDarkeningChangedAt);
             if (!arena.isValid()) {
                 throw new IllegalArgumentException("Invalid arena weather geometry");
             }

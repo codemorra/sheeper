@@ -66,34 +66,39 @@ public final class LightningStrikeEffect extends LightningBolt {
     /**
      * Spawns the bolt with shared audio and checks its path for leaves.
      */
-    static void spawn(LightningSheeperEntity boss, Vec3 pos) {
+    static Vec3 spawn(LightningSheeperEntity boss, Vec3 pos) {
         ServerLevel level = (ServerLevel) boss.level;
-        spawnStrike(level, boss.getUUID(), pos, boss.getStormCloudY(pos));
+        Vec3 hit = spawnStrike(level, boss.getUUID(), pos, boss.getStormCloudY(pos));
         float thunder = LightningSheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
         float impact = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (thunder > 0) {
-            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_THUNDER,
+            level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_THUNDER,
                     SoundSource.HOSTILE, thunder, 0.9F + boss.getRandom().nextFloat() * 0.2F);
         }
         if (impact > 0) {
-            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
+            level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                     SoundSource.HOSTILE, impact, 0.9F + boss.getRandom().nextFloat() * 0.2F);
         }
+        return hit;
     }
 
-    /** Checks leaves even for random weather bolts that deal no player damage. */
-    public static void spawnWeatherBolt(ServerLevel level, UUID owner, Vec3 pos, double cloudY, boolean playImpact) {
-        spawnStrike(level, owner, pos, cloudY);
+    /** Checks leaves along weather bolts and returns the actual impact point. */
+    public static Vec3 spawnWeatherBolt(ServerLevel level, UUID owner, Vec3 pos, double cloudY, boolean playImpact) {
+        Vec3 hit = spawnStrike(level, owner, pos, cloudY);
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (playImpact && volume > 0) {
-            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
+            level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
                     SoundSource.WEATHER, volume, 0.9F + level.random.nextFloat() * 0.2F);
         }
+        return hit;
     }
 
-    private static void spawnStrike(ServerLevel level, UUID owner, Vec3 pos, double cloudY) {
-        spawnVisualBolt(level, pos, cloudY);
-        LightningStormData.get(level).igniteCloudStrike(level, owner, pos, cloudY);
+    private static Vec3 spawnStrike(ServerLevel level, UUID owner, Vec3 pos, double cloudY) {
+        Vec3 hit = spawnVisualBolt(level, pos, cloudY, 1.0F);
+        if (!hit.equals(new Vec3(pos.x, Math.max(cloudY, pos.y + 0.15), pos.z))) {
+            LightningStormData.get(level).igniteCloudStrike(level, owner, hit, cloudY);
+        }
+        return hit;
     }
 
     /** Sends a bolt for presentation without invoking the arena's ignition logic. */
@@ -102,12 +107,21 @@ public final class LightningStrikeEffect extends LightningBolt {
     }
 
     /** Allows an attack to emphasize a visual strike with a wider arc. */
-    static void spawnVisualBolt(ServerLevel level, Vec3 pos, double cloudY, float width) {
+    static Vec3 spawnVisualBolt(ServerLevel level, Vec3 pos, double cloudY, float width) {
+        Vec3 start = new Vec3(pos.x, Math.max(cloudY, pos.y + 0.15), pos.z);
+        Vec3 hit = LightningStormData.get(level).clipLightning(start, pos);
+        if (hit.equals(start)) {
+            return hit;
+        }
         LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
-        effect.setPos(pos);
-        effect.entityData.set(DATA_HEIGHT, (float) Math.max(0.15, cloudY - pos.y));
+        effect.setPos(hit);
+        effect.entityData.set(DATA_HEIGHT, (float) (start.y - hit.y));
         effect.entityData.set(DATA_WIDTH, width);
         level.addFreshEntity(effect);
+        if (!hit.equals(pos)) {
+            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, hit.x, hit.y, hit.z, 8, 0.22, 0.08, 0.22, 0.05);
+        }
+        return hit;
     }
 
     @Override

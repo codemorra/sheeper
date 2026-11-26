@@ -41,6 +41,7 @@ public final class LightningStormData extends SavedData {
         private final LightningSpawnPush spawnPush = new LightningSpawnPush();
         private final LightningLeafFire leafFire = new LightningLeafFire();
         private List<LightningTornado> tornados = List.of();
+        private List<LightningRodShelter> shelters = List.of();
 
         private Storm(LightningWeatherPacket.Arena arena) {
             this.arena = arena;
@@ -115,8 +116,40 @@ public final class LightningStormData extends SavedData {
 
     private void stopHazards(ServerLevel level, UUID id, Storm storm) {
         storm.leafFire.clear();
+        storm.shelters = List.of();
         storm.spawnPush.clear(level, Set.of());
         updateTornados(level, id, List.of());
+    }
+
+    /** Publishes transient protection for every lightning source in this dimension. */
+    public void updateShelters(UUID owner, List<LightningRodShelter> shelters) {
+        Storm storm = storms.get(owner);
+        if (storm != null) {
+            storm.shelters = shelters;
+        }
+    }
+
+    /** Returns the first shelter surface along the bolt, or its original target on a miss. */
+    public Vec3 clipLightning(Vec3 start, Vec3 target) {
+        Vec3 impact = target;
+        for (Storm storm : storms.values()) {
+            for (LightningRodShelter shelter : storm.shelters) {
+                impact = shelter.intercept(start, impact);
+            }
+        }
+        return impact;
+    }
+
+    /** Checks player protection even if a nearby strike's damage spreads outside its own column. */
+    public boolean isSheltered(Vec3 point) {
+        for (Storm storm : storms.values()) {
+            for (LightningRodShelter shelter : storm.shelters) {
+                if (shelter.contains(point)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public boolean hasStorms() {
@@ -173,11 +206,19 @@ public final class LightningStormData extends SavedData {
             changed |= storm.leafFire.tick(level, storm.arena, playersTouchingFire);
             changed |= enabled ? storm.spawnPush.tick(level, storm.arena, carriedPlayers)
                     : storm.spawnPush.clear(level, carriedPlayers);
+            boolean hasBoss = level.getEntity(entry.getKey()) instanceof LightningSheeperEntity;
+            if (!hasBoss) {
+                storm.shelters = List.of();
+            }
             if (enabled) {
-                if (!(level.getEntity(entry.getKey()) instanceof LightningSheeperEntity)) {
+                if (!hasBoss) {
                     windCleared |= storm.wind.clear();
                     if (storm.arena.quiet()) {
-                        storm.arena = storm.arena.withQuiet(false);
+                        storm.arena = storm.arena.withoutQuiet();
+                        windCleared = true;
+                    }
+                    if (storm.arena.rodDarkened()) {
+                        storm.arena = storm.arena.withRodDarkening(false, now);
                         windCleared = true;
                     }
                 }
@@ -218,23 +259,27 @@ public final class LightningStormData extends SavedData {
                 .filter(tornado -> tornado.sampleTick() + 5 >= now && tornado.endTick() > now).toList();
     }
 
-    /** Updates wind and the short silence before the lightning rod's final barrage. */
+    /** Updates wind and synchronizes Lightning Rod's temporary weather changes. */
     public void tickWind(ServerLevel level, UUID owner, LightningArenaWind.Mode mode, List<ServerPlayer> participants,
-            boolean quiet) {
+            boolean quiet, int quietFadeTicks) {
         Storm storm = storms.get(owner);
         if (storm == null) {
             return;
         }
         boolean active = hasStorms() && !storm.arena.isBuilding(level.getGameTime()) && !storm.arena.isDraining()
                 && LightningSheeperConfig.LIGHTNING_WIND_ENABLED.get();
+        boolean rodActive = mode == LightningArenaWind.Mode.INTENSIFIED;
         boolean quietChanged = storm.arena.quiet() != quiet;
+        boolean darkeningChanged = storm.arena.rodDarkened() != rodActive;
         if (quietChanged) {
-            storm.arena = storm.arena.withQuiet(quiet);
+            storm.arena = quiet ? storm.arena.withQuiet(level.getGameTime(), quietFadeTicks) : storm.arena.withoutQuiet();
         }
-        boolean changed = active ? storm.wind.tick(level, storm.arena, participants,
-                mode == LightningArenaWind.Mode.INTENSIFIED)
+        if (darkeningChanged) {
+            storm.arena = storm.arena.withRodDarkening(rodActive, level.getGameTime());
+        }
+        boolean changed = active ? storm.wind.tick(level, storm.arena, participants, rodActive)
                 : storm.wind.clear();
-        if (changed || quietChanged) {
+        if (changed || quietChanged || darkeningChanged) {
             sync(level);
         }
     }

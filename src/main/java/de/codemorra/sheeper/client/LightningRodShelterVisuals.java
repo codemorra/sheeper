@@ -1,6 +1,8 @@
 package de.codemorra.sheeper.client;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -15,6 +17,7 @@ import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -30,6 +33,7 @@ public final class LightningRodShelterVisuals {
     private static final int BANDS = 12;
     private static final Map<UUID, Snapshot> active = new HashMap<>();
     private static ClientLevel currentLevel;
+    private static ShaderInstance glowShader;
 
     private record Snapshot(LightningRodShelterPacket packet, long receivedAt) {
         double visibilityAt(double time) {
@@ -42,6 +46,11 @@ public final class LightningRodShelterVisuals {
     }
 
     private LightningRodShelterVisuals() {
+    }
+
+    /** Picks up the additive shader after each resource reload. */
+    static void setGlowShader(ShaderInstance shader) {
+        glowShader = shader;
     }
 
     /** Keeps overlapping encounters independent and drops stale positions on a dimension change. */
@@ -61,6 +70,36 @@ public final class LightningRodShelterVisuals {
         }
     }
 
+    /** Uses the visible shell sizes when clipping jagged arcs on this frame. */
+    public static List<LightningRodShelter> visibleShells(ClientLevel level, double time) {
+        if (level != currentLevel || active.isEmpty()) {
+            return List.of();
+        }
+        var shells = new ArrayList<LightningRodShelter>();
+        for (Snapshot snapshot : active.values()) {
+            if (level.getGameTime() - snapshot.receivedAt() > 25 || snapshot.visibilityAt(time) <= 0) {
+                continue;
+            }
+            double scale = LightningRodShelter.formationRadiusScale(time - snapshot.packet().formationStart());
+            if (scale > 0) {
+                for (LightningRodShelter shelter : snapshot.packet().shelters()) {
+                    shells.add(scale == 1 ? shelter
+                            : new LightningRodShelter(shelter.center(), shelter.radius() * scale));
+                }
+            }
+        }
+        return shells;
+    }
+
+    /** Clips one segment to its first visible shelter, preserving the endpoint on a miss. */
+    public static Vec3 clipSegment(List<LightningRodShelter> shells, Vec3 from, Vec3 to) {
+        Vec3 hit = to;
+        for (LightningRodShelter shell : shells) {
+            hit = shell.intercept(from, hit);
+        }
+        return hit;
+    }
+
     @SubscribeEvent
     public static void render(RenderLevelStageEvent event) {
         var minecraft = Minecraft.getInstance();
@@ -77,16 +116,16 @@ public final class LightningRodShelterVisuals {
         Vec3 player = minecraft.player == null ? camera : minecraft.player.getBoundingBox().getCenter();
         double time = tick + (double) event.getPartialTick();
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(() -> glowShader == null ? GameRenderer.getPositionColorShader() : glowShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
         RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder buffer = tesselator.getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        List<LightningRodShelter> shells = visibleShells(currentLevel, time);
         for (Snapshot snapshot : active.values()) {
             double visibility = snapshot.visibilityAt(time);
             if (visibility <= 0) {
@@ -103,27 +142,29 @@ public final class LightningRodShelterVisuals {
                     if (camera.distanceToSqr(origin) <= 96 * 96 || camera.distanceToSqr(shelter.center()) <= 96 * 96) {
                         double progress = Math.min(1, age / LightningRodShelter.BOLT_TRAVEL_TICKS);
                         float brightness = (float) (1 - Math.max(0, sinceImpact) / 3);
-                        drawBolt(buffer, origin.subtract(camera), shelter.center().subtract(camera),
-                                progress, brightness);
+                        drawBolt(buffer, camera, origin, shelter.center(), progress, brightness, shells);
                     }
                 }
                 if (sinceImpact >= 0 && camera.distanceToSqr(shelter.center()) <= 64 * 64) {
                     double progress = Math.min(1, sinceImpact / LightningRodShelter.FORMATION_TICKS);
                     double size = 1 - (1 - progress) * (1 - progress);
-                    double radius = shelter.radius() * (0.12 + 0.88 * size) * (0.8 + 0.2 * visibility);
+                    double radius = shelter.radius() * LightningRodShelter.formationRadiusScale(age);
                     drawSphere(buffer, shelter.center().subtract(camera), radius,
-                            shelter.contains(player), time, visibility * (0.35 + 0.65 * size));
+                            player.distanceToSqr(shelter.center()) <= radius * radius,
+                            time, visibility * (0.35 + 0.65 * size));
                 }
             }
         }
         tesselator.end();
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
     }
 
     /** Advances a jagged blue bolt toward the sphere's center without revealing the sphere early. */
-    private static void drawBolt(BufferBuilder buffer, Vec3 origin, Vec3 end, double progress, float brightness) {
+    private static void drawBolt(BufferBuilder buffer, Vec3 camera, Vec3 origin, Vec3 end, double progress,
+            float brightness, List<LightningRodShelter> shells) {
         Vec3 delta = end.subtract(origin);
         Vec3 side = new Vec3(-delta.z, 0, delta.x).normalize();
         if (side.lengthSqr() == 0) {
@@ -137,8 +178,12 @@ public final class LightningRodShelterVisuals {
             Vec3 from = boltPoint(origin, end, side, up, step, segments);
             Vec3 to = boltPoint(origin, end, side, up, step + 1, segments);
             Vec3 next = from.lerp(to, Math.min(1, head - step));
-            boltRibbon(buffer, previous, next, side.scale(0.09), brightness);
-            boltRibbon(buffer, previous, next, up.scale(0.09), brightness);
+            Vec3 hit = clipSegment(shells, previous, next);
+            boltRibbon(buffer, previous.subtract(camera), hit.subtract(camera), side.scale(0.09), brightness);
+            boltRibbon(buffer, previous.subtract(camera), hit.subtract(camera), up.scale(0.09), brightness);
+            if (hit != next) {
+                break;
+            }
             previous = next;
         }
     }
@@ -157,34 +202,39 @@ public final class LightningRodShelterVisuals {
         vertex(buffer, start.add(offset), brightness * 0.8F);
     }
 
-    /** Renders both halves with depth testing so solid terrain hides the buried part. */
+    /** Draws an emissive shell whose glow is strongest along the silhouette. */
     private static void drawSphere(BufferBuilder buffer, Vec3 center, double radius, boolean inside, double time,
             double visibility) {
-        double brightness = inside ? 0.16 : 0.10;
+        double brightness = inside ? 0.16 : 0.11;
         for (int segment = 0; segment < SEGMENTS; segment++) {
             double angle = segment * Math.PI * 2 / SEGMENTS;
             double nextAngle = (segment + 1) * Math.PI * 2 / SEGMENTS;
             for (int band = 0; band < BANDS; band++) {
                 double from = band * Math.PI / BANDS - Math.PI / 2;
                 double to = (band + 1) * Math.PI / BANDS - Math.PI / 2;
-                float alpha = (float) (visibility * (brightness
-                        + 0.026 * Math.sin(angle * 3 + from * 4 - time * 0.14)));
-                vertex(buffer, spherePoint(center, radius, angle, from), alpha);
-                vertex(buffer, spherePoint(center, radius, nextAngle, from), alpha);
-                vertex(buffer, spherePoint(center, radius, nextAngle, to), alpha);
-                vertex(buffer, spherePoint(center, radius, angle, to), alpha);
+                sphereVertex(buffer, center, radius, angle, from, time, brightness, visibility);
+                sphereVertex(buffer, center, radius, nextAngle, from, time, brightness, visibility);
+                sphereVertex(buffer, center, radius, nextAngle, to, time, brightness, visibility);
+                sphereVertex(buffer, center, radius, angle, to, time, brightness, visibility);
             }
         }
     }
 
-    private static Vec3 spherePoint(Vec3 center, double radius, double angle, double elevation) {
-        double horizontalRadius = radius * Math.cos(elevation);
-        return center.add(Math.cos(angle) * horizontalRadius, radius * Math.sin(elevation),
-                Math.sin(angle) * horizontalRadius);
+    private static void sphereVertex(BufferBuilder buffer, Vec3 center, double radius, double angle,
+            double elevation, double time, double brightness, double visibility) {
+        double horizontal = Math.cos(elevation);
+        var normal = new Vec3(Math.cos(angle) * horizontal, Math.sin(elevation), Math.sin(angle) * horizontal);
+        Vec3 point = center.add(normal.scale(radius));
+        double facing = Math.abs(normal.dot(point.normalize()));
+        float rim = (float) Mth.clamp(1 - facing, 0, 1);
+        double pulse = 0.026 * Math.sin(angle * 3 + elevation * 4 - time * 0.14);
+        float alpha = (float) (visibility * (brightness + pulse + 0.38 * rim * rim));
+        buffer.vertex((float) point.x, (float) point.y, (float) point.z)
+                .color(0.28F + rim * 0.42F, 0.62F + rim * 0.32F, 1, alpha).endVertex();
     }
 
     private static void vertex(BufferBuilder buffer, Vec3 point, float alpha) {
-        buffer.vertex((float) point.x, (float) point.y, (float) point.z).color(0.26F, 0.58F, 1, alpha).endVertex();
+        buffer.vertex((float) point.x, (float) point.y, (float) point.z).color(0.30F, 0.64F, 1, alpha).endVertex();
     }
 
     @SubscribeEvent

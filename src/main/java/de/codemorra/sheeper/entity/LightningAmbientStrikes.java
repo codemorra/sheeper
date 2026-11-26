@@ -160,7 +160,11 @@ final class LightningAmbientStrikes {
             // Terrain changes can invalidate a warning; a bolt must not relocate onto another surface.
             return;
         }
-        LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position, boss.getStormCloudY(position), true);
+        Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position,
+                boss.getStormCloudY(position), true);
+        if (!hit.equals(position)) {
+            return;
+        }
         if (strike.water()) {
             showMarker(level, strike, 4, true);
             BlockPos water = new BlockPos(position.x, Math.nextDown(position.y), position.z);
@@ -176,7 +180,8 @@ final class LightningAmbientStrikes {
         showMarker(level, strike, Math.max(3, lingeringTicks), true);
         var inside = new HashSet<UUID>();
         for (ServerPlayer player : participants) {
-            if (!LightningAreaDamage.contains(boss, player, position, strike.outerRadius(), strike.height())) {
+            if (LightningAreaDamage.isSheltered(player)
+                    || !LightningAreaDamage.contains(boss, player, position, strike.outerRadius(), strike.height())) {
                 continue;
             }
             inside.add(player.getUUID());

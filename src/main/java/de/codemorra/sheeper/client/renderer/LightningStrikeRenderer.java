@@ -1,7 +1,12 @@
 package de.codemorra.sheeper.client.renderer;
 
+import java.util.List;
+
 import com.mojang.blaze3d.vertex.PoseStack;
+import de.codemorra.sheeper.client.LightningRodShelterVisuals;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
+import de.codemorra.sheeper.world.LightningRodShelter;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -35,14 +40,29 @@ public final class LightningStrikeRenderer extends EntityRenderer<LightningStrik
         RandomSource random = RandomSource.create(strike.seed);
         var vertices = buffers.getBuffer(RenderType.lightning());
         var matrix = poses.last().pose();
-        Vec3 from = Vec3.ZERO;
-        for (int index = 1; index <= segments; index++) {
+        Vec3 origin = strike.position();
+        List<LightningRodShelter> shells = strike.level instanceof ClientLevel level
+                ? LightningRodShelterVisuals.visibleShells(level, level.getGameTime() + (double) partialTick)
+                : List.of();
+        var points = new Vec3[segments + 1];
+        points[0] = origin;
+        for (int index = 1; index < segments; index++) {
             double fraction = (double) index / segments;
             double offset = Math.sin(fraction * Math.PI) * spread;
-            Vec3 to = new Vec3((random.nextDouble() * 2 - 1) * offset, height * fraction,
+            points[index] = origin.add((random.nextDouble() * 2 - 1) * offset, height * fraction,
                     (random.nextDouble() * 2 - 1) * offset);
-            LightningTravelArcRenderer.drawSegment(vertices, matrix, from, to, across, depth, 0.9F);
-            from = to;
+        }
+        points[segments] = origin.add(0, height, 0);
+        // Follow the jagged path from the cloud so it cannot reappear below a shelter.
+        for (int index = segments; index > 0; index--) {
+            Vec3 from = points[index];
+            Vec3 to = points[index - 1];
+            Vec3 hit = LightningRodShelterVisuals.clipSegment(shells, from, to);
+            LightningTravelArcRenderer.drawSegment(vertices, matrix, hit.subtract(origin), from.subtract(origin),
+                    across, depth, 0.9F);
+            if (hit != to) {
+                break;
+            }
         }
     }
 

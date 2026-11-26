@@ -191,7 +191,10 @@ final class LightningFrontAttack {
             if (!isValidPoint(level, warning.pos)) {
                 pending.remove();
             } else if (--warning.remaining <= 0) {
-                LightningStrikeEffect.spawn(boss, warning.pos);
+                if (!LightningStrikeEffect.spawn(boss, warning.pos).equals(warning.pos)) {
+                    pending.remove();
+                    continue;
+                }
                 for (ServerPlayer player : players) {
                     if (!lane.hitPlayers.contains(player.getUUID())
                             && LightningAreaDamage.hurtPlayer(boss, player, warning.pos, hitRadius, hitHeight,

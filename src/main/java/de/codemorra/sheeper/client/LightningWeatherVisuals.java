@@ -32,10 +32,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomSupport;
+import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -46,6 +48,7 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LightningWeatherVisuals {
+    static final float ROD_FOG_COLOR = 0.025F;
     private static final ResourceLocation RAIN = ResourceLocations.create("minecraft",
             "textures/environment/rain.png");
     private static final int CLOUD_SEGMENTS = 48;
@@ -104,6 +107,27 @@ public final class LightningWeatherVisuals {
         return level == snapshotLevel && !arenas.isEmpty() && level.getGameTime() - lastSnapshot <= 60;
     }
 
+    /** Changes the distance fog color inside the arena without adjusting the fog range or lightmap. */
+    @SubscribeEvent
+    public static void tintRodFog(ViewportEvent.ComputeFogColor event) {
+        ClientLevel level = Minecraft.getInstance().level;
+        var camera = event.getCamera();
+        if (level == null || !hasSnapshot(level) || camera.getFluidInCamera() != FogType.NONE) {
+            return;
+        }
+        double time = level.getGameTime() + event.getPartialTick();
+        Vec3 eye = camera.getPosition();
+        float tint = 0;
+        for (var arena : arenas) {
+            tint = Math.max(tint, arena.rodDarknessAt(time) * localStormShade(arena, time, eye));
+        }
+        if (tint > 0) {
+            event.setRed(Mth.lerp(tint, event.getRed(), ROD_FOG_COLOR));
+            event.setGreen(Mth.lerp(tint, event.getGreen(), ROD_FOG_COLOR));
+            event.setBlue(Mth.lerp(tint, event.getBlue(), ROD_FOG_COLOR));
+        }
+    }
+
     /** Reduces the lightmap's skylight for a camera in the storm while leaving block light to vanilla. */
     public static float stormSkylight(float vanilla, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
@@ -117,12 +141,16 @@ public final class LightningWeatherVisuals {
         double time = level.getGameTime() + (double) partialTick;
         float shade = 0;
         for (var arena : arenas) {
-            double verticalInset = Math.min(eye.y - arena.minimumY(), arena.maximumY() - eye.y);
-            // Blend at the open floor and ceiling as well as at the moving storm front.
-            float verticalBlend = (float) Mth.clamp(verticalInset / 2, 0, 1);
-            shade = Math.max(shade, arena.intensityAt(time, eye.x, eye.y, eye.z) * verticalBlend);
+            shade = Math.max(shade, localStormShade(arena, time, eye));
         }
         return Mth.lerp(shade, vanilla, 0.32F);
+    }
+
+    /** Blends at the open floor and ceiling as well as at the moving storm front. */
+    private static float localStormShade(LightningWeatherPacket.Arena arena, double time, Vec3 eye) {
+        double verticalInset = Math.min(eye.y - arena.minimumY(), arena.maximumY() - eye.y);
+        float verticalBlend = (float) Mth.clamp(verticalInset / 2, 0, 1);
+        return arena.intensityAt(time, eye.x, eye.y, eye.z) * verticalBlend;
     }
 
     @SubscribeEvent
@@ -405,9 +433,14 @@ public final class LightningWeatherVisuals {
 
     /** Lowers ongoing rain and thunder without restarting either sample. */
     private static void updateQuietWeather(ClientLevel level, Vec3 camera) {
-        boolean quiet = arenas.stream().anyMatch(arena -> arena.quiet()
-                && arena.intensityAt(level.getGameTime(), camera.x, camera.y, camera.z) > 0);
-        weatherGain = Mth.approach(weatherGain, quiet ? 0.25F : 1, 0.25F);
+        long time = level.getGameTime();
+        float target = 1;
+        for (var arena : arenas) {
+            if (arena.quiet() && arena.intensityAt(time, camera.x, camera.y, camera.z) > 0) {
+                target = Math.min(target, arena.weatherGainAt(time));
+            }
+        }
+        weatherGain = Mth.approach(weatherGain, target, 0.25F);
     }
 
     @SubscribeEvent

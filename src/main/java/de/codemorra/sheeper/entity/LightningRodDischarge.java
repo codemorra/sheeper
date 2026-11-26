@@ -6,6 +6,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -50,8 +51,7 @@ final class LightningRodDischarge {
         showBolts(level, players);
         if (damage > 0 && age % DAMAGE_INTERVAL == 0) {
             for (ServerPlayer player : players) {
-                if (player.isAlive() && !shelters.protects(player)
-                        && LightningAreaDamage.hurtPlayer(boss, player, DAMAGE, damage)) {
+                if (player.isAlive() && LightningAreaDamage.hurtPlayer(boss, player, DAMAGE, damage)) {
                     level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.65,
                             player.getZ(), 7, 0.22, 0.26, 0.22, 0.1);
                 }
@@ -70,17 +70,35 @@ final class LightningRodDischarge {
             boolean repeat = index == 0 && audibleBeat && previousImpact != null;
             Vec3 position = repeat ? resolveSurface(level, previousImpact) : randomImpact(level);
             if (position != null) {
-                LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position, boss.getStormCloudY(position), false);
+                Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position,
+                        boss.getStormCloudY(position), false);
                 if (audibleBeat) {
-                    audibleImpacts.add(position);
+                    audibleImpacts.add(hit);
                 }
                 previousImpact = position;
             }
         }
         if (audibleBeat) {
+            List<LightningRodShelter> active = shelters.activeShelters(level.getGameTime());
+            int beats = Math.max(1, (age + remaining + 5) / 6);
+            int strikesPerBeat = Math.max(1, Mth.ceil(active.size() / (double) beats));
+            int first = age / 6 * strikesPerBeat;
+            for (int index = 0; !active.isEmpty() && index < strikesPerBeat; index++) {
+                LightningRodShelter shelter = active.get((first + index) % active.size());
+                audibleImpacts.add(strikeShelter(level, shelter));
+            }
             playImpacts(level, players, audibleImpacts);
             showChargeRelease(level);
         }
+    }
+
+    /** Targets the inside of the shell so the same interception logic resolves the visible hit. */
+    private Vec3 strikeShelter(ServerLevel level, LightningRodShelter shelter) {
+        double angle = level.random.nextDouble() * Math.PI * 2;
+        double offset = Math.sqrt(level.random.nextDouble()) * shelter.radius() * 0.7;
+        Vec3 target = shelter.center().add(Math.cos(angle) * offset, 0, Math.sin(angle) * offset);
+        double cloudY = Math.max(boss.getStormCloudY(target), target.y + shelter.radius() + 3);
+        return LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), target, cloudY, false);
     }
 
     /** Throws off sparks in time with the barrage as the suspended charge shrinks. */
