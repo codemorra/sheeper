@@ -1,6 +1,8 @@
 package de.codemorra.sheeper.network;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningFanVisuals;
@@ -11,26 +13,38 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
-/** Synchronizes the mouth and either the charge progress or the three clipped arc endpoints. */
-public record LightningFanPacket(ResourceLocation dimension, int bossId, Vec3 origin, float charge, List<Vec3> ends) {
+/** Synchronizes the hover position and the three clipped arc endpoints for each tracked player. */
+public record LightningFanPacket(ResourceLocation dimension, int bossId, Vec3 origin,
+        Map<Integer, List<Vec3>> ends) {
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeVarInt(bossId);
         writePoint(buffer, origin);
-        buffer.writeFloat(charge);
-        ends.forEach(point -> writePoint(buffer, point));
+        buffer.writeVarInt(ends.size());
+        for (var target : ends.entrySet()) {
+            buffer.writeVarInt(target.getKey());
+            target.getValue().forEach(point -> writePoint(buffer, point));
+        }
     }
 
     public static LightningFanPacket decode(FriendlyByteBuf buffer) {
         ResourceLocation dimension = buffer.readResourceLocation();
         int bossId = buffer.readVarInt();
         Vec3 origin = readPoint(buffer);
-        float charge = buffer.readFloat();
-        if (!(charge >= 0 && charge <= 1)) {
-            throw new IllegalArgumentException("Invalid lightning fan charge");
+        int count = buffer.readVarInt();
+        // At least one byte for the target ID and three double coordinates per endpoint.
+        if (count < 0 || count > buffer.readableBytes() / (1 + 9 * Double.BYTES)) {
+            throw new IllegalArgumentException("Invalid lightning fan target count");
         }
-        List<Vec3> ends = charge > 0 ? List.of() : List.of(readPoint(buffer), readPoint(buffer), readPoint(buffer));
-        return new LightningFanPacket(dimension, bossId, origin, charge, ends);
+        var ends = new HashMap<Integer, List<Vec3>>();
+        for (int index = 0; index < count; index++) {
+            int target = buffer.readVarInt();
+            var points = List.of(readPoint(buffer), readPoint(buffer), readPoint(buffer));
+            if (ends.put(target, points) != null) {
+                throw new IllegalArgumentException("Duplicate lightning fan target");
+            }
+        }
+        return new LightningFanPacket(dimension, bossId, origin, Map.copyOf(ends));
     }
 
     private static void writePoint(FriendlyByteBuf buffer, Vec3 point) {

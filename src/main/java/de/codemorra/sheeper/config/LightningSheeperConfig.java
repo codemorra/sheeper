@@ -618,32 +618,20 @@ public final class LightningSheeperConfig {
             .define("fan.enabled", true);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_COOLDOWN = BUILDER
-            .comment("Combat seconds after the last fan in the series before the attack is ready again.")
+            .comment("Combat seconds after the attack ends before it can start again.")
             .defineInRange("fan.cooldownSeconds", 20.0, 1.0, 120.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_PREPARATION = BUILDER
-            .comment("Seconds the Sheeper visibly charges before firing the first fan in the series.")
+            .comment("Opening charge in seconds. Capped at half the total attack duration.")
             .defineInRange("fan.preparationSeconds", 2.0, 0.1, 5.0);
 
-    public static final ForgeConfigSpec.IntValue LIGHTNING_FAN_SHOT_COUNT_MIN = BUILDER
-            .comment("Minimum number of fans in one attack.")
-            .defineInRange("fan.shotCountMin", 3, 1, 6);
-
-    public static final ForgeConfigSpec.IntValue LIGHTNING_FAN_SHOT_COUNT_MAX = BUILDER
-            .comment("Maximum number of fans in one attack. At least shotCountMin.")
-            .defineInRange("fan.shotCountMax", 5, 1, 6);
-
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_SHOT_PAUSE = BUILDER
-            .comment("Seconds between consecutive fans in the same attack.")
-            .defineInRange("fan.shotPauseSeconds", 1.0, 0.5, 3.0);
-
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MIN = BUILDER
-            .comment("Minimum active time in seconds for each fan.")
-            .defineInRange("fan.durationMinSeconds", 2.5, 0.5, 15.0);
+            .comment("Minimum total attack duration in seconds, including the opening charge.")
+            .defineInRange("fan.durationMinSeconds", 8.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MAX = BUILDER
-            .comment("Maximum active time in seconds for each fan. At least durationMinSeconds.")
-            .defineInRange("fan.durationMaxSeconds", 4.0, 0.5, 15.0);
+            .comment("Maximum total attack duration in seconds, including the opening charge. At least durationMinSeconds.")
+            .defineInRange("fan.durationMaxSeconds", 12.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_LEAD = BUILDER
             .comment("Maximum starting gap in blocks between the central ground impact and the targeted player.")

@@ -87,6 +87,9 @@ final class LightningTravelArcRenderer {
         Vec3 center = arc.end().subtract(boss.getPosition(partialTick));
         double time = boss.level.getGameTime() + (double) partialTick;
         float charge = arc.chargeAt(time);
+        if (arc.compact()) {
+            charge = Mth.lerp(charge, 0.16F, 0.32F);
+        }
         double radius = boss.getBbWidth() * (0.24 + 2.1 * charge);
         double height = boss.getBbHeight() * (0.45 + 2.2 * charge);
         double thickness = 0.60 + 0.55 * charge;

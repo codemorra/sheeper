@@ -338,6 +338,13 @@ final class LightningTeleportMovement {
         return finishTravel(destination, hasSafeLanding((ServerLevel) boss.level, destination));
     }
 
+    /** Keeps a low attack near its takeoff point, even if the boss is already above the floor. */
+    @Nullable
+    Vec3 findAttackGround(ServerLevel level) {
+        Vec3 origin = boss.position();
+        return hasSafeLanding(level, origin) ? origin : findGroundBelow(level, null);
+    }
+
     /** Searches below the hover point first and uses the original takeoff point if nearby ground is unsafe. */
     @Nullable
     Vec3 findGroundBelow(ServerLevel level, Vec3 departure) {
@@ -371,13 +378,21 @@ final class LightningTeleportMovement {
 
     /** Checks the full scaled body against arena bounds, loaded terrain, and hazards. */
     private boolean isSafeBody(ServerLevel level, AABB bounds) {
+        return isSafeBody(level, bounds, false);
+    }
+
+    private boolean isSafeBody(ServerLevel level, AABB bounds, boolean allowEntityOverlap) {
         BlockPos center = boss.getArenaCenter();
         double dx = Math.max(Math.abs(bounds.minX - center.getX() - 0.5), Math.abs(bounds.maxX - center.getX() - 0.5));
         double dz = Math.max(Math.abs(bounds.minZ - center.getZ() - 0.5), Math.abs(bounds.maxZ - center.getZ() - 0.5));
         double radius = boss.getCombatRadius();
         if (dx * dx + dz * dz > radius * radius || bounds.minY < boss.getArenaMinimumY()
                 || bounds.maxY > boss.getArenaMaximumY() || !level.getWorldBorder().isWithinBounds(bounds)
-                || !isLoaded(level, bounds.inflate(1)) || !level.noCollision(boss, bounds)) {
+                || !isLoaded(level, bounds.inflate(1))) {
+            return false;
+        }
+        if (allowEntityOverlap ? level.getBlockCollisions(boss, bounds).iterator().hasNext()
+                : !level.noCollision(boss, bounds)) {
             return false;
         }
         // Collision-free space can still contain fluids, fire, or harmful plants.
@@ -524,6 +539,12 @@ final class LightningTeleportMovement {
     boolean isSafeHoverPosition(Vec3 target) {
         AABB bounds = boss.getBoundingBox().move(target.subtract(boss.position()));
         return isSafeBody((ServerLevel) boss.level, bounds);
+    }
+
+    /** Rechecks the fan's space without treating players entering its incorporeal form as terrain. */
+    boolean isSafeFanHoverPosition(Vec3 target) {
+        AABB bounds = boss.getBoundingBox().move(target.subtract(boss.position()));
+        return isSafeBody((ServerLevel) boss.level, bounds, true);
     }
 
     /** Keeps the source position until the visible lightning form reaches the destination. */

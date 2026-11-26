@@ -39,7 +39,7 @@ final class LightningSpecialAttacks {
         line = new LightningLineAttack(boss, teleports);
         ring = new LightningRingBarrage(boss, teleports);
         tornado = new LightningTornadoAttack(boss, teleports);
-        fan = new LightningFanAttack(boss);
+        fan = new LightningFanAttack(boss, teleports);
         rod = new LightningRodAttack(boss, teleports);
     }
 
@@ -48,8 +48,8 @@ final class LightningSpecialAttacks {
         return line.isFiring() || ring.isLaunching() || tornado.isLaunching() || fan.isActive() || rod.isActive();
     }
 
-    boolean isRodHovering() {
-        return rod.isHovering();
+    boolean isHovering() {
+        return rod.isHovering() || fan.isActive();
     }
 
     boolean isRodQuiet() {
@@ -200,9 +200,9 @@ final class LightningSpecialAttacks {
                 line.start(level);
             }
             case FAN -> {
-                fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());
-                fan.start();
-                fan.tick(level, players);
+                if (fan.start(level)) {
+                    fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());
+                }
             }
             case TORNADO -> {
                 tornadoCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_COOLDOWN.get());

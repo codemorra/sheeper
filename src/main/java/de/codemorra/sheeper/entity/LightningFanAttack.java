@@ -13,7 +13,6 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningFanPacket;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.world.LightningStormData;
-import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,107 +23,137 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** Fires a series of three-arc fans, each chasing a player along the ground. */
+/** Holds the Sheeper in lightning form while ground impacts track every participant. */
 final class LightningFanAttack {
     private static final double HIT_RADIUS = 0.65;
     private static final double HIT_HEIGHT = 0.8;
     private static final int VISUAL_UPDATE_TICKS = 2;
     private final LightningSheeperEntity boss;
+    private final LightningTeleportMovement teleports;
     private final Map<UUID, Long> nextHitTick = new HashMap<>();
+    private final Map<UUID, Vec3> focuses = new HashMap<>();
     @Nullable
-    private ServerPlayer target;
-    @Nullable
-    private Vec3 focus;
-    private int shotsRemaining;
-    private int remainingTicks;
-    private int preparationDuration;
+    private Hover hover;
+    private long startedAt;
+    private int durationTicks;
+    private int liftTicks;
     private int preparationTicks;
-    private int pauseTicks;
-    private int shotPause;
-    private int minimumDuration;
-    private int maximumDuration;
-    private int visualTicks;
     private int trackingTicks;
+    private boolean lifted;
     private double lead;
     private double speed;
     private float damage;
 
-    LightningFanAttack(LightningSheeperEntity boss) {
-        this.boss = boss;
+    private record Hover(Vec3 ground, Vec3 position) {
     }
 
-    /** Samples the shot count and captures settings for the full series. */
-    void start() {
-        clear();
-        int minimum = LightningSheeperConfig.LIGHTNING_FAN_SHOT_COUNT_MIN.get();
-        int maximum = LightningSheeperConfig.LIGHTNING_FAN_SHOT_COUNT_MAX.get();
-        shotsRemaining = minimum + boss.getRandom().nextInt(Math.max(0, maximum - minimum) + 1);
-        preparationDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_PREPARATION.get());
-        preparationTicks = preparationDuration;
-        shotPause = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_SHOT_PAUSE.get());
-        minimumDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MIN.get());
-        maximumDuration = Math.max(minimumDuration,
-                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MAX.get()));
+    LightningFanAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
+        this.boss = boss;
+        this.teleports = teleports;
+    }
+
+    /** Finds safe space over the nearby floor before starting the single timed attack. */
+    boolean start(ServerLevel level) {
+        Vec3 ground = teleports.findAttackGround(level);
+        if (ground == null) {
+            return false;
+        }
+        Vec3 position = ground.add(0, 0.65, 0);
+        if (!teleports.isSafeFanHoverPosition(position)) {
+            position = ground.add(0, 0.25, 0);
+            if (!teleports.isSafeFanHoverPosition(position)) {
+                return false;
+            }
+        }
+        int minimum = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MIN.get());
+        int maximum = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MAX.get());
+        durationTicks = minimum + boss.getRandom().nextInt(Math.max(0, maximum - minimum) + 1);
+        preparationTicks = Math.min(durationTicks / 2,
+                SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_PREPARATION.get()));
+        liftTicks = Math.min(4, preparationTicks - 1);
         lead = LightningSheeperConfig.LIGHTNING_FAN_LEAD.get();
         speed = LightningSheeperConfig.LIGHTNING_FAN_SPEED.get() / 20;
         trackingTicks = Math.max(1,
                 SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_TRACKING_RESPONSE.get()));
         damage = LightningSheeperConfig.LIGHTNING_FAN_DAMAGE.get().floatValue();
+
+        hover = new Hover(ground, position);
+        startedAt = level.getGameTime();
+        boss.setTarget(null);
+        boss.startTravelArc(position, liftTicks);
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, volume * 0.8F, 1.35F);
+        return true;
     }
 
     boolean isActive() {
-        return shotsRemaining > 0;
+        return hover != null;
     }
 
-    /** Starts each fan after its pause and advances the impact points while it fires. */
+    /** Updates all current participants, giving each a separate lagging aim point. */
     void tick(ServerLevel level, List<ServerPlayer> players) {
-        if (players.isEmpty()) {
+        Hover site = hover;
+        if (site == null) {
+            return;
+        }
+        long elapsed = level.getGameTime() - startedAt;
+        if (elapsed >= durationTicks || players.isEmpty() || !teleports.isSafeFanHoverPosition(site.position())) {
             clear();
             return;
         }
-        if (pauseTicks > 0) {
-            pauseTicks--;
+        if (!lifted && elapsed >= liftTicks) {
+            teleports.teleportTo(site.position());
+            boss.startFanArcCharge(preparationTicks - liftTicks, durationTicks - preparationTicks);
+            lifted = true;
+        }
+        if (elapsed < preparationTicks) {
             return;
         }
-        if (preparationTicks > 0) {
-            if (target == null || !players.contains(target)) {
-                target = boss.closestParticipant(players);
+
+        Vec3 origin = boss.getBoundingBox().getCenter();
+        if (elapsed == preparationTicks) {
+            playFiringSound(level, origin);
+        }
+        focuses.keySet().retainAll(players.stream().map(ServerPlayer::getUUID).toList());
+        boolean updateVisual = (elapsed - preparationTicks) % VISUAL_UPDATE_TICKS == 0;
+        var ends = new HashMap<Integer, List<Vec3>>();
+        for (ServerPlayer player : players) {
+            Vec3 focus = track(player.position(), focuses.get(player.getUUID()), origin);
+            focuses.put(player.getUUID(), focus);
+            List<Vec3> arcs = fireAt(level, players, origin, focus);
+            if (updateVisual) {
+                ends.put(player.getId(), arcs);
             }
-            tickPreparation(level, target);
-            return;
         }
-        if (remainingTicks == 0) {
-            // The closest participant may have changed during the opening charge or the previous shot pause.
-            target = boss.closestParticipant(players);
-            remainingTicks = minimumDuration + boss.getRandom().nextInt(maximumDuration - minimumDuration + 1);
-        } else if (!players.contains(target)) {
-            // Keep the current impact position when an active fan needs a replacement.
-            target = boss.closestParticipant(players);
+        if (updateVisual) {
+            sendVisual(level, origin, ends);
         }
-        Vec3 feet = target.position();
-        Vec3 origin = boss.getBeamOrigin();
-        boolean firstTick = focus == null;
-        if (firstTick) {
+    }
+
+    private void playFiringSound(ServerLevel level, Vec3 origin) {
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        if (volume > 0) {
+            level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
+                    SoundSource.HOSTILE, volume * 0.5F, 1.4F);
+        }
+    }
+
+    /** Starts short of the target and closes only part of the remaining gap each tick. */
+    private Vec3 track(Vec3 feet, @Nullable Vec3 focus, Vec3 origin) {
+        if (focus == null) {
             Vec3 forward = horizontal(feet.subtract(origin));
             double gap = Math.min(lead, forward.horizontalDistance() * 0.8);
-            focus = feet.subtract(forward.normalize().scale(gap));
-            float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-            if (volume > 0) {
-                level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
-                        SoundSource.HOSTILE, volume * 0.5F, 1.4F);
-            }
-        } else {
-            // As with the water beam, only close part of the remaining aim gap each tick.
-            Vec3 step = feet.subtract(focus).scale(1.0 / trackingTicks);
-            double distance = step.horizontalDistance();
-            Vec3 horizontalStep = distance <= speed ? step : step.scale(speed / distance);
-            focus = focus.add(horizontalStep.x, Mth.clamp(step.y, -speed, speed), horizontalStep.z);
+            return feet.subtract(forward.normalize().scale(gap));
         }
+        Vec3 step = feet.subtract(focus).scale(1.0 / trackingTicks);
+        double distance = step.horizontalDistance();
+        Vec3 horizontalStep = distance <= speed ? step : step.scale(speed / distance);
+        return focus.add(horizontalStep.x, Mth.clamp(step.y, -speed, speed), horizontalStep.z);
+    }
 
+    /** Traces the central arc and the two staggered side arcs for one player. */
+    private List<Vec3> fireAt(ServerLevel level, List<ServerPlayer> players, Vec3 origin, Vec3 focus) {
         double ground = findGround(level, focus);
-        Vec3 aim = Double.isFinite(ground) ? new Vec3(focus.x, ground, focus.z) : focus;
-        lookAt(target, aim);
-
         Vec3 offset = horizontal(focus.subtract(origin));
         Vec3 forward = offset.normalize();
         if (forward.lengthSqr() == 0) {
@@ -136,44 +165,11 @@ final class LightningFanAttack {
         double referenceY = Double.isFinite(ground) ? ground : focus.y;
         var ends = new ArrayList<Vec3>(3);
         for (int lane = -1; lane <= 1; lane++) {
-            Vec3 point = lane == 0 ? aim : new Vec3(focus.x, referenceY, focus.z)
+            Vec3 point = lane == 0 ? focus : new Vec3(focus.x, referenceY, focus.z)
                     .subtract(setback).add(sideways.scale(lane));
             ends.add(traceArc(level, players, origin, point, lane == 0 ? ground : findGround(level, point)));
         }
-        if (visualTicks-- <= 0) {
-            visualTicks = VISUAL_UPDATE_TICKS - 1;
-            sendVisual(level, origin, focus, 0, ends);
-        }
-        if (--remainingTicks == 0) {
-            if (--shotsRemaining == 0) {
-                clear();
-            } else {
-                pauseTicks = shotPause;
-                focus = null;
-                visualTicks = 0;
-            }
-        }
-    }
-
-    /** Telegraphs the series once, keeping the firing time and the gaps between shots separate. */
-    private void tickPreparation(ServerLevel level, ServerPlayer player) {
-        lookAt(player, player.getEyePosition());
-        Vec3 origin = boss.getBeamOrigin();
-        if (preparationTicks == preparationDuration) {
-            float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-            LightningAttackSounds.play(boss, origin, SoundEvents.RESPAWN_ANCHOR_CHARGE, volume * 0.8F, 1.35F);
-        }
-        preparationTicks--;
-        if (preparationTicks % VISUAL_UPDATE_TICKS == 0 || preparationTicks == preparationDuration - 1) {
-            float charge = 1 - (float) preparationTicks / preparationDuration;
-            sendVisual(level, origin, player.position(), charge, List.of());
-        }
-    }
-
-    private void lookAt(ServerPlayer player, Vec3 aim) {
-        boss.setTarget(player);
-        boss.lookAt(EntityAnchorArgument.Anchor.EYES, aim);
-        boss.setYHeadRot(boss.getYRot());
+        return ends;
     }
 
     /** Chooses a nearby surface so cliffs and cave ceilings do not pull an impact far above the target. */
@@ -223,11 +219,13 @@ final class LightningFanAttack {
         return raised;
     }
 
-    /** Sends the effect to observers near the source or the area the boss is aiming at. */
-    private void sendVisual(ServerLevel level, Vec3 origin, Vec3 aim, float charge, List<Vec3> ends) {
-        var visual = new LightningFanPacket(level.dimension().location(), boss.getId(), origin, charge, ends);
+    /** Shares one snapshot with every observer who can be near any of the arena's impacts. */
+    private void sendVisual(ServerLevel level, Vec3 origin, Map<Integer, List<Vec3>> ends) {
+        var visual = new LightningFanPacket(level.dimension().location(), boss.getId(), origin, ends);
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double range = boss.getCombatRadius() + 64;
         for (ServerPlayer observer : level.players()) {
-            if (observer.distanceToSqr(origin) <= 64 * 64 || observer.distanceToSqr(aim) <= 64 * 64) {
+            if (horizontal(observer.position().subtract(center)).lengthSqr() <= range * range) {
                 ModNetwork.sendLightningFan(observer, visual);
             }
         }
@@ -237,14 +235,25 @@ final class LightningFanAttack {
         return new Vec3(vector.x, 0, vector.z);
     }
 
+    /** Rechecks the floor before restoring the body and clears any remaining visible arcs. */
     void clear() {
-        target = null;
-        focus = null;
-        shotsRemaining = 0;
-        remainingTicks = 0;
-        preparationTicks = 0;
-        pauseTicks = 0;
-        visualTicks = 0;
+        Hover site = hover;
+        if (site == null) {
+            return;
+        }
+        hover = null;
+        if (boss.level instanceof ServerLevel level) {
+            sendVisual(level, boss.getBoundingBox().getCenter(), Map.of());
+            if (lifted && boss.isAlive() && !teleports.landPreferredAttackTravel(site.ground())) {
+                Vec3 fallback = teleports.findAttackGround(level);
+                if (fallback != null) {
+                    teleports.landPreferredAttackTravel(fallback);
+                }
+            }
+        }
+        boss.clearTravelArc();
+        lifted = false;
+        focuses.clear();
         nextHitTick.clear();
     }
 }
