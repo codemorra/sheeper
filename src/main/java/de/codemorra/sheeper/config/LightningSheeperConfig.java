@@ -49,7 +49,8 @@ public final class LightningSheeperConfig {
             .defineInRange("boundary.slowdownWidth", 1.5, 0.0, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH = BUILDER
-            .comment("Fraction of speed lost when crossing the storm boundary in either direction. 0 disables the slowdown.",
+            .comment(
+                    "Fraction of speed lost when crossing the storm boundary in either direction. 0 disables the slowdown.",
                     "Movement along the boundary and through the top or bottom stays free.")
             .defineInRange("boundary.slowdownStrength", 0.70, 0.0, 0.75);
 
@@ -127,7 +128,8 @@ public final class LightningSheeperConfig {
             .defineInRange("spawnPush.speedBlocksPerSecond", 20.0, 0.0, 40.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_EDGE_DISTANCE = BUILDER
-            .comment("Distance from the arena edge where spawn transport stops. Players already in this ring are spared.")
+            .comment(
+                    "Distance from the arena edge where spawn transport stops. Players already in this ring are spared.")
             .defineInRange("spawnPush.edgeDistance", 8.0, 0.0, 32.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_LIFT_HEIGHT = BUILDER
@@ -206,9 +208,9 @@ public final class LightningSheeperConfig {
             .defineInRange("ambientLightning.edgeDamagePercent", 25.0, 0.0, 75.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_SPEED_DURATION = BUILDER
-            .comment("Seconds of Speed I after an outer-ring hit. Entering the lingering ground sparks grants half.",
-                    "0 disables the speed bonus.")
-            .defineInRange("ambientLightning.speedBonusSeconds", 4.0, 0.0, 8.0);
+            .comment("Seconds of Speed I at the edge of a random strike. Other boss lightning hits grant half.",
+                    "Entering lingering ground sparks also grants half. 0 disables the speed bonus.")
+            .defineInRange("ambientLightning.speedBonusSeconds", 6.0, 0.0, 16.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_GROUND_SPARK_DURATION = BUILDER
             .comment(
@@ -547,7 +549,8 @@ public final class LightningSheeperConfig {
             .defineInRange("tornado.teleportDistance", 24.0, 1.0, 64.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_TELEPORT_CENTER_RADIUS = BUILDER
-            .comment("Radius in blocks around the arena center where the Sheeper first looks for a tornado launch position.",
+            .comment(
+                    "Radius in blocks around the arena center where the Sheeper first looks for a tornado launch position.",
                     "It checks the rest of the arena if it cannot find a safe destination there.")
             .defineInRange("tornado.teleportCenterRadius", 15.0, 1.0, 64.0);
 
@@ -581,7 +584,8 @@ public final class LightningSheeperConfig {
             .defineInRange("tornado.speedBlocksPerSecond", 6.5, 2.0, 9.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_LAUNCH_DISTANCE = BUILDER
-            .comment("Horizontal distance in blocks from the launch point at which the tornado settles to its usual speed.",
+            .comment(
+                    "Horizontal distance in blocks from the launch point at which the tornado settles to its usual speed.",
                     "0 disables the initial speed boost.")
             .defineInRange("tornado.launchDistance", 10.0, 0.0, 24.0);
 

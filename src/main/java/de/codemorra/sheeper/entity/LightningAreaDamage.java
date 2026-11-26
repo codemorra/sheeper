@@ -2,13 +2,19 @@ package de.codemorra.sheeper.entity;
 
 import java.util.List;
 
+import javax.annotation.Nullable;
+
+import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.EntityDamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -38,7 +44,29 @@ public final class LightningAreaDamage {
 
     /** Applies lightning damage after the caller has verified range and cover. */
     static boolean hurtPlayer(LightningSheeperEntity boss, ServerPlayer player, float damage) {
-        return player.hurt(new EntityDamageSource("lightningBolt", boss), damage);
+        return hurtPlayer(boss, player, new EntityDamageSource("lightningBolt", boss), damage);
+    }
+
+    /** Preserves each attack's damage source and grants half the speed duration on a successful hit. */
+    static boolean hurtPlayer(@Nullable LightningSheeperEntity boss, ServerPlayer player, DamageSource source,
+            float damage) {
+        if (damage <= 0 || !player.hurt(source, damage)) {
+            return false;
+        }
+        grantSpeedBonus(boss, player, speedBonusTicks(0.5));
+        return true;
+    }
+
+    static int speedBonusTicks(double durationMultiplier) {
+        return SheeperConfig.secondsToTicks(
+                LightningSheeperConfig.LIGHTNING_AMBIENT_SPEED_DURATION.get() * durationMultiplier);
+    }
+
+    /** Also used by the ambient edge and ground sparks, which can grant speed without damage. */
+    static void grantSpeedBonus(@Nullable LightningSheeperEntity boss, ServerPlayer player, int ticks) {
+        if (ticks > 0 && player.isAlive()) {
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, ticks, 0), boss);
+        }
     }
 
     static boolean contains(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos, double radius, double height) {
@@ -56,7 +84,7 @@ public final class LightningAreaDamage {
         for (ServerPlayer player : players) {
             if (player.isAlive() && !player.isRemoved() && !player.isCreative() && !player.isSpectator()
                     && contains(level, player, player, pos, radius, height)) {
-                player.hurt(DamageSource.LIGHTNING_BOLT, damage);
+                hurtPlayer(null, player, DamageSource.LIGHTNING_BOLT, damage);
             }
         }
     }

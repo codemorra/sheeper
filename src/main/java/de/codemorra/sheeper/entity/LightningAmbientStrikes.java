@@ -18,8 +18,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
 
 /** Runs the arena's random lightning independently of movement and special attacks. */
@@ -170,8 +168,7 @@ final class LightningAmbientStrikes {
         float centerDamage = LightningSheeperConfig.LIGHTNING_AMBIENT_CENTER_DAMAGE.get().floatValue();
         float edgeDamage = (float) (centerDamage
                 * LightningSheeperConfig.LIGHTNING_AMBIENT_EDGE_DAMAGE_PERCENT.get() / 100);
-        double speedSeconds = LightningSheeperConfig.LIGHTNING_AMBIENT_SPEED_DURATION.get();
-        int speedTicks = SheeperConfig.secondsToTicks(speedSeconds);
+        int speedTicks = LightningAreaDamage.speedBonusTicks(1);
         int lingeringTicks = SheeperConfig.secondsToTicks(
                 LightningSheeperConfig.LIGHTNING_AMBIENT_GROUND_SPARK_DURATION.get());
         showMarker(level, strike, Math.max(3, lingeringTicks), true);
@@ -182,17 +179,18 @@ final class LightningAmbientStrikes {
             }
             inside.add(player.getUUID());
             boolean center = LightningAreaDamage.contains(boss, player, position, strike.centerRadius(), strike.height());
-            float damage = center ? centerDamage : edgeDamage;
-            if (damage > 0) {
-                player.hurt(STRIKE_DAMAGE, damage);
-            }
-            if (!center && speedTicks > 0 && player.isAlive()) {
-                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, speedTicks, 0), boss);
+            if (center) {
+                LightningAreaDamage.hurtPlayer(boss, player, STRIKE_DAMAGE, centerDamage);
+            } else {
+                if (edgeDamage > 0) {
+                    player.hurt(STRIKE_DAMAGE, edgeDamage);
+                }
+                LightningAreaDamage.grantSpeedBonus(boss, player, speedTicks);
             }
         }
         if (lingeringTicks > 0) {
             groundSparks.add(new GroundSparks(strike, level.getGameTime() + lingeringTicks,
-                    SheeperConfig.secondsToTicks(speedSeconds * 0.5), inside, new HashSet<>()));
+                    LightningAreaDamage.speedBonusTicks(0.5), inside, new HashSet<>()));
         }
     }
 
@@ -218,7 +216,7 @@ final class LightningAmbientStrikes {
                 UUID id = player.getUUID();
                 currentlyInside.add(id);
                 if (!zone.inside().contains(id) && zone.rewarded().add(id)) {
-                    player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, zone.speedTicks(), 0), boss);
+                    LightningAreaDamage.grantSpeedBonus(boss, player, zone.speedTicks());
                 }
             }
             zone.inside().clear();
@@ -232,7 +230,7 @@ final class LightningAmbientStrikes {
             var conduction = new LightningWaterConduction(level, boss);
             for (ServerPlayer player : participants) {
                 if (player.isAlive() && conduction.reaches(strike, player)) {
-                    player.hurt(STRIKE_DAMAGE, damage);
+                    LightningAreaDamage.hurtPlayer(boss, player, STRIKE_DAMAGE, damage);
                 }
             }
         }
