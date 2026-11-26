@@ -73,10 +73,11 @@ final class LightningTeleportMovement {
      * Advances ordinary movement without running attack logic.
      *
      * @param allowed whether the arena and boss can currently move
-     * @param focus current participant to orbit, or null while the arena is empty
+     * @param focus current participant to orbit, or null for untargeted jumps
+     * @param untargetedCombat whether untargeted jumps should keep the combat interval
      * @return whether the boss landed at a safe teleport destination this tick
      */
-    boolean tick(boolean allowed, @Nullable ServerPlayer focus) {
+    boolean tick(boolean allowed, @Nullable ServerPlayer focus, boolean untargetedCombat) {
         walking = false;
         if (!allowed || boss.getMovementRadius() <= 0.0D) {
             if (destination != null) {
@@ -85,7 +86,7 @@ final class LightningTeleportMovement {
             return false;
         }
         UUID nextFocus = focus == null ? null : focus.getUUID();
-        boolean nowIdle = focus == null;
+        boolean nowIdle = focus == null && !untargetedCombat;
         if (nowIdle != idle || !Objects.equals(focusId, nextFocus)) {
             // Drop the old destination as soon as a player takes or loses focus.
             focusId = nextFocus;

@@ -52,6 +52,11 @@ final class LightningSpecialAttacks {
         return rod.isHovering() || fan.isActive();
     }
 
+    /** @return whether the boss should move without pursuing a player during its tornado attack */
+    boolean movesWithoutTarget() {
+        return tornado.isActive();
+    }
+
     boolean isRodQuiet() {
         return rod.isQuiet();
     }
@@ -206,6 +211,7 @@ final class LightningSpecialAttacks {
             }
             case TORNADO -> {
                 tornadoCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_COOLDOWN.get());
+                boss.setTarget(null);
                 tornado.start(level, players);
             }
             case ROD -> {

@@ -439,13 +439,14 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     /** Uses ordinary teleports unless the current special is controlling movement. */
     private void tickMovement(List<ServerPlayer> participants, boolean canMove) {
         if (specialAttacks.blocksNormalMovement()) {
-            teleports.tick(false, null);
+            teleports.tick(false, null, false);
         } else {
-            ServerPlayer focus = canMove ? getMovementFocus(participants) : null;
+            boolean untargetedCombat = specialAttacks.movesWithoutTarget();
+            ServerPlayer focus = canMove && !untargetedCombat ? getMovementFocus(participants) : null;
             if (getTarget() != focus) {
                 setTarget(focus);
             }
-            if (teleports.tick(canMove, focus)) {
+            if (teleports.tick(canMove, focus, untargetedCombat) && !untargetedCombat) {
                 ServerPlayer nearest = closestParticipant(participants);
                 if (nearest != null) {
                     if (getTarget() != nearest) {
