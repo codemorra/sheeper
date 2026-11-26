@@ -45,11 +45,16 @@ final class LightningTravelArcRenderer {
     /** Keeps short branching bolts attached to the body while its charge builds and fades. */
     static void renderLineCharge(LightningSheeperEntity boss, Vec3 feet, float partialTick, PoseStack poses,
             MultiBufferSource buffers) {
+        renderBodySparks(boss, feet, partialTick, poses, buffers, boss.getLineCharge(partialTick));
+    }
+
+    /** Draws the electrical silhouette for both the row charge and the death fade. */
+    static void renderBodySparks(LightningSheeperEntity boss, Vec3 feet, float partialTick, PoseStack poses,
+            MultiBufferSource buffers, float charge) {
         double time = (boss.tickCount + (double) partialTick) * 0.72;
         double width = boss.getBbWidth();
         double height = boss.getBbHeight();
         float yaw = -Mth.rotLerp(partialTick, boss.yBodyRotO, boss.yBodyRot) * Mth.DEG_TO_RAD;
-        float charge = boss.getLineCharge(partialTick);
         VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
         Matrix4f matrix = poses.last().pose();
         for (int index = 0; index < 6; index++) {

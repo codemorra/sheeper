@@ -57,7 +57,13 @@ public class ElementalSheeperRenderer extends SheepRenderer {
                 return;
             }
         }
-        bodyOpacity = sheep instanceof WaterSheeperEntity boss ? boss.getBubbleBodyOpacity(partialTick) : 1;
+        if (sheep instanceof LightningSheeperEntity boss) {
+            float sparks = boss.getDeathSparkOpacity(partialTick);
+            if (sparks > 0 && !boss.isInvisible()) {
+                LightningTravelArcRenderer.renderBodySparks(boss, Vec3.ZERO, partialTick, poses, buffers, sparks);
+            }
+        }
+        bodyOpacity = elementalBodyOpacity(sheep, partialTick);
         if (bodyOpacity <= 0) {
             shadowRadius = 0;
             return;
@@ -138,10 +144,18 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         }
     }
 
-    /** Replaces the fast vanilla death roll only for the water boss. */
+    /** Keeps the arena bosses aligned with their custom death effects. */
     @Override
     protected float getFlipDegrees(Sheep sheep) {
-        return sheep instanceof WaterSheeperEntity ? 0 : super.getFlipDegrees(sheep);
+        return sheep instanceof WaterSheeperEntity || sheep instanceof LightningSheeperEntity
+                ? 0 : super.getFlipDegrees(sheep);
+    }
+
+    private static float elementalBodyOpacity(Sheep sheep, float partialTick) {
+        if (sheep instanceof WaterSheeperEntity boss) {
+            return boss.getBubbleBodyOpacity(partialTick);
+        }
+        return sheep instanceof LightningSheeperEntity boss ? boss.getDeathBodyOpacity(partialTick) : 1;
     }
 
     /**
@@ -160,7 +174,7 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         @Override
         public void prepareMobModel(Sheep sheep, float limbSwing, float limbSwingAmount, float partialTick) {
             super.prepareMobModel(sheep, limbSwing, limbSwingAmount, partialTick);
-            opacity = sheep instanceof WaterSheeperEntity boss ? boss.getBubbleBodyOpacity(partialTick) : 1;
+            opacity = elementalBodyOpacity(sheep, partialTick);
             switch (((ElementalSheeperEntity) sheep).getElement()) {
                 case LAVA -> {
                     red = 0.65F;
