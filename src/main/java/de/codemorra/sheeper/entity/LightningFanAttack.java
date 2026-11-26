@@ -161,10 +161,7 @@ final class LightningFanAttack {
         Vec3 origin = boss.getBeamOrigin();
         if (preparationTicks == preparationDuration) {
             float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-            if (volume > 0) {
-                level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                        SoundSource.HOSTILE, volume * 0.8F, 1.35F);
-            }
+            LightningAttackSounds.play(boss, origin, SoundEvents.RESPAWN_ANCHOR_CHARGE, volume * 0.8F, 1.35F);
         }
         preparationTicks--;
         if (preparationTicks % VISUAL_UPDATE_TICKS == 0 || preparationTicks == preparationDuration - 1) {

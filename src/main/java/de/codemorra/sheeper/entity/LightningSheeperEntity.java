@@ -228,6 +228,13 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         return horizontalDistanceSquared(x, z) <= getMovementRadius() * getMovementRadius();
     }
 
+    /** Includes the whole storm cylinder, independently of combat admission. */
+    boolean isInsideArena(ServerPlayer player) {
+        double radius = getCombatRadius();
+        return horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
+                && isWithinArenaHeight(player.getBoundingBox().getCenter().y);
+    }
+
     /**
      * Admits players past the inner side of the storm and retains them until
      * they cross the actual boundary, including the open top and bottom.
@@ -250,9 +257,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         double radius = getCombatRadius();
         UUID id = player.getUUID();
         if (!isCombatReady() || !isAlive() || isRemoved() || player.level != level
-                || !player.isAlive() || player.isRemoved() || player.isSpectator()
-                || horizontalDistanceSquared(player.getX(), player.getZ()) > radius * radius
-                || !isWithinArenaHeight(player.getBoundingBox().getCenter().y)) {
+                || !player.isAlive() || player.isRemoved() || player.isSpectator() || !isInsideArena(player)) {
             admittedPlayers.remove(id);
             return false;
         }

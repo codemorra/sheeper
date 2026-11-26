@@ -12,11 +12,9 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
-import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
 /** Fires eight terrain-following lightning rows from each of several teleport positions. */
@@ -82,7 +80,7 @@ final class LightningLineAttack {
     }
 
     /** Charges at the current position before the first jump. */
-    void start(ServerLevel level, List<ServerPlayer> participants) {
+    void start(ServerLevel level) {
         clear();
         int minimum = LightningSheeperConfig.LIGHTNING_LINE_WAVE_COUNT_MIN.get();
         int maximum = LightningSheeperConfig.LIGHTNING_LINE_WAVE_COUNT_MAX.get();
@@ -94,7 +92,8 @@ final class LightningLineAttack {
         damage = LightningSheeperConfig.LIGHTNING_LINE_DAMAGE.get().floatValue();
         chargeEndsAt = level.getGameTime() + chargeTicks;
         nextPositionAt = chargeEndsAt;
-        playCharge(participants);
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, volume, 1.35F);
     }
 
     boolean isActive() {
@@ -180,22 +179,6 @@ final class LightningLineAttack {
         landingAt = -1;
         lastTarget = null;
         secondLastTarget = null;
-    }
-
-    /** Plays the warning from the Sheeper's direction even for distant participants. */
-    private void playCharge(List<ServerPlayer> participants) {
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (volume <= 0) {
-            return;
-        }
-        Vec3 source = boss.getEyePosition();
-        for (ServerPlayer player : participants) {
-            Vec3 ear = player.getEyePosition();
-            Vec3 direction = source.subtract(ear);
-            Vec3 audible = direction.lengthSqr() > 36 ? ear.add(direction.normalize().scale(6)) : source;
-            player.connection.send(new ClientboundSoundPacket(SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.HOSTILE,
-                    audible.x, audible.y, audible.z, volume, 1.35F, boss.getRandom().nextLong()));
-        }
     }
 
     /** Counts untargeted rows too so a player cannot be selected again until the third following row. */

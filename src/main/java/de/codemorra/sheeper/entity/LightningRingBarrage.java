@@ -18,7 +18,6 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -89,10 +88,7 @@ final class LightningRingBarrage {
             warningStart = level.getGameTime();
             showWarning(level);
             float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-            if (volume > 0) {
-                level.playSound(null, warningOrigin.x, warningOrigin.y, warningOrigin.z,
-                        SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.HOSTILE, volume * 0.8F, 1.35F);
-            }
+            LightningAttackSounds.play(boss, warningOrigin, SoundEvents.RESPAWN_ANCHOR_CHARGE, volume * 0.8F, 1.35F);
         }
     }
 
@@ -220,10 +216,7 @@ final class LightningRingBarrage {
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, origin.x, origin.y + boss.getBbHeight() * 0.52,
                 origin.z, 28, boss.getBbWidth() * 0.40, boss.getBbHeight() * 0.20, boss.getBbWidth() * 0.40, 0.13);
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (volume > 0) {
-            level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
-                    SoundSource.HOSTILE, volume, 1.4F);
-        }
+        LightningAttackSounds.play(boss, origin, SoundEvents.LIGHTNING_BOLT_IMPACT, volume, 1.4F);
     }
 
     private void hitPlayers(ServerLevel level, Wave wave, double previous, List<ServerPlayer> players) {

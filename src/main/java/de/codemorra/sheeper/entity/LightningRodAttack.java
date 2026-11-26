@@ -11,7 +11,6 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
 /** Moves the boss over the arena, then holds its lightning form through the final barrage. */
@@ -162,10 +161,7 @@ final class LightningRodAttack {
     private void showChargeStart(ServerLevel level) {
         Vec3 point = boss.getEyePosition();
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        if (volume > 0) {
-            level.playSound(null, point.x, point.y, point.z, SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                    SoundSource.HOSTILE, volume, 0.8F);
-        }
+        LightningAttackSounds.play(boss, point, SoundEvents.RESPAWN_ANCHOR_CHARGE, volume, 0.8F);
         showCharge(level);
     }
 

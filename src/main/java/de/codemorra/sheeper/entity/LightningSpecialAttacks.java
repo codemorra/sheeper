@@ -187,7 +187,7 @@ final class LightningSpecialAttacks {
             case LINE -> {
                 lineCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_LINE_COOLDOWN.get());
                 boss.setTarget(null);
-                line.start(level, players);
+                line.start(level);
             }
             case FAN -> {
                 fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());
