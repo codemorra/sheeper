@@ -49,9 +49,9 @@ public final class LightningSheeperConfig {
             .defineInRange("boundary.slowdownWidth", 1.5, 0.0, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH = BUILDER
-            .comment("Fraction of sideways crossing speed lost at the storm boundary. 0 disables the slowdown.",
+            .comment("Fraction of speed lost when crossing the storm boundary in either direction. 0 disables the slowdown.",
                     "Movement along the boundary and through the top or bottom stays free.")
-            .defineInRange("boundary.slowdownStrength", 0.35, 0.0, 0.75);
+            .defineInRange("boundary.slowdownStrength", 0.70, 0.0, 0.75);
 
     /** Lightning arena buildup (arenaBuild). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
