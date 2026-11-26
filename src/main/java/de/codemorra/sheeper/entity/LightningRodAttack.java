@@ -6,6 +6,8 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.network.LightningArenaFlashPacket;
+import de.codemorra.sheeper.network.ModNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -47,6 +49,7 @@ final class LightningRodAttack {
         chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION.get());
         calmTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION.get());
         chargeTicks = chargeDuration;
+        showOpening(level);
         travelTicks = teleports.startAttackTravel(hoverPosition);
         shelters.tick(level);
         return true;
@@ -158,10 +161,20 @@ final class LightningRodAttack {
         return null;
     }
 
+    /** Flashes the captured arena at the same time as the opening bang. */
+    private void showOpening(ServerLevel level) {
+        var flash = new LightningArenaFlashPacket(level.dimension().location(), boss.getArenaCenter(),
+                boss.getCombatRadius(), boss.getArenaMinimumY(), boss.getArenaMaximumY());
+        level.players().forEach(player -> ModNetwork.sendLightningArenaFlash(player, flash));
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        LightningAttackSounds.play(boss, boss.getBoundingBox().getCenter(), SoundEvents.GENERIC_EXPLODE, volume * 2,
+                1.0F);
+    }
+
     private void showChargeStart(ServerLevel level) {
         Vec3 point = boss.getEyePosition();
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, point, SoundEvents.RESPAWN_ANCHOR_CHARGE, volume, 0.8F);
+        LightningAttackSounds.play(boss, point, SoundEvents.LIGHTNING_BOLT_THUNDER, volume * 1.7F, 0.5F);
         showCharge(level);
     }
 
