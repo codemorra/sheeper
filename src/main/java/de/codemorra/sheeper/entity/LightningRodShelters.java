@@ -1,8 +1,6 @@
 package de.codemorra.sheeper.entity;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -12,6 +10,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningRodShelterPacket;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.world.LightningRodShelter;
+import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -19,15 +18,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /** Plans dry shelters across the arena and keeps their client snapshots current. */
 final class LightningRodShelters {
-    private static final double MAX_APPROACH_DISTANCE = 11;
-    private static final int MAX_ROUTE_STEPS = 16;
-    private static final int MAX_ROUTE_POSITIONS = 512;
     private static final int REFRESH_TICKS = 10;
     private final LightningSheeperEntity boss;
     private List<LightningRodShelter> shelters = List.of();
@@ -37,41 +34,58 @@ final class LightningRodShelters {
     private long dissolveStart;
     private int dissolveTicks;
 
-    private record Step(Vec3 feet, int distance) {
-    }
-
     LightningRodShelters(LightningSheeperEntity boss) {
         this.boss = boss;
     }
 
-    /** Reserves reachable shelters first, then fills the arena's remaining slots on dry ground. */
+    /** Prefers open terrain and fills remaining slots with covered spots in the arena. */
     boolean place(ServerLevel level, List<ServerPlayer> players) {
+        if (players.isEmpty()) {
+            return false;
+        }
         double arenaRadius = boss.getCombatRadius();
         double density = LightningSheeperConfig.LIGHTNING_ROD_SHELTER_DENSITY.get();
         int count = Mth.clamp((int) Math.round(Math.PI * arenaRadius * arenaRadius * density / 1_000),
                 1, LightningRodShelter.MAX_SHELTERS);
         double radius = Math.min(LightningSheeperConfig.LIGHTNING_ROD_SHELTER_RADIUS.get(), arenaRadius * 0.75);
-        var placed = new ArrayList<LightningRodShelter>();
-        for (ServerPlayer player : players) {
-            List<Vec3> reachable = reachableStandingCenters(level, player);
-            if (placed.stream().anyMatch(shelter -> canEnter(reachable, shelter))) {
+        var placed = new ArrayList<LightningRodShelter>(count);
+        ServerPlayer player = players.get(0);
+        sampleShelters(level, player, placed, count, radius, true);
+        sampleShelters(level, player, placed, count, radius, false);
+        shelters = List.copyOf(placed);
+        return !shelters.isEmpty();
+    }
+
+    /** Samples loaded columns across the arena without using player positions. */
+    private void sampleShelters(ServerLevel level, ServerPlayer player, List<LightningRodShelter> placed,
+            int count, double radius, boolean preferSky) {
+        double arenaRadius = boss.getCombatRadius();
+        double available = Math.max(0, arenaRadius - radius - 0.5);
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        int minY = boss.getArenaMinimumY();
+        int maxY = boss.getArenaMaximumY() - 1;
+        for (int attempt = 0; attempt < count * 32 && placed.size() < count; attempt++) {
+            double angle = boss.getRandom().nextDouble() * 2 * Math.PI;
+            double distance = Math.sqrt(boss.getRandom().nextDouble()) * available;
+            double x = Mth.floor(center.x + Math.cos(angle) * distance) + 0.5;
+            double z = Mth.floor(center.z + Math.sin(angle) * distance) + 0.5;
+            Vec3 column = new Vec3(x, center.y, z);
+            if (column.subtract(center).horizontalDistance() + radius > arenaRadius
+                    || !LightningAreaDamage.chunksLoaded(level, column, column)) {
                 continue;
             }
-            if (placed.size() == count) {
-                return false;
+            // In caves, search near the arena's starting level as well as on other floors.
+            double referenceY = preferSky ? level.getHeight(Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z))
+                    : attempt % 2 == 0 ? center.y : Mth.nextInt(boss.getRandom(), minY, maxY);
+            double searchDistance = preferSky ? 1 : 4;
+            Vec3 feet = findStand(level, player, new Vec3(x, referenceY, z),
+                    preferSky ? 0.25 : searchDistance, searchDistance);
+            LightningRodShelter shelter = shelterAt(level, player, feet, radius, preferSky);
+            if (shelter != null && placed.stream().noneMatch(other -> overlaps(other, shelter))
+                    && hasApproach(level, player, shelter)) {
+                placed.add(shelter);
             }
-            LightningRodShelter shelter = findReachable(level, player, reachable, radius);
-            if (shelter == null) {
-                return false;
-            }
-            placed.add(shelter);
         }
-        if (placed.isEmpty()) {
-            return false;
-        }
-        fillRemaining(level, players.get(0), placed, count, radius);
-        shelters = List.copyOf(placed);
-        return true;
     }
 
     /** Reveals all reserved positions as bolts depart from the arrived boss. */
@@ -84,9 +98,14 @@ final class LightningRodShelters {
 
     /** Refreshes the same fixed positions so entering and reconnecting observers see the shelters. */
     void tick(ServerLevel level) {
-        if (formationStart >= 0 && level.getGameTime() >= nextRefresh) {
+        if (formationStart < 0) {
+            return;
+        }
+        long now = level.getGameTime();
+        LightningStormData.get(level).updateShelters(boss.getUUID(), activeShelters(now));
+        if (now >= nextRefresh) {
             send(level);
-            nextRefresh = level.getGameTime() + REFRESH_TICKS;
+            nextRefresh = now + REFRESH_TICKS;
         }
     }
 
@@ -107,12 +126,17 @@ final class LightningRodShelters {
         return now - dissolveStart >= dissolveTicks;
     }
 
-    /** Uses the same hitbox-center check as the visible shelter indicator. */
-    boolean protects(ServerPlayer player) {
-        Vec3 point = player.getBoundingBox().getCenter();
-        long builtAt = formationStart + LightningRodShelter.BOLT_TRAVEL_TICKS + LightningRodShelter.FORMATION_TICKS;
-        return formationStart >= 0 && player.level.getGameTime() >= builtAt
-                && shelters.stream().anyMatch(shelter -> shelter.contains(point));
+    /** Exposes the shell at its current size to strikes and players. */
+    List<LightningRodShelter> activeShelters(long now) {
+        if (formationStart < 0 || (isDissolving() && hasDissolved(now))) {
+            return List.of();
+        }
+        double scale = LightningRodShelter.formationRadiusScale(now - formationStart);
+        if (scale <= 0) {
+            return List.of();
+        }
+        return scale >= 1 ? shelters : shelters.stream()
+                .map(shelter -> new LightningRodShelter(shelter.center(), shelter.radius() * scale)).toList();
     }
 
     /** Removes the shelters on both sides when the attack finishes or is cancelled. */
@@ -124,57 +148,11 @@ final class LightningRodShelters {
         if (!shelters.isEmpty()) {
             shelters = List.of();
             if (previousFormation >= 0 && boss.level instanceof ServerLevel level) {
+                LightningStormData.get(level).updateShelters(boss.getUUID(), List.of());
                 send(level);
             }
         }
         nextRefresh = 0;
-    }
-
-    @Nullable
-    private LightningRodShelter findReachable(ServerLevel level, ServerPlayer player, List<Vec3> reachable,
-            double radius) {
-        if (reachable.isEmpty()) {
-            return null;
-        }
-        // Prefer a sphere the player has to move towards, then look closer on obstructed terrain.
-        for (int attempt = 0; attempt < 36; attempt++) {
-            double angle = boss.getRandom().nextDouble() * 2 * Math.PI;
-            double reach = attempt < 24 ? Math.min(7, radius + 0.5) + boss.getRandom().nextDouble() * 4
-                    : 0.5 + boss.getRandom().nextDouble() * 3.5;
-            var point = player.position().add(Math.cos(angle) * reach, 0, Math.sin(angle) * reach);
-            LightningRodShelter shelter = at(level, player, point, radius, 2.5, 2.5);
-            if (shelter != null && canEnter(reachable, shelter)) {
-                return shelter;
-            }
-        }
-        LightningRodShelter shelter = at(level, player, player.position(), radius, 2.5, 2.5);
-        return shelter != null && canEnter(reachable, shelter) ? shelter : null;
-    }
-
-    /** Tries separated sectors to distribute extra shelters away from the reserved player routes. */
-    private void fillRemaining(ServerLevel level, ServerPlayer player, List<LightningRodShelter> placed, int count,
-            double radius) {
-        if (placed.size() == count) {
-            return;
-        }
-        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
-        double available = boss.getCombatRadius() - radius - 0.75;
-        double spacing = 2 * Math.PI / count;
-        double heading = boss.getRandom().nextDouble() * 2 * Math.PI;
-        for (int slot = 0; slot < count && placed.size() < count; slot++) {
-            for (int attempt = 0; attempt < 16; attempt++) {
-                double angle = heading + spacing * (slot + boss.getRandom().nextDouble() - 0.5);
-                double distance = available * (0.5 + boss.getRandom().nextDouble() * 0.5);
-                Vec3 point = center.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
-                LightningRodShelter shelter = at(level, player, point, radius,
-                        boss.getArenaMaximumY() - center.y, center.y - boss.getArenaMinimumY());
-                if (shelter != null && placed.stream().noneMatch(other -> overlaps(other, shelter))
-                        && hasApproach(level, player, shelter)) {
-                    placed.add(shelter);
-                    break;
-                }
-            }
-        }
     }
 
     private static boolean overlaps(LightningRodShelter first, LightningRodShelter second) {
@@ -195,62 +173,17 @@ final class LightningRodShelters {
         return false;
     }
 
-    /** Places a sphere around a dry standing position at chest height. */
+    /** Centers a shelter over a safe stand while leaving room below the arena ceiling. */
     @Nullable
-    private LightningRodShelter at(ServerLevel level, ServerPlayer player, Vec3 sample, double radius,
-            double rise, double drop) {
-        Vec3 arenaCenter = Vec3.atBottomCenterOf(boss.getArenaCenter());
-        double x = Mth.floor(sample.x) + 0.5;
-        double z = Mth.floor(sample.z) + 0.5;
-        if (Math.hypot(x - arenaCenter.x, z - arenaCenter.z) + radius > boss.getCombatRadius()) {
-            return null;
-        }
-        Vec3 feet = findStand(level, player, new Vec3(x, sample.y, z), rise, drop);
+    private LightningRodShelter shelterAt(ServerLevel level, ServerPlayer player, @Nullable Vec3 feet,
+            double radius, boolean requireSky) {
         if (feet == null) {
             return null;
         }
         Vec3 center = feet.add(0, player.getDimensions(Pose.STANDING).height * 0.6, 0);
         double fittingRadius = Math.min(radius, boss.getArenaMaximumY() - center.y);
-        if (fittingRadius < 0.95) {
-            return null;
-        }
-        return new LightningRodShelter(center, fittingRadius);
-    }
-
-    /** Explores nearby stands through ordinary one-block jumps and short drops. */
-    private List<Vec3> reachableStandingCenters(ServerLevel level, ServerPlayer player) {
-        Vec3 origin = player.position();
-        Vec3 start = findStand(level, player, origin, 0.25, 2.5);
-        if (start == null) {
-            return List.of();
-        }
-        double halfHeight = player.getDimensions(Pose.STANDING).height / 2;
-        var centers = new ArrayList<Vec3>();
-        var visited = new HashSet<Vec3>();
-        var open = new ArrayDeque<Step>();
-        visited.add(start);
-        open.add(new Step(start, 0));
-        while (!open.isEmpty() && centers.size() < MAX_ROUTE_POSITIONS) {
-            Step step = open.removeFirst();
-            Vec3 feet = step.feet();
-            centers.add(feet.add(0, halfHeight, 0));
-            if (step.distance() >= MAX_ROUTE_STEPS) {
-                continue;
-            }
-            for (Direction direction : Direction.Plane.HORIZONTAL) {
-                Vec3 sample = new Vec3(Mth.floor(feet.x) + 0.5 + direction.getStepX(), feet.y,
-                        Mth.floor(feet.z) + 0.5 + direction.getStepZ());
-                if (sample.subtract(origin).horizontalDistanceSqr() > MAX_APPROACH_DISTANCE * MAX_APPROACH_DISTANCE) {
-                    continue;
-                }
-                Vec3 next = findStand(level, player, sample, 1.25, 1.5);
-                if (next != null && !visited.contains(next) && canStep(level, player, feet, next)) {
-                    visited.add(next);
-                    open.addLast(new Step(next, step.distance() + 1));
-                }
-            }
-        }
-        return centers;
+        return fittingRadius >= 0.95 && (!requireSky || level.canSeeSky(new BlockPos(center)))
+                ? new LightningRodShelter(center, fittingRadius) : null;
     }
 
     /** Checks support and standing clearance without loading chunks or crossing the arena boundary. */
@@ -294,10 +227,6 @@ final class LightningRodShelters {
                 && level.noCollision(player, start.expandTowards(0, y - from.y, 0))
                 && level.noCollision(player, across)
                 && level.noCollision(player, end.expandTowards(0, y - to.y, 0));
-    }
-
-    private boolean canEnter(List<Vec3> reachable, LightningRodShelter shelter) {
-        return reachable.stream().anyMatch(shelter::contains);
     }
 
     private void send(ServerLevel level) {

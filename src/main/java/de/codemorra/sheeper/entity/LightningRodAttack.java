@@ -44,7 +44,7 @@ final class LightningRodAttack {
         discharge = new LightningRodDischarge(boss, shelters);
     }
 
-    /** @return whether the fight has both a safe hover point and nearby shelters */
+    /** @return whether the arena has both a safe hover point and a shelter site */
     boolean start(ServerLevel level, List<ServerPlayer> players) {
         Vec3 position = findHoverPosition(level);
         if (position == null || !shelters.place(level, players)) {
@@ -72,6 +72,11 @@ final class LightningRodAttack {
 
     boolean isQuiet() {
         return calmTicks > 0 || releaseTicks > 0 || shelters.isDissolving() || landingPosition != null;
+    }
+
+    /** @return the fade duration during the calm before the discharge */
+    int quietFadeTicks() {
+        return calmTicks > 0 ? calmDuration : 0;
     }
 
     /** @return ticks before damaging random strikes stop, including the flight to the center */
@@ -155,8 +160,9 @@ final class LightningRodAttack {
         }
         if (!discharge.tick(level, players)) {
             Vec3 impact = boss.getEyePosition();
-            LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), impact, boss.getStormCloudY(position), false);
-            LightningRodDischarge.playImpacts(level, players, List.of(impact));
+            Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), impact,
+                    boss.getStormCloudY(position), false);
+            LightningRodDischarge.playImpacts(level, players, List.of(hit));
             releaseTicks = LightningStrikeEffect.VISUAL_DURATION_TICKS;
         }
     }

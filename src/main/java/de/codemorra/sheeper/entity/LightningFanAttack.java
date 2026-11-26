@@ -199,14 +199,19 @@ final class LightningFanAttack {
         if (!LightningAreaDamage.chunksLoaded(level, origin, raised)) {
             return origin;
         }
-        var obstruction = level.clip(new ClipContext(origin, raised, ClipContext.Block.COLLIDER,
+        LightningStormData storm = LightningStormData.get(level);
+        Vec3 hit = storm.clipLightning(origin, raised);
+        var obstruction = level.clip(new ClipContext(origin, hit, ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, boss));
         if (obstruction.getType() != HitResult.Type.MISS) {
-            LightningStormData.get(level).igniteLeaves(level, boss.getUUID(), obstruction.getBlockPos());
+            storm.igniteLeaves(level, boss.getUUID(), obstruction.getBlockPos());
             return obstruction.getLocation();
         }
+        if (!hit.equals(raised)) {
+            return hit;
+        }
         var support = new BlockPos(impact.x, Math.nextDown(impact.y), impact.z);
-        LightningStormData.get(level).igniteLeaves(level, boss.getUUID(), support);
+        storm.igniteLeaves(level, boss.getUUID(), support);
         long now = level.getGameTime();
         for (ServerPlayer player : players) {
             UUID id = player.getUUID();

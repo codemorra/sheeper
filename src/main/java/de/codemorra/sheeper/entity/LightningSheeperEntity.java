@@ -359,7 +359,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             tickMovement(participants, canMove);
             igniteTravelLeaves(server, storm);
             LightningArenaWind.Mode windMode = specialAttacks.windMode();
-            storm.tickWind(server, getUUID(), windMode, fighting ? participants : List.of(), specialAttacks.isRodQuiet());
+            storm.tickWind(server, getUUID(), windMode, fighting ? participants : List.of(),
+                    specialAttacks.isRodQuiet(), specialAttacks.rodQuietFadeTicks());
             boolean randomStrikes = fighting && specialAttacks.allowsRandomStrikes();
             ambientStrikes.tick(server, participants, randomStrikes, specialAttacks.intensifiedStormTicksRemaining());
         }

@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -50,11 +51,16 @@ public final class LightningAreaDamage {
     /** Preserves each attack's damage source and grants half the speed duration on a successful hit. */
     static boolean hurtPlayer(@Nullable LightningSheeperEntity boss, ServerPlayer player, DamageSource source,
             float damage) {
-        if (damage <= 0 || !player.hurt(source, damage)) {
+        if (damage <= 0 || isSheltered(player) || !player.hurt(source, damage)) {
             return false;
         }
         grantSpeedBonus(boss, player, speedBonusTicks(0.5));
         return true;
+    }
+
+    /** Tests the player's hitbox center against active protection spheres in this dimension. */
+    static boolean isSheltered(ServerPlayer player) {
+        return LightningStormData.get(player.getLevel()).isSheltered(player.getBoundingBox().getCenter());
     }
 
     static int speedBonusTicks(double durationMultiplier) {

@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client;
 import static de.codemorra.sheeper.client.LightningWorldArcs.arc;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -13,6 +14,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.network.LightningFanPacket;
+import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
@@ -100,6 +102,7 @@ public final class LightningFanVisuals {
             drawCharge(buffer, camera, boss, origin, partialTick, time, charge);
             return;
         }
+        var shells = LightningRodShelterVisuals.visibleShells(currentLevel, time);
         for (int lane = 0; lane < fan.current.ends().size(); lane++) {
             Vec3 end = fan.current.ends().get(lane);
             if (end.equals(fan.current.origin())) {
@@ -112,7 +115,7 @@ public final class LightningFanVisuals {
                     end = oldEnd.lerp(end, progress);
                 }
             }
-            drawBolt(buffer, camera, origin, end, time, lane);
+            drawBolt(buffer, camera, origin, end, time, lane, shells);
         }
     }
 
@@ -144,7 +147,8 @@ public final class LightningFanVisuals {
     }
 
     /** Breaks each arc into linked bends while keeping the mouth and impact anchored. */
-    private static void drawBolt(BufferBuilder buffer, Vec3 camera, Vec3 origin, Vec3 end, double time, int lane) {
+    private static void drawBolt(BufferBuilder buffer, Vec3 camera, Vec3 origin, Vec3 end, double time, int lane,
+            List<LightningRodShelter> shells) {
         Vec3 direction = end.subtract(origin);
         double length = direction.length();
         Vec3 side = new Vec3(-direction.z, 0, direction.x).normalize();
@@ -161,7 +165,12 @@ public final class LightningFanVisuals {
             Vec3 bend = from.lerp(to, 0.5).add(side.scale(jitter * 0.23 * Math.cos(phase)))
                     .add(up.scale(jitter * 0.17 * Math.sin(phase * 1.1)));
             float alpha = (float) (0.82 + Math.sin(phase) * 0.16);
-            arc(buffer, camera, from, bend, to, lane == 1 ? 0.038 : 0.026, alpha);
+            Vec3 firstHit = LightningRodShelterVisuals.clipSegment(shells, from, bend);
+            Vec3 lastHit = firstHit == bend ? LightningRodShelterVisuals.clipSegment(shells, bend, to) : firstHit;
+            arc(buffer, camera, from, firstHit, lastHit, lane == 1 ? 0.038 : 0.026, alpha);
+            if (lastHit != to) {
+                break;
+            }
             from = to;
         }
     }

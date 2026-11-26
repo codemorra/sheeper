@@ -224,8 +224,11 @@ final class LightningLineAttack {
             Vec3 point = findImpact(level, line);
             if (point != null) {
                 line.surfaceY = point.y;
-                LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), point, boss.getStormCloudY(point), line.points % 4 == 0);
-                line.impacts.add(point);
+                Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), point,
+                        boss.getStormCloudY(point), line.points % 4 == 0);
+                if (hit.equals(point)) {
+                    line.impacts.add(point);
+                }
             }
             line.points++;
             line.reachedEdge = line.nextDistance >= line.length;

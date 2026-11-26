@@ -56,6 +56,10 @@ final class LightningSpecialAttacks {
         return rod.isQuiet();
     }
 
+    int rodQuietFadeTicks() {
+        return rod.quietFadeTicks();
+    }
+
     LightningArenaWind.Mode windMode() {
         return rod.isActive() ? LightningArenaWind.Mode.INTENSIFIED : LightningArenaWind.Mode.NORMAL;
     }

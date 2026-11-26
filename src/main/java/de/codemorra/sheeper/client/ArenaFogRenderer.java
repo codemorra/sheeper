@@ -18,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
@@ -187,7 +188,11 @@ public final class ArenaFogRenderer {
                 shader.getUniform("FogDensity").set((float) (0.031 * stormIntensity));
                 for (var arena : LightningWeatherVisuals.visibleArenas(frame.level())) {
                     // Keep distant lightning readable through the storm, and fade as the arena drains.
-                    shader.getUniform("FogColor").set(0.08F, 0.10F, 0.14F, 0.72F * arena.opacityAt(time));
+                    float tint = arena.rodDarknessAt(time);
+                    float rodColor = LightningWeatherVisuals.ROD_FOG_COLOR;
+                    shader.getUniform("FogColor").set(Mth.lerp(tint, 0.08F, rodColor),
+                            Mth.lerp(tint, 0.10F, rodColor), Mth.lerp(tint, 0.14F, rodColor),
+                            0.72F * arena.opacityAt(time));
                     drawVolume(frame.camera(), renderDistance, arena.center(), arena.radiusAt(time), arena.minimumY(),
                             arena.maximumY());
                 }

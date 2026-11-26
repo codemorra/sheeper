@@ -308,7 +308,9 @@ final class LightningStrikeAttack {
     }
 
     private void impact(ServerLevel level, Strike strike, List<ServerPlayer> players) {
-        LightningStrikeEffect.spawn(boss, strike.pos);
+        if (!LightningStrikeEffect.spawn(boss, strike.pos).equals(strike.pos)) {
+            return;
+        }
         LightningAreaDamage.hurtPlayers(boss, players, strike.pos, strike.radius, strike.height, strike.damage);
         if (strike.primary) {
             aftershocks.add(strike.pos);
