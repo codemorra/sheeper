@@ -596,7 +596,7 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_DAMAGE_INTERVAL = BUILDER
             .comment("Minimum seconds between tornado hits on the same player.")
-            .defineInRange("tornado.damageIntervalSeconds", 1.0, 0.5, 3.0);
+            .defineInRange("tornado.damageIntervalSeconds", 3.0, 0.5, 6.0);
 
     /** Targeted ground lightning fan (fan). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_FAN_ENABLED = BUILDER
