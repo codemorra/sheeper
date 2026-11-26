@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.ArenaFallProtection;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import de.codemorra.sheeper.world.LightningTornado;
 import net.minecraft.core.BlockPos;
@@ -228,12 +229,12 @@ final class LightningTornadoAttack {
         return new Vec3(next.x, base.y + Mth.clamp(ground - base.y, -0.24, 0.24), next.z);
     }
 
-    /** Lets vanilla count the free fall from the point where controlled descent ends. */
+    /** Keeps players supported by a dissolving funnel safe until their next landing. */
     private void softenFalls(ServerLevel level, LightningTornado funnel, List<ServerPlayer> players, long now) {
         for (ServerPlayer player : players) {
             if (player.isAlive() && !player.isPassenger() && funnel.supportsDescent(player.position(), now)
                     && LightningTornado.hasClearPath(level, player, funnel.position())) {
-                player.resetFallDistance();
+                ArenaFallProtection.protect(player);
             }
         }
     }
