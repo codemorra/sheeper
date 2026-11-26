@@ -5,7 +5,12 @@ import java.util.Set;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.world.WaterArenaData;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Resolves dependent combat settings without changing user configuration
@@ -17,6 +22,17 @@ final class WaterCombatSettings {
 
     WaterCombatSettings(WaterSheeperEntity boss) {
         this.boss = boss;
+    }
+
+    /** Checks the candidate against the captured water bounds and nearby terrain. */
+    boolean fitsSpawn(ServerLevel level, Vec3 position) {
+        BlockPos center = new BlockPos(position);
+        var bounds = WaterArenaData.VolumeBounds.capture(level, center, boss.getCombatRadius(),
+                WaterSheeperConfig.WATER_ARENA_DEPTH.get(), WaterSheeperConfig.WATER_ARENA_HEIGHT.get());
+        AABB body = boss.getBoundingBox().move(position.subtract(boss.position()));
+        return !level.isOutsideBuildHeight(center) && bounds.isValidFor(level) && body.minY >= bounds.minimumY()
+                && body.maxY + ArenaWater.BOUNDARY_MARGIN <= bounds.maximumY() + 1
+                && ArenaSpawnPlacement.fitsTerrain(level, boss, body) && hasArenaRoom(bounds);
     }
 
     /**

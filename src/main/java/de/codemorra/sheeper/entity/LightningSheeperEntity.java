@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
@@ -60,6 +61,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private BlockPos arenaCenter;
     @Nullable
     private LightningWeatherPacket.Arena arena;
+    private boolean arenaConfigurationValid = true;
     private final Set<UUID> admittedPlayers = new HashSet<>();
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningAmbientStrikes ambientStrikes = new LightningAmbientStrikes(this);
@@ -101,10 +103,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         entityData.set(DATA_LINE_CHARGE, charge);
     }
 
-    /**
-     * Captures the placed spawn block before movement, including saves before the
-     * first tick.
-     */
+    /** Returns the captured arena center or the provisional spawn block before validation. */
     public BlockPos getArenaCenter() {
         if (arenaCenter == null) {
             arenaCenter = blockPosition().immutable();
@@ -118,14 +117,20 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     /** @return captured storm floor, with the configured depth as a fallback before the first tick */
     public int getArenaMinimumY() {
-        return arena == null ? Math.max(level.getMinBuildHeight(),
-                getArenaCenter().getY() - LightningSheeperConfig.LIGHTNING_ARENA_DEPTH.get()) : arena.minimumY();
+        return arena == null ? arenaFloorAt(getArenaCenter()) : arena.minimumY();
     }
 
     /** @return captured exclusive storm ceiling, clipped to the world's build height */
     public int getArenaMaximumY() {
-        return arena == null ? Math.min(level.getMaxBuildHeight(),
-                getArenaCenter().getY() + LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT.get()) : arena.maximumY();
+        return arena == null ? arenaCeilingAt(getArenaCenter()) : arena.maximumY();
+    }
+
+    private int arenaFloorAt(BlockPos center) {
+        return Math.max(level.getMinBuildHeight(), center.getY() - LightningSheeperConfig.LIGHTNING_ARENA_DEPTH.get());
+    }
+
+    private int arenaCeilingAt(BlockPos center) {
+        return Math.min(level.getMaxBuildHeight(), center.getY() + LightningSheeperConfig.LIGHTNING_ARENA_HEIGHT.get());
     }
 
     /** @return absolute height of the local cloud bank used by arena strikes */
@@ -144,8 +149,16 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
      * radius changes the available movement area.
      */
     public double getMovementRadius() {
+        return Math.max(0, getCombatRadius() - minimumArenaRadius());
+    }
+
+    private double minimumArenaRadius() {
         double bodyMargin = getBbWidth() * Math.sqrt(0.5) + 0.25;
-        return Math.max(0, getCombatRadius() - bodyMargin - LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE.get());
+        return bodyMargin + LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE.get();
+    }
+
+    private boolean hasArenaRoom(double radius, int floor, int ceiling) {
+        return radius > minimumArenaRadius() && ceiling - floor >= getBbHeight();
     }
 
     /** Starts the shared visible lightning form for the caller's travel duration. */
@@ -296,10 +309,16 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         }
         if (level instanceof ServerLevel server && isAlive()) {
             LightningStormData storm = LightningStormData.get(server);
-            arena = storm.startOrResume(server, getUUID(), getArenaCenter(),
-                    getCombatRadius(), getArenaMinimumY(), getArenaMaximumY());
-            entityData.set(DATA_COMBAT_READY,
-                    arena != null && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
+            if (!initializeArena(server, storm)) {
+                return;
+            }
+            boolean valid = hasArenaRoom(arena.radius(), arena.minimumY(), arena.maximumY());
+            if (arenaConfigurationValid && !valid) {
+                SheeperMod.LOGGER.warn("Lightning Sheeper {}: arena at {} no longer fits its size and movement clearance.",
+                        getUUID(), arena.center());
+            }
+            arenaConfigurationValid = valid;
+            entityData.set(DATA_COMBAT_READY, valid && !arena.isDraining() && !arena.isBuilding(server.getGameTime()));
             List<ServerPlayer> participants = getCombatParticipants();
             boolean canMove = isCombatReady() && !isNoAi();
             if (canMove) {
@@ -317,6 +336,49 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             ambientStrikes.tick(server, participants, randomStrikes, specialAttacks.intensifiedStormTicksRemaining());
         }
         super.tick();
+    }
+
+    /** Resumes captured bounds on reload or searches for a legal spawn before opening a new storm. */
+    private boolean initializeArena(ServerLevel level, LightningStormData storm) {
+        if (arena != null) {
+            return true;
+        }
+        arena = storm.getArena(getUUID());
+        if (arena != null) {
+            arenaCenter = arena.center();
+            return true;
+        }
+        double radius = LightningSheeperConfig.LIGHTNING_COMBAT_RADIUS.get();
+        Vec3 placement = ArenaSpawnPlacement.find(level, this, position -> fitsSpawn(level, position, radius));
+        if (placement == null) {
+            SheeperMod.LOGGER.warn(
+                    "Lightning Sheeper {}: spawn rejected at {}. No nearby position fits its scaled body and arena bounds.",
+                    getUUID(), blockPosition());
+            discard();
+            return false;
+        }
+        arenaCenter = new BlockPos(placement);
+        arena = storm.startOrResume(level, getUUID(), arenaCenter, radius, arenaFloorAt(arenaCenter),
+                arenaCeilingAt(arenaCenter));
+        if (arena == null) {
+            SheeperMod.LOGGER.warn("Lightning Sheeper {}: invalid storm bounds at {}.", getUUID(), arenaCenter);
+            discard();
+            return false;
+        }
+        if (!placement.equals(position())) {
+            setPos(placement);
+        }
+        return true;
+    }
+
+    /** Checks the scaled hitbox against the terrain and the prospective storm bounds. */
+    private boolean fitsSpawn(ServerLevel level, Vec3 candidate, double radius) {
+        BlockPos center = new BlockPos(candidate);
+        int floor = arenaFloorAt(center);
+        int ceiling = arenaCeilingAt(center);
+        AABB body = getBoundingBox().move(candidate.subtract(position()));
+        return !level.isOutsideBuildHeight(center) && hasArenaRoom(radius, floor, ceiling)
+                && body.minY >= floor && body.maxY <= ceiling && ArenaSpawnPlacement.fitsTerrain(level, this, body);
     }
 
     /** Checks only the section of the travelling lightning crossed during this tick. */

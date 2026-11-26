@@ -732,7 +732,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         WaterArenaData data = WaterArenaData.get(server);
         WaterArenaData.VolumeBounds existing = data.getVolume(getUUID());
         if (existing == null) {
-            Vec3 placement = WaterSpawnPlacement.find(server, this, combatSettings);
+            Vec3 placement = ArenaSpawnPlacement.find(server, this, position -> combatSettings.fitsSpawn(server, position));
             if (placement == null) {
                 SheeperMod.LOGGER.warn(
                         "Water Sheeper {}: spawn rejected at {}. No nearby position fits its scaled body and arena bounds.",

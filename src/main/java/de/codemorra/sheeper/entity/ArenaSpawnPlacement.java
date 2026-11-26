@@ -1,39 +1,38 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.TreeSet;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
-import de.codemorra.sheeper.config.WaterSheeperConfig;
-import de.codemorra.sheeper.world.ArenaWater;
-import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** Finds a nearby terrain-safe position before a new Water Sheeper opens its arena. */
-final class WaterSpawnPlacement {
+/** Searches nearby terrain before an elemental Sheeper opens a new arena. */
+final class ArenaSpawnPlacement {
     private static final int SEARCH_DISTANCE = 2;
     private static final double EPSILON = 1.0E-7D;
 
-    private WaterSpawnPlacement() {
+    private ArenaSpawnPlacement() {
     }
 
     /**
      * Tries the exact request first, then nearby surfaces ordered by horizontal
      * distance and elevation. Existing arenas do not use this search on reload.
      *
-     * @return a valid position for the scaled body, or null when none is nearby
+     * @param fits checks the candidate against the boss's body and arena rules
+     * @return a valid position, or null when none is nearby
      */
     @Nullable
-    static Vec3 find(ServerLevel level, WaterSheeperEntity boss, WaterCombatSettings settings) {
+    static Vec3 find(ServerLevel level, ElementalSheeperEntity boss, Predicate<Vec3> fits) {
         Vec3 origin = boss.position();
         if (level.isOutsideBuildHeight(new BlockPos(origin))) {
             return null;
         }
-        if (fits(level, boss, settings, origin)) {
+        if (fits.test(origin)) {
             return origin;
         }
         int maxDistanceSquared = SEARCH_DISTANCE * SEARCH_DISTANCE;
@@ -43,7 +42,7 @@ final class WaterSpawnPlacement {
                     if (x * x + z * z != distanceSquared) {
                         continue;
                     }
-                    Vec3 point = onSurface(level, boss, settings, origin.add(x, 0, z));
+                    Vec3 point = onSurface(level, boss, fits, origin.add(x, 0, z));
                     if (point != null) {
                         return point;
                     }
@@ -54,7 +53,7 @@ final class WaterSpawnPlacement {
     }
 
     @Nullable
-    private static Vec3 onSurface(ServerLevel level, WaterSheeperEntity boss, WaterCombatSettings settings,
+    private static Vec3 onSurface(ServerLevel level, ElementalSheeperEntity boss, Predicate<Vec3> fits,
             Vec3 column) {
         AABB footprint = boss.getBoundingBox().move(column.subtract(boss.position())).deflate(EPSILON);
         double top = Math.min(column.y + SEARCH_DISTANCE, level.getMaxBuildHeight());
@@ -74,24 +73,17 @@ final class WaterSpawnPlacement {
         }
         for (double surface : surfaces) {
             Vec3 candidate = new Vec3(column.x, surface, column.z);
-            if (fits(level, boss, settings, candidate)) {
+            if (fits.test(candidate)) {
                 return candidate;
             }
         }
         return null;
     }
 
-    private static boolean fits(ServerLevel level, WaterSheeperEntity boss, WaterCombatSettings settings,
-            Vec3 position) {
-        var bounds = VolumeBounds.capture(level, new BlockPos(position), boss.getCombatRadius(),
-                WaterSheeperConfig.WATER_ARENA_DEPTH.get(), WaterSheeperConfig.WATER_ARENA_HEIGHT.get());
-        AABB body = boss.getBoundingBox().move(position.subtract(boss.position()));
-        return !level.isOutsideBuildHeight(new BlockPos(position))
-                && bounds.isValidFor(level) && body.minY >= bounds.minimumY()
-                && body.maxY + ArenaWater.BOUNDARY_MARGIN <= bounds.maximumY() + 1
-                && areChunksLoaded(level, body) && level.getWorldBorder().isWithinBounds(body)
-                && !level.getBlockCollisions(boss, body.deflate(EPSILON)).iterator().hasNext()
-                && settings.hasArenaRoom(bounds);
+    /** Checks the scaled body without loading missing terrain. */
+    static boolean fitsTerrain(ServerLevel level, ElementalSheeperEntity boss, AABB body) {
+        return areChunksLoaded(level, body) && level.getWorldBorder().isWithinBounds(body)
+                && !level.getBlockCollisions(boss, body.deflate(EPSILON)).iterator().hasNext();
     }
 
     /** Rejects candidates whose scaled body or supporting terrain would need unloaded chunks. */
