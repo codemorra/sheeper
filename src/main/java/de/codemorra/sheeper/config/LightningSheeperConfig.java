@@ -646,7 +646,7 @@ public final class LightningSheeperConfig {
             .defineInRange("fan.trackingResponseSeconds", 0.4, 0.05, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DAMAGE = BUILDER
-            .comment("Damage in health points at first contact with the ground impacts and at most once per second.")
+            .comment("Damage in health points on contact with a bolt or its ground impact, at most once per second.")
             .defineInRange("fan.damagePerSecond", 6.0, 0.0, 24.0);
 
     /** Lightning rod special attack (lightningRod). */
