@@ -93,7 +93,12 @@ final class LightningRingBarrage {
     }
 
     boolean isActive() {
-        return remaining > 0 || !waves.isEmpty();
+        return isLaunching() || !waves.isEmpty();
+    }
+
+    /** @return whether the boss still has a wave to release */
+    boolean isLaunching() {
+        return remaining > 0;
     }
 
     void tick(ServerLevel level, List<ServerPlayer> players) {

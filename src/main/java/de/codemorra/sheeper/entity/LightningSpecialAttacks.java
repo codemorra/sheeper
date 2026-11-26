@@ -45,7 +45,7 @@ final class LightningSpecialAttacks {
 
     /** @return whether a special attack is controlling the boss's position */
     boolean blocksNormalMovement() {
-        return line.isFiring() || ring.isActive() || tornado.isLaunching() || fan.isActive() || rod.isActive();
+        return line.isFiring() || ring.isLaunching() || tornado.isLaunching() || fan.isActive() || rod.isActive();
     }
 
     boolean isRodHovering() {
@@ -124,17 +124,17 @@ final class LightningSpecialAttacks {
             line.tick(level, players);
             if (wasFiring) {
                 if (!line.isFiring()) {
-                    // Recovery starts after the last launch while the rows keep travelling to the edge.
-                    ServerPlayer focus = boss.getMovementFocus(players);
-                    if (focus != null) {
-                        teleports.prepareCombatJump(focus);
-                    }
+                    resumeCombatMovement(players);
                 }
                 return;
             }
         }
         if (ring.isActive()) {
+            boolean wasLaunching = ring.isLaunching();
             ring.tick(level, players);
+            if (wasLaunching && !ring.isLaunching()) {
+                resumeCombatMovement(players);
+            }
             return;
         }
         if (tornado.isActive()) {
@@ -203,6 +203,14 @@ final class LightningSpecialAttacks {
                     rodCooldown = rodCooldownTicks();
                 }
             }
+        }
+    }
+
+    /** Prepares a normal jump immediately while already released effects continue independently. */
+    private void resumeCombatMovement(List<ServerPlayer> players) {
+        ServerPlayer focus = boss.getMovementFocus(players);
+        if (focus != null) {
+            teleports.prepareCombatJump(focus);
         }
     }
 
