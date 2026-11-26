@@ -50,7 +50,7 @@ final class LightningWindLines {
             clear();
             return;
         }
-        lines.keySet().removeIf(arena -> fields.stream().noneMatch(field -> field.arena().equals(arena)));
+        lines.keySet().removeIf(arena -> fields.stream().noneMatch(field -> lineKey(field.arena()).equals(arena)));
         long now = level.getGameTime();
         frontLines.keySet().removeIf(arena -> !arena.isBuilding(now) || !arenas.contains(arena));
         for (Arena arena : arenas) {
@@ -60,13 +60,13 @@ final class LightningWindLines {
         }
         for (LightningWindField field : fields) {
             Arena arena = field.arena();
-            List<Line> current = lines.computeIfAbsent(arena, key -> new ArrayList<>());
-            Vec3 travel = field.travelBetween(now - 1, now).scale(lineSpeed(field));
+            List<Line> current = lines.computeIfAbsent(lineKey(arena), key -> new ArrayList<>());
+            Vec3 travel = field.travelBetween(now - 1, now).scale(lineSpeed(field, now));
             current.replaceAll(line -> line.move(travel));
             current.removeIf(line -> now - line.bornAt() >= line.lifetime()
                     || line.position().distanceToSqr(camera) >= (VIEW_DISTANCE + 8) * (VIEW_DISTANCE + 8)
                     || intensity(arena, now, line.position()) <= 0);
-            int births = birthsPerTick(level, arena, density);
+            int births = birthsPerTick(level, arena, density * arena.opacityAt(now));
             for (int index = 0; index < births; index++) {
                 spawn(level, arena, camera, now, current);
             }
@@ -268,8 +268,8 @@ final class LightningWindLines {
     void draw(BufferBuilder buffer, ClientLevel level, LightningWindField field, Vec3 camera, double time) {
         Arena arena = field.arena();
         Vec3 direction = field.directionAt(time);
-        Vec3 travel = field.travelBetween(level.getGameTime(), time).scale(lineSpeed(field));
-        for (Line line : lines.getOrDefault(arena, List.of())) {
+        Vec3 travel = field.travelBetween(level.getGameTime(), time).scale(lineSpeed(field, time));
+        for (Line line : lines.getOrDefault(lineKey(arena), List.of())) {
             Vec3 center = line.position().add(travel);
             if (center.distanceToSqr(camera) > VIEW_DISTANCE * VIEW_DISTANCE) {
                 continue;
@@ -283,8 +283,13 @@ final class LightningWindLines {
         }
     }
 
-    private static double lineSpeed(LightningWindField field) {
-        return SPEED * Math.sqrt(field.strength());
+    /** Keeps existing ribbons across the snapshot change that starts the retreat. */
+    private static Arena lineKey(Arena arena) {
+        return arena.isDraining() ? arena.beginDrain(0, 0) : arena;
+    }
+
+    private static double lineSpeed(LightningWindField field, double time) {
+        return SPEED * Math.sqrt(field.strength()) * field.arena().opacityAt(time);
     }
 
     private static void drawLine(BufferBuilder buffer, ClientLevel level, Arena arena, Vec3 camera, double time,

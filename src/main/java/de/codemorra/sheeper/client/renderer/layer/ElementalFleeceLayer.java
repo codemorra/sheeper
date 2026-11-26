@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer.layer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
+import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.util.ResourceLocations;
 import net.minecraft.client.Minecraft;
@@ -43,6 +44,9 @@ public class ElementalFleeceLayer extends SheepFurLayer {
     public void render(PoseStack poses, MultiBufferSource buffers, int light, Sheep sheep,
             float limbSwing, float limbSwingAmount, float partialTick, float age, float yaw, float pitch) {
         float opacity = sheep instanceof WaterSheeperEntity water ? water.getBubbleBodyOpacity(partialTick) : 1;
+        if (sheep instanceof LightningSheeperEntity lightning) {
+            opacity = lightning.getDeathBodyOpacity(partialTick);
+        }
         MultiBufferSource baseFleece = opacity < 1 && !sheep.isInvisible() ? fadingFleece(buffers, opacity) : buffers;
         // The translucent surfaces need the dyed fleece underneath.
         super.render(poses, baseFleece, light, sheep, limbSwing, limbSwingAmount, partialTick, age, yaw, pitch);
@@ -68,7 +72,8 @@ public class ElementalFleeceLayer extends SheepFurLayer {
                                 age * 0.003F % 1.0F, age * 0.0016F % 1.0F)),
                         surfaceOffset);
                 fleece.renderToBuffer(poses, sparks, LightTexture.FULL_BRIGHT,
-                        OverlayTexture.NO_OVERLAY, pulse * 0.7F, pulse * 0.85F, pulse, 1.0F);
+                        OverlayTexture.NO_OVERLAY, pulse * 0.7F * opacity, pulse * 0.85F * opacity,
+                        pulse * opacity, opacity);
             }
             case WATER -> {
                 float shimmer = 0.58F + 0.08F * Mth.sin(age * 0.08F);

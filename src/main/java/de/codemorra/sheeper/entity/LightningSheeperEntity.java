@@ -17,6 +17,7 @@ import de.codemorra.sheeper.world.LightningArenaWind;
 import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -25,6 +26,8 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -38,6 +41,9 @@ import net.minecraft.world.phys.Vec3;
 /** Lightning encounter with a persistent arena origin and protected startup. */
 public class LightningSheeperEntity extends ElementalSheeperEntity {
     static final int ARC_TRAVEL_TICKS = 6;
+    private static final int DEATH_ANIMATION_TICKS = 60;
+    private static final EntityDataAccessor<Integer> DATA_DEATH_TICKS = SynchedEntityData
+            .defineId(LightningSheeperEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_COMBAT_READY = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<CompoundTag> DATA_TRAVEL_ARC = SynchedEntityData
@@ -73,6 +79,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_REGENERATION::get);
     private int encounterEntryTicks = -1;
     private float previousLineCharge;
+    private long deathStartedAt = -1;
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -87,6 +94,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+        entityData.define(DATA_DEATH_TICKS, 0);
         entityData.define(DATA_LINE_CHARGE, 0.0F);
         entityData.define(DATA_TRAVEL_ARC, new CompoundTag());
     }
@@ -516,11 +524,17 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         tag.put("LightningArenaCombat", combat);
         tag.put("LightningAmbientStrikes", ambientStrikes.save());
         tag.put("LightningSpecialAttacks", specialAttacks.save());
+        if (deathStartedAt >= 0) {
+            tag.putLong("LightningDeathStartedAt", deathStartedAt);
+        }
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        entityData.set(DATA_DEATH_TICKS, Mth.clamp(deathTime, 0, DEATH_ANIMATION_TICKS));
+        deathStartedAt = tag.contains("LightningDeathStartedAt", Tag.TAG_LONG)
+                ? tag.getLong("LightningDeathStartedAt") : -1;
         boolean sameDimension = tag.getString("LightningArenaDimension")
                 .equals(level.dimension().location().toString());
         arenaCenter = sameDimension && tag.contains("LightningArenaCenter", Tag.TAG_LONG)
@@ -539,10 +553,76 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void die(DamageSource source) {
+        boolean wasDead = dead;
         super.die(source);
-        if (dead && level instanceof ServerLevel server) {
-            LightningStormData.get(server).beginDrain(server, getUUID());
+        if (!wasDead && dead && level instanceof ServerLevel server) {
+            resetArenaEncounter();
+            clearTravelArc();
+            setLineCharge(0);
+            entityData.set(DATA_COMBAT_READY, false);
+            setDeltaMovement(Vec3.ZERO);
+            setNoGravity(true);
+            deathStartedAt = server.getGameTime();
+            LightningStormData.get(server).beginDeath(server, getUUID(), DEATH_ANIMATION_TICKS);
         }
+    }
+
+    /** Holds the body in place through the strikes and removes it after the sparks fade. */
+    @Override
+    protected void tickDeath() {
+        setDeltaMovement(Vec3.ZERO);
+        setNoGravity(true);
+        if (level instanceof ServerLevel server) {
+            if (deathStartedAt < 0) {
+                deathStartedAt = server.getGameTime() - deathTime;
+            }
+            // World time also advances the animation when the entity's chunk is unloaded.
+            int elapsed = (int) Mth.clamp(server.getGameTime() - deathStartedAt, 0, DEATH_ANIMATION_TICKS);
+            int previous = deathTime;
+            deathTime = Math.max(deathTime, Math.max(1, elapsed));
+            entityData.set(DATA_DEATH_TICKS, deathTime);
+            if (deathTime != previous && !isInvisible()
+                    && (deathTime == 1 || deathTime == 15 || deathTime == 28 || deathTime == 42)) {
+                showDeathStrike(server);
+            }
+            if (deathTime >= DEATH_ANIMATION_TICKS) {
+                remove(RemovalReason.KILLED);
+            }
+        } else {
+            deathTime = Math.min(DEATH_ANIMATION_TICKS, Math.max(deathTime + 1, entityData.get(DATA_DEATH_TICKS)));
+        }
+    }
+
+    private void showDeathStrike(ServerLevel server) {
+        Vec3 feet = position();
+        LightningStrikeEffect.spawnVisualBolt(server, feet, Math.max(feet.y + 6, getStormCloudY(feet)));
+        double y = feet.y + getBbHeight() * 0.5;
+        server.sendParticles(deathTime == 42 ? ParticleTypes.EXPLOSION_EMITTER : ParticleTypes.EXPLOSION,
+                feet.x, y, feet.z, 1, 0, 0, 0, 0);
+        server.sendParticles(ParticleTypes.ELECTRIC_SPARK, feet.x, y, feet.z, 30,
+                getBbWidth() * 0.35, getBbHeight() * 0.35, getBbWidth() * 0.35, 0.16);
+        server.playSound(null, feet.x, y, feet.z, SoundEvents.LIGHTNING_BOLT_THUNDER,
+                SoundSource.HOSTILE, 0.9F, 0.9F + random.nextFloat() * 0.25F);
+        server.playSound(null, feet.x, y, feet.z, SoundEvents.GENERIC_EXPLODE,
+                SoundSource.HOSTILE, 0.8F, 0.9F + random.nextFloat() * 0.25F);
+    }
+
+    /** Fades the model into electricity during the final strike. */
+    public float getDeathBodyOpacity(float partialTick) {
+        return isDeadOrDying() ? 1 - Mth.clamp((deathAnimationAge(partialTick) - 34) / 11, 0, 1) : 1;
+    }
+
+    /** Makes the electric silhouette peak as the body disappears, then fade by removal. */
+    public float getDeathSparkOpacity(float partialTick) {
+        if (!isDeadOrDying()) {
+            return 0;
+        }
+        float age = deathAnimationAge(partialTick);
+        return Mth.clamp(Math.min((age - 30) / 15, (DEATH_ANIMATION_TICKS - age) / 15), 0, 1);
+    }
+
+    private float deathAnimationAge(float partialTick) {
+        return Math.max(deathTime, entityData.get(DATA_DEATH_TICKS)) + partialTick;
     }
 
     @Override

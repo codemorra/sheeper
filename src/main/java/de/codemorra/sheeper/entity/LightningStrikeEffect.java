@@ -84,11 +84,16 @@ public final class LightningStrikeEffect extends LightningBolt {
     }
 
     private static void spawnStrike(ServerLevel level, UUID owner, Vec3 pos, double cloudY) {
+        spawnVisualBolt(level, pos, cloudY);
+        LightningStormData.get(level).igniteCloudStrike(level, owner, pos, cloudY);
+    }
+
+    /** Sends a bolt for presentation without invoking the arena's ignition logic. */
+    static void spawnVisualBolt(ServerLevel level, Vec3 pos, double cloudY) {
         LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
         effect.setPos(pos);
         effect.entityData.set(DATA_HEIGHT, (float) Math.max(0.15, cloudY - pos.y));
         level.addFreshEntity(effect);
-        LightningStormData.get(level).igniteCloudStrike(level, owner, pos, cloudY);
     }
 
     @Override

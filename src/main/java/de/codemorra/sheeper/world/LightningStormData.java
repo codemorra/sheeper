@@ -36,6 +36,7 @@ public final class LightningStormData extends SavedData {
         private LightningWeatherPacket.Arena arena;
         private long nextFlash;
         private long nextRumble;
+        private long deathDrainAt;
         private final LightningArenaWind wind = new LightningArenaWind();
         private final LightningSpawnPush spawnPush = new LightningSpawnPush();
         private final LightningLeafFire leafFire = new LightningLeafFire();
@@ -58,6 +59,17 @@ public final class LightningStormData extends SavedData {
     public LightningWeatherPacket.Arena getArena(UUID owner) {
         Storm storm = storms.get(owner);
         return storm == null ? null : storm.arena;
+    }
+
+    /** Stops combat hazards and keeps the storm in place until the death effect finishes. */
+    public void beginDeath(ServerLevel level, UUID id, int duration) {
+        Storm storm = storms.get(id);
+        if (storm == null || storm.arena.isDraining() || storm.deathDrainAt != 0) {
+            return;
+        }
+        storm.deathDrainAt = level.getGameTime() + duration;
+        stopHazards(level, id, storm);
+        setDirty();
     }
 
     /**
@@ -95,12 +107,16 @@ public final class LightningStormData extends SavedData {
         }
         int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ARENA_DRAIN_DURATION.get());
         storm.arena = storm.arena.beginDrain(level.getGameTime(), duration);
-        storm.leafFire.clear();
-        storm.spawnPush.clear(level, Set.of());
-        storm.wind.clear();
-        updateTornados(level, id, List.of());
+        storm.deathDrainAt = 0;
+        stopHazards(level, id, storm);
         setDirty();
         sync(level);
+    }
+
+    private void stopHazards(ServerLevel level, UUID id, Storm storm) {
+        storm.leafFire.clear();
+        storm.spawnPush.clear(level, Set.of());
+        updateTornados(level, id, List.of());
     }
 
     public boolean hasStorms() {
@@ -110,7 +126,8 @@ public final class LightningStormData extends SavedData {
     /** Sets a directly struck leaf alight in the attack owner's arena. */
     public void igniteLeaves(ServerLevel level, UUID owner, BlockPos pos) {
         Storm storm = storms.get(owner);
-        if (storm != null && !storm.arena.isDraining() && storm.leafFire.ignite(level, storm.arena, pos)) {
+        if (storm != null && storm.deathDrainAt == 0 && !storm.arena.isDraining()
+                && storm.leafFire.ignite(level, storm.arena, pos)) {
             setDirty();
         }
     }
@@ -118,7 +135,8 @@ public final class LightningStormData extends SavedData {
     /** Checks the visible cloud-to-impact path for leaves in an active arena. */
     public void igniteCloudStrike(ServerLevel level, UUID owner, Vec3 impact, double cloudY) {
         Storm storm = storms.get(owner);
-        if (storm != null && !storm.arena.isDraining() && storm.leafFire.strike(level, storm.arena, impact, cloudY)) {
+        if (storm != null && storm.deathDrainAt == 0 && !storm.arena.isDraining()
+                && storm.leafFire.strike(level, storm.arena, impact, cloudY)) {
             setDirty();
         }
     }
@@ -145,15 +163,18 @@ public final class LightningStormData extends SavedData {
         Set<UUID> playersTouchingFire = new HashSet<>();
         for (var entry : storms.entrySet()) {
             Storm storm = entry.getValue();
-            if (!storm.arena.isDraining()) {
-                changed |= storm.leafFire.tick(level, storm.arena, playersTouchingFire);
+            if (storm.deathDrainAt != 0 && now >= storm.deathDrainAt) {
+                // Finish even if the dying entity's chunk was unloaded during the sequence.
+                beginDrain(level, entry.getKey());
             }
+            if (storm.deathDrainAt != 0 || storm.arena.isDraining()) {
+                continue;
+            }
+            changed |= storm.leafFire.tick(level, storm.arena, playersTouchingFire);
             changed |= enabled ? storm.spawnPush.tick(level, storm.arena, carriedPlayers)
                     : storm.spawnPush.clear(level, carriedPlayers);
             if (enabled) {
-                if (!storm.arena.isDraining()) {
-                    tickAtmosphere(level, entry.getKey(), storm, now);
-                }
+                tickAtmosphere(level, entry.getKey(), storm, now);
                 if (!(level.getEntity(entry.getKey()) instanceof LightningSheeperEntity) && storm.wind.clear()) {
                     windCleared = true;
                 }
@@ -295,6 +316,7 @@ public final class LightningStormData extends SavedData {
                     entry.getLong("DrainStart"), Mth.clamp(entry.getInt("DrainDuration"), 0, 600));
             if (entry.hasUUID("Boss") && arena.isValid()) {
                 var storm = new Storm(arena);
+                storm.deathDrainAt = arena.isDraining() ? 0 : entry.getLong("DeathDrainAt");
                 storm.spawnPush.load(entry.getCompound("SpawnPush"));
                 storm.leafFire.load(entry.getList("LeafFire", Tag.TAG_COMPOUND), arena);
                 data.storms.put(entry.getUUID("Boss"), storm);
@@ -317,6 +339,7 @@ public final class LightningStormData extends SavedData {
             entry.putInt("Transition", storm.arena.transition());
             entry.putLong("DrainStart", storm.arena.drainStart());
             entry.putInt("DrainDuration", storm.arena.drainDuration());
+            entry.putLong("DeathDrainAt", storm.deathDrainAt);
             entry.put("SpawnPush", storm.spawnPush.save());
             entry.put("LeafFire", storm.leafFire.save());
             entries.add(entry);
