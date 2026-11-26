@@ -175,7 +175,8 @@ public final class LightningSheeperConfig {
             .defineInRange("teleport.warningSeconds", 0.75, 0.0, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_PLAYER_DISTANCE = BUILDER
-            .comment("Minimum distance in blocks from the teleport destination to a living, non-spectator player.")
+            .comment("Minimum distance in blocks from a normal teleport destination to a living, non-spectator player.",
+                    "A recovery jump can land closer if no safe destination meets this distance.")
             .defineInRange("teleport.playerDistance", 4.0, 0.0, 32.0);
 
     /** Random arena strikes during combat (ambientLightning). */

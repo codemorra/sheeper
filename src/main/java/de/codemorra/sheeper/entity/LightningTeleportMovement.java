@@ -17,6 +17,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.phys.AABB;
@@ -28,11 +30,16 @@ import net.minecraft.world.phys.Vec3;
 final class LightningTeleportMovement {
     private static final double WALK_SPEED = 0.13;
     private static final double MAX_WALK_DISTANCE = 1.6;
+    private static final int FAILED_JUMPS_BEFORE_RECOVERY = 2;
+    private static final int FAILED_JUMP_RETRY_TICKS = 20;
+    private static final int RECOVERY_RETRY_TICKS = 40;
 
     private final LightningSheeperEntity boss;
     private int cooldown = -1;
     private int warningRemaining;
     private int arcTicks;
+    private int failedJumps;
+    private boolean recoveringJump;
     private double walkRemaining;
     private boolean walking;
     private boolean idle;
@@ -41,12 +48,20 @@ final class LightningTeleportMovement {
     @Nullable
     private Vec3 destination;
 
+    private record Landing(Vec3 position, boolean exposed) {
+    }
+
     LightningTeleportMovement(LightningSheeperEntity boss) {
         this.boss = boss;
     }
 
     boolean isPreparing() {
         return destination != null;
+    }
+
+    /** Gives the next recovery search a turn before another special attack can start. */
+    boolean isRecoveryDue() {
+        return failedJumps >= FAILED_JUMPS_BEFORE_RECOVERY && cooldown <= 1;
     }
 
     /** @return whether this tick's vanilla movement may include a short walk before teleporting */
@@ -81,18 +96,19 @@ final class LightningTeleportMovement {
             }
         }
         if (arcTicks > 0) {
-            if (destination == null || !isSafe(destination)) {
-                finish();
+            if (destination == null || !isSafePlannedLanding(destination)) {
+                failJump();
             } else if (--arcTicks == 0) {
                 teleportTo(destination);
+                failedJumps = 0;
                 finish();
                 return true;
             }
             return false;
         }
         if (destination != null) {
-            if (!isSafe(destination)) {
-                finish();
+            if (!isSafePlannedLanding(destination)) {
+                failJump();
                 return false;
             }
             faceDestination(destination);
@@ -130,14 +146,18 @@ final class LightningTeleportMovement {
     }
 
     private boolean prepareJump(@Nullable ServerPlayer focus) {
-        destination = findDestination(focus);
+        recoveringJump = failedJumps >= FAILED_JUMPS_BEFORE_RECOVERY;
+        ServerLevel level = (ServerLevel) boss.level;
+        destination = recoveringJump ? findRecoveryDestination(level)
+                : focus == null ? findIdleDestination(level, Double.POSITIVE_INFINITY)
+                        : findCombatDestination(level, focus);
         if (destination == null) {
-            finish();
+            failJump();
             return false;
         }
         faceDestination(destination);
         warningRemaining = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TELEPORT_WARNING.get());
-        walkRemaining = 1 + boss.getRandom().nextDouble() * (MAX_WALK_DISTANCE - 1);
+        walkRemaining = recoveringJump ? 0 : 1 + boss.getRandom().nextDouble() * (MAX_WALK_DISTANCE - 1);
         if (warningRemaining == 0) {
             beginArc();
         } else {
@@ -162,20 +182,15 @@ final class LightningTeleportMovement {
         return minimum + boss.getRandom().nextInt(maximum - minimum + 1);
     }
 
-    @Nullable
-    private Vec3 findDestination(@Nullable ServerPlayer focus) {
-        ServerLevel level = (ServerLevel) boss.level;
-        return focus == null ? findIdleDestination(level) : findCombatDestination(level, focus);
-    }
-
     /** Longer idle jumps still originate around the boss, with shorter steps as a terrain fallback. */
     @Nullable
-    private Vec3 findIdleDestination(ServerLevel level) {
+    private Vec3 findIdleDestination(ServerLevel level, double highestLanding) {
         Vec3 origin = boss.position();
         double movementRadius = boss.getMovementRadius();
         double jumpDistance = Math.min(movementRadius, Math.max(8, movementRadius * 0.45));
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         double interiorRadius = movementRadius * 0.85;
+        Vec3 covered = null;
         for (int attempt = 0; attempt < 24; attempt++) {
             double angle = boss.getRandom().nextDouble() * Math.PI * 2.0D;
             double distance = jumpDistance * (attempt < 12
@@ -185,12 +200,17 @@ final class LightningTeleportMovement {
             if (attempt < 16 && point.subtract(center).horizontalDistanceSqr() > interiorRadius * interiorRadius) {
                 continue;
             }
-            Vec3 destination = safeDestination(level, point);
-            if (destination != null) {
-                return destination;
+            Landing candidate = findLanding(level, point, true, highestLanding);
+            if (candidate != null) {
+                if (candidate.exposed() || !canPreferSky(level)) {
+                    return candidate.position();
+                }
+                if (covered == null) {
+                    covered = candidate.position();
+                }
             }
         }
-        return null;
+        return covered;
     }
 
     /** Approaches a distant player first, then searches for lateral jumps at the desired spacing. */
@@ -206,43 +226,136 @@ final class LightningTeleportMovement {
         if (!approaching) {
             angle += boss.getRandom().nextBoolean() ? Math.PI / 3 : -Math.PI / 3;
         }
+        Vec3 covered = null;
         // Keep a blocked search close to the player. Search both sides before varying distance.
         for (double distance : new double[] { preferred, preferred * 0.75, preferred * 1.25 }) {
             for (int attempt = 0; attempt < 12; attempt++) {
                 int turn = (attempt + 1) / 2 * (attempt % 2 == 0 ? -1 : 1);
                 double bearing = angle + turn * Math.PI / 6;
                 Vec3 point = anchor.add(Math.cos(bearing) * distance, 0, Math.sin(bearing) * distance);
-                Vec3 destination = safeDestination(level, point);
-                if (destination != null && (!approaching
-                        || destination.subtract(anchor).horizontalDistance() < currentDistance - 0.5)) {
-                    return destination;
+                Landing candidate = findLanding(level, point, true, Double.POSITIVE_INFINITY);
+                if (candidate != null && (!approaching
+                        || candidate.position().subtract(anchor).horizontalDistance() < currentDistance - 0.5)) {
+                    if (candidate.exposed() || !canPreferSky(level)) {
+                        return candidate.position();
+                    }
+                    if (covered == null) {
+                        covered = candidate.position();
+                    }
                 }
             }
         }
-        return null;
+        return covered;
     }
 
+    /** Checks the exposed surface first, then a floor around the ordinary search height. */
     @Nullable
-    private Vec3 safeDestination(ServerLevel level, Vec3 point) {
-        Vec3 destination = safeTerrainDestination(level, point);
-        return destination != null && hasPlayerClearance(level, destination) ? destination : null;
-    }
-
-    @Nullable
-    private Vec3 safeTerrainDestination(ServerLevel level, Vec3 point) {
+    private Landing findLanding(ServerLevel level, Vec3 point, boolean requirePlayerClearance, double highestLanding) {
         int x = Mth.floor(point.x);
         int z = Mth.floor(point.z);
         if (!boss.isWithinMovementArea(x + 0.5, z + 0.5)
                 || !isLoaded(level, new AABB(x - 1, 0, z - 1, x + 2, 1, z + 2))) {
             return null;
         }
-        Double surface = boss.findArenaSurface(level, x, z, Mth.ceil(point.y));
+        if (canPreferSky(level)) {
+            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+            if (surfaceY >= boss.getArenaMinimumY() && surfaceY < boss.getArenaMaximumY()
+                    && surfaceY - 1 <= highestLanding) {
+                Vec3 exposed = landingNear(level, x, z, surfaceY, requirePlayerClearance, highestLanding);
+                if (exposed != null && Mth.ceil(exposed.y) >= surfaceY
+                        && level.canSeeSky(new BlockPos(x, Mth.ceil(exposed.y), z))) {
+                    return new Landing(exposed, true);
+                }
+            }
+        }
+        int referenceY = Mth.ceil(point.y);
+        if (highestLanding < referenceY) {
+            referenceY = Mth.floor(highestLanding);
+        }
+        Vec3 covered = landingNear(level, x, z, referenceY, requirePlayerClearance, highestLanding);
+        return covered == null ? null : new Landing(covered, false);
+    }
+
+    @Nullable
+    private Vec3 landingNear(ServerLevel level, int x, int z, int referenceY, boolean requirePlayerClearance,
+            double highestLanding) {
+        Double surface = boss.findArenaSurface(level, x, z, referenceY);
         if (surface == null) {
             return null;
         }
         Vec3 destination = new Vec3(x + 0.5, surface, z + 0.5);
-        return destination.subtract(boss.position()).horizontalDistanceSqr() >= 1 && hasSafeLanding(level, destination)
+        return destination.y <= highestLanding && destination.distanceToSqr(boss.position()) >= 1
+                && (!requirePlayerClearance || hasPlayerClearance(level, destination))
+                && hasSafeLanding(level, destination)
                 ? destination : null;
+    }
+
+    /** Widens a failed local search to the whole arena without bypassing collision or chunk checks. */
+    @Nullable
+    private Vec3 findRecoveryDestination(ServerLevel level) {
+        Vec3 origin = boss.position();
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double radius = boss.getMovementRadius();
+        double heading = boss.getRandom().nextDouble() * Math.PI * 2;
+        Vec3 best = null;
+        int bestPriority = Integer.MAX_VALUE;
+        for (int attempt = 0; attempt < 57; attempt++) {
+            Vec3 point = center;
+            if (attempt > 0 && attempt <= 24) {
+                // Sample three rings around the boss to catch narrow landings near the obstruction.
+                double angle = heading + (attempt - 1) % 8 * Math.PI / 4;
+                double distance = 2 << ((attempt - 1) / 8);
+                point = origin.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+            } else if (attempt > 24) {
+                double angle = boss.getRandom().nextDouble() * Math.PI * 2;
+                double distance = Math.sqrt(boss.getRandom().nextDouble()) * radius;
+                // Try other floors too when nearly all of the arena lies underground.
+                double y = attempt % 3 == 0 ? Mth.nextInt(boss.getRandom(), boss.getArenaMinimumY(),
+                        boss.getArenaMaximumY() - 1) : origin.y;
+                point = new Vec3(center.x + Math.cos(angle) * distance, y, center.z + Math.sin(angle) * distance);
+            }
+            Landing candidate = findLanding(level, point, true, Double.POSITIVE_INFINITY);
+            boolean hasClearance = candidate != null && isRecoverySpaceEmpty(level, candidate.position());
+            if (!hasClearance) {
+                if (bestPriority < 2) {
+                    continue;
+                }
+                candidate = findLanding(level, point, false, Double.POSITIVE_INFINITY);
+                if (candidate == null || !isRecoverySpaceEmpty(level, candidate.position())) {
+                    continue;
+                }
+            }
+            int priority = landingPriority(hasClearance, candidate);
+            if (priority < bestPriority) {
+                best = candidate.position();
+                bestPriority = priority;
+                if (priority == 0 || priority == 1 && !canPreferSky(level)) {
+                    break;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static int landingPriority(boolean hasClearance, Landing landing) {
+        return (hasClearance ? 0 : 2) + (landing.exposed() ? 0 : 1);
+    }
+
+    private static boolean canPreferSky(ServerLevel level) {
+        return level.dimensionType().hasSkyLight() && !level.dimensionType().hasCeiling();
+    }
+
+    /** Recovery can use a tighter gap to players while still requiring a safe, empty landing. */
+    private boolean isSafePlannedLanding(Vec3 target) {
+        ServerLevel level = (ServerLevel) boss.level;
+        return recoveringJump ? hasSafeLanding(level, target) && isRecoverySpaceEmpty(level, target) : isSafe(target);
+    }
+
+    /** Vanilla block and entity collision checks do not exclude most living hitboxes. */
+    private boolean isRecoverySpaceEmpty(ServerLevel level, Vec3 target) {
+        AABB bounds = boss.getBoundingBox().move(target.subtract(boss.position()));
+        return level.getEntitiesOfClass(LivingEntity.class, bounds,
+                entity -> entity != boss && entity.isAlive() && !entity.isSpectator()).isEmpty();
     }
 
     private boolean isSafe(Vec3 target) {
@@ -274,7 +387,7 @@ final class LightningTeleportMovement {
         return findPreferredAttackDestination(players, preferredDistance, boss.getMovementRadius());
     }
 
-    /** Ranks safe destinations inside the specified radius by their distance from the nearest player. */
+    /** Prefers the requested spacing and an exposed landing within the attack's allowed radius. */
     @Nullable
     Vec3 findPreferredAttackDestination(List<ServerPlayer> players, double preferredDistance, double centerRadius) {
         ServerLevel level = (ServerLevel) boss.level;
@@ -282,11 +395,12 @@ final class LightningTeleportMovement {
         double radius = Math.min(centerRadius, boss.getMovementRadius());
         boolean limitedToCenter = radius < boss.getMovementRadius();
         Vec3 destination = null;
+        int bestPriority = Integer.MAX_VALUE;
         double bestScore = Double.POSITIVE_INFINITY;
         for (int attempt = 0; attempt < 48; attempt++) {
             Vec3 anchor;
             double distance;
-            if (attempt < 24) {
+            if (attempt < 24 && !players.isEmpty()) {
                 anchor = players.get(boss.getRandom().nextInt(players.size())).position();
                 distance = preferredDistance + boss.getRandom().nextDouble() * 2;
             } else if (attempt < 36 && !limitedToCenter) {
@@ -304,19 +418,20 @@ final class LightningTeleportMovement {
             if (dx * dx + dz * dz > radius * radius) {
                 continue;
             }
-            Vec3 candidate = safeTerrainDestination(level, point);
-            if (candidate == null) {
+            Landing landing = findLanding(level, point, false, Double.POSITIVE_INFINITY);
+            if (landing == null) {
                 continue;
             }
+            Vec3 candidate = landing.position();
             double nearest = players.stream().mapToDouble(player -> player.position().subtract(candidate)
                     .horizontalDistance()).min().orElse(preferredDistance);
-            // Prefer points that meet the spacing, then pick the closest match on either side of it.
-            double score = Math.abs(nearest - preferredDistance)
-                    + (nearest < preferredDistance ? boss.getCombatRadius() * 2 : 0);
-            if (score < bestScore) {
+            int priority = landingPriority(nearest >= preferredDistance, landing);
+            double score = Math.abs(nearest - preferredDistance);
+            if (priority < bestPriority || priority == bestPriority && score < bestScore) {
+                bestPriority = priority;
                 bestScore = score;
                 destination = candidate;
-                if (score <= 0.5) {
+                if (score <= 0.5 && (priority == 0 || priority == 1 && !canPreferSky(level))) {
                     break;
                 }
             }
@@ -372,8 +487,7 @@ final class LightningTeleportMovement {
         if (departure != null && departure.y < origin.y && hasSafeLanding(level, departure)) {
             return departure;
         }
-        Vec3 alternate = findIdleDestination(level);
-        return alternate != null && alternate.y < origin.y ? alternate : null;
+        return findIdleDestination(level, Math.nextDown(origin.y));
     }
 
     /** Checks the full scaled body against arena bounds, loaded terrain, and hazards. */
@@ -483,17 +597,23 @@ final class LightningTeleportMovement {
             return null;
         }
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter()).add(0, boss.getY() - boss.getArenaCenter().getY(), 0);
+        Vec3 covered = null;
         // Sample the whole allowed area independently of the current target or position.
         for (int attempt = 0; attempt < 36; attempt++) {
             double angle = boss.getRandom().nextDouble() * 2 * Math.PI;
             double distance = Math.sqrt(boss.getRandom().nextDouble()) * radius;
             Vec3 point = center.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
-            Vec3 target = safeDestination(level, point);
-            if (target != null) {
-                return target;
+            Landing candidate = findLanding(level, point, true, Double.POSITIVE_INFINITY);
+            if (candidate != null) {
+                if (candidate.exposed() || !canPreferSky(level)) {
+                    return candidate.position();
+                }
+                if (covered == null) {
+                    covered = candidate.position();
+                }
             }
         }
-        return null;
+        return covered;
     }
 
     /** Gives distant jumps a longer visible path without prolonging short jumps unnecessarily. */
@@ -581,10 +701,18 @@ final class LightningTeleportMovement {
         cooldown = nextInterval();
     }
 
+    /** Counts only failed searches or invalidated landings, including a blocked recovery. */
+    private void failJump() {
+        clearDestination();
+        failedJumps = Math.min(failedJumps + 1, FAILED_JUMPS_BEFORE_RECOVERY);
+        cooldown = failedJumps == FAILED_JUMPS_BEFORE_RECOVERY ? RECOVERY_RETRY_TICKS : FAILED_JUMP_RETRY_TICKS;
+    }
+
     private void clearDestination() {
         destination = null;
         warningRemaining = 0;
         arcTicks = 0;
+        recoveringJump = false;
         boss.clearTravelArc();
         walkRemaining = 0;
     }
@@ -593,6 +721,7 @@ final class LightningTeleportMovement {
     void reset() {
         clearDestination();
         cooldown = -1;
+        failedJumps = 0;
         walking = false;
         idle = false;
         focusId = null;
@@ -611,6 +740,7 @@ final class LightningTeleportMovement {
             tag.putDouble("Z", destination.z);
             tag.putInt("WarningRemaining", warningRemaining);
             tag.putDouble("WalkRemaining", walkRemaining);
+            tag.putBoolean("Recovering", recoveringJump);
         }
         return tag;
     }
@@ -622,6 +752,8 @@ final class LightningTeleportMovement {
         focusId = tag.hasUUID("Focus") ? tag.getUUID("Focus") : null;
         walking = false;
         arcTicks = 0;
+        failedJumps = 0;
+        recoveringJump = false;
         boss.clearTravelArc();
         double savedWalk = tag.getDouble("WalkRemaining");
         walkRemaining = Double.isFinite(savedWalk) ? Mth.clamp(savedWalk, 0, MAX_WALK_DISTANCE) : 0;
@@ -631,6 +763,10 @@ final class LightningTeleportMovement {
             Vec3 saved = new Vec3(tag.getDouble("X"), tag.getDouble("Y"), tag.getDouble("Z"));
             if (Double.isFinite(saved.x) && Double.isFinite(saved.y) && Double.isFinite(saved.z)) {
                 destination = saved;
+                recoveringJump = tag.getBoolean("Recovering");
+                if (recoveringJump) {
+                    failedJumps = FAILED_JUMPS_BEFORE_RECOVERY;
+                }
             }
         }
     }
