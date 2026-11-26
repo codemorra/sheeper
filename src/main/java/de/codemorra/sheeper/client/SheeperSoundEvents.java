@@ -40,7 +40,7 @@ public final class SheeperSoundEvents {
     }
 
     /**
-     * Advances one local emitter per beam only while synchronized firing is active.
+     * Advances local emitters for synchronized beams and tornadoes.
      */
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -48,6 +48,7 @@ public final class SheeperSoundEvents {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
+        LightningTornadoSound.updateLoops(minecraft);
         BEAM_SOUNDS.values().removeIf(sound -> !sound.isBeamActive());
         if (minecraft.level == null || minecraft.isPaused()) {
             return;
