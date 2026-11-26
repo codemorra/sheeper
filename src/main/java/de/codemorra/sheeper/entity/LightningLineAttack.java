@@ -143,7 +143,7 @@ final class LightningLineAttack {
     private void advanceTeleport(List<ServerPlayer> participants, long now) {
         if (landingAt >= 0) {
             if (now >= landingAt) {
-                teleports.landLineTravel(nextDestination);
+                teleports.landPreferredAttackTravel(nextDestination);
                 beginPosition(now);
             }
             return;
@@ -152,14 +152,14 @@ final class LightningLineAttack {
             return;
         }
         if (!destinationPlanned) {
-            nextDestination = teleports.findLineDestination(participants, teleportDistance);
+            nextDestination = teleports.findPreferredAttackDestination(participants, teleportDistance);
             destinationPlanned = true;
         }
         if (nextDestination != null) {
             teleports.faceDestination(nextDestination);
         }
         if (now >= nextPositionAt) {
-            if (nextDestination != null && teleports.beginLineTravel(nextDestination)) {
+            if (nextDestination != null && teleports.beginPreferredAttackTravel(nextDestination)) {
                 boss.setLineCharge(1);
                 landingAt = now + LightningSheeperEntity.ARC_TRAVEL_TICKS;
             } else {

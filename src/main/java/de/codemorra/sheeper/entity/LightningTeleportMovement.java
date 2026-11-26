@@ -268,11 +268,19 @@ final class LightningTeleportMovement {
                 && !player.isSpectator() && player.distanceToSqr(target) < distance * distance);
     }
 
-    /** Finds a line attack destination using player distance as a preference and terrain as a requirement. */
+    /** Finds an attack destination using player distance as a preference and terrain as a requirement. */
     @Nullable
-    Vec3 findLineDestination(List<ServerPlayer> players, double preferredDistance) {
+    Vec3 findPreferredAttackDestination(List<ServerPlayer> players, double preferredDistance) {
+        return findPreferredAttackDestination(players, preferredDistance, boss.getMovementRadius());
+    }
+
+    /** Ranks safe destinations inside the specified radius by their distance from the nearest player. */
+    @Nullable
+    Vec3 findPreferredAttackDestination(List<ServerPlayer> players, double preferredDistance, double centerRadius) {
         ServerLevel level = (ServerLevel) boss.level;
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter()).add(0, boss.getY() - boss.getArenaCenter().getY(), 0);
+        double radius = Math.min(centerRadius, boss.getMovementRadius());
+        boolean limitedToCenter = radius < boss.getMovementRadius();
         Vec3 destination = null;
         double bestScore = Double.POSITIVE_INFINITY;
         for (int attempt = 0; attempt < 48; attempt++) {
@@ -281,15 +289,21 @@ final class LightningTeleportMovement {
             if (attempt < 24) {
                 anchor = players.get(boss.getRandom().nextInt(players.size())).position();
                 distance = preferredDistance + boss.getRandom().nextDouble() * 2;
-            } else if (attempt < 36) {
+            } else if (attempt < 36 && !limitedToCenter) {
                 anchor = boss.position();
                 distance = 1 + boss.getRandom().nextDouble() * 5;
             } else {
                 anchor = center;
-                distance = Math.sqrt(boss.getRandom().nextDouble()) * boss.getMovementRadius();
+                // Also try the exact center when looking for a launch position in a small area.
+                distance = limitedToCenter && attempt == 24 ? 0 : Math.sqrt(boss.getRandom().nextDouble()) * radius;
             }
             double angle = boss.getRandom().nextDouble() * Math.PI * 2;
             Vec3 point = anchor.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+            double dx = Mth.floor(point.x) + 0.5 - center.x;
+            double dz = Mth.floor(point.z) + 0.5 - center.z;
+            if (dx * dx + dz * dz > radius * radius) {
+                continue;
+            }
             Vec3 candidate = safeTerrainDestination(level, point);
             if (candidate == null) {
                 continue;
@@ -311,7 +325,7 @@ final class LightningTeleportMovement {
     }
 
     /** Uses the normal flight duration without imposing the normal teleport's minimum player distance. */
-    boolean beginLineTravel(Vec3 destination) {
+    boolean beginPreferredAttackTravel(Vec3 destination) {
         if (!hasSafeLanding((ServerLevel) boss.level, destination)) {
             return false;
         }
@@ -319,8 +333,8 @@ final class LightningTeleportMovement {
         return true;
     }
 
-    /** Rechecks the terrain after the line attack's flight before materializing. */
-    void landLineTravel(Vec3 destination) {
+    /** Rechecks the terrain after a flight whose spacing was only a preference. */
+    void landPreferredAttackTravel(Vec3 destination) {
         finishTravel(destination, hasSafeLanding((ServerLevel) boss.level, destination));
     }
 

@@ -307,9 +307,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         super.tick();
     }
 
-    /** Leaves ordinary teleports available for idle and recovery, and leaves attack movement to the special attack. */
+    /** Uses ordinary teleports unless the current special is controlling movement. */
     private void tickMovement(List<ServerPlayer> participants, boolean canMove) {
-        if (specialAttacks.isAttacking()) {
+        if (specialAttacks.blocksNormalMovement()) {
             teleports.tick(false, null);
         } else {
             ServerPlayer focus = canMove ? getMovementFocus(participants) : null;
