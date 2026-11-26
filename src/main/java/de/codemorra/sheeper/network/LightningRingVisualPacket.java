@@ -3,6 +3,7 @@ package de.codemorra.sheeper.network;
 import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningRingVisuals;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -37,7 +38,7 @@ public record LightningRingVisualPacket(ResourceLocation dimension, BlockPos are
                 buffer.readDouble(), buffer.readVarInt(), buffer.readVarInt(),
                 new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble()), buffer.readLong(),
                 buffer.readVarInt(), buffer.readDouble(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
-        if (!(packet.arenaRadius >= 1 && packet.arenaRadius <= 128 && packet.minY >= -2032 && packet.maxY <= 2032
+        if (!(ArenaLimits.isValidRadius(packet.arenaRadius) && packet.minY >= -2032 && packet.maxY <= 2032
                 && packet.minY <= packet.maxY && packet.origin.y >= packet.minY && packet.origin.y < packet.maxY + 1
                 && packet.isWithinArena(packet.origin.x, packet.origin.z)
                 && packet.startTick >= 0 && packet.warningTicks >= 0 && packet.warningTicks <= 40

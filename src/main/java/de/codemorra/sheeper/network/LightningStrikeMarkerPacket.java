@@ -4,6 +4,7 @@ import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningStrikeMarkerVisuals;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -43,7 +44,7 @@ public record LightningStrikeMarkerPacket(ResourceLocation dimension, BlockPos a
         double dz = packet.position.z - packet.arenaCenter.getZ() - 0.5;
         ForgeConfigSpec.ValueSpec durationSpec = LightningSheeperConfig.SPEC.getSpec()
                 .get(LightningSheeperConfig.LIGHTNING_AMBIENT_GROUND_SPARK_DURATION.getPath());
-        if (!(packet.arenaRadius >= 1 && packet.arenaRadius <= 128
+        if (!(ArenaLimits.isValidRadius(packet.arenaRadius)
                 && dx * dx + dz * dz <= packet.arenaRadius * packet.arenaRadius + 1.0E-6
                 && packet.minY >= -2032 && packet.maxY <= 2032 && packet.minY <= packet.maxY
                 && packet.position.y >= packet.minY && packet.position.y < packet.maxY + 1

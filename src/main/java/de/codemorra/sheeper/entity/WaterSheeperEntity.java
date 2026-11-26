@@ -10,9 +10,9 @@ import de.codemorra.sheeper.entity.goal.WaterOrbitGoal;
 import de.codemorra.sheeper.entity.goal.WaterIdleSwimGoal;
 import de.codemorra.sheeper.entity.navigation.WaterArenaNavigation;
 import de.codemorra.sheeper.entity.navigation.WaterSwimMoveControl;
-import de.codemorra.sheeper.world.WaterArenaData;
+import de.codemorra.sheeper.world.ArenaGeometry;
 import de.codemorra.sheeper.world.ArenaWater;
-
+import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -301,8 +301,9 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     public double getMovementRadius() {
         double waterRadius = arenaVolume == null ? getCombatRadius()
                 : Math.min(getCombatRadius(), arenaVolume.radius());
-        double bodyMargin = super.getDimensions(getPose()).width * Math.sqrt(0.5D) + 0.25D;
-        return Math.max(0, waterRadius - bodyMargin - WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE.get());
+        double clearance = ArenaGeometry.movementClearance(super.getDimensions(getPose()).width,
+                WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE.get());
+        return Math.max(0, waterRadius - clearance);
     }
 
     /**
@@ -582,10 +583,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     }
 
     private double horizontalDistanceSquared(double x, double z) {
-        BlockPos center = getArenaCenter();
-        double dx = x - (center.getX() + 0.5D);
-        double dz = z - (center.getZ() + 0.5D);
-        return dx * dx + dz * dz;
+        return ArenaGeometry.horizontalDistanceSquared(getArenaCenter(), x, z);
     }
 
     /** Shows the health bar around the captured arena, even when the boss is out of entity tracking range. */

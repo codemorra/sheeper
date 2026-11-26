@@ -11,6 +11,7 @@ import de.codemorra.sheeper.world.WaterArenaData.AirColumn;
 import de.codemorra.sheeper.world.WaterArenaPushProtection;
 import de.codemorra.sheeper.world.WaterArenaData.VolumeBounds;
 import de.codemorra.sheeper.world.WaterArenaData.AnimatedVolume;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -78,7 +79,7 @@ public record WaterArenaPacket(ResourceLocation dimension, List<AnimatedVolume> 
             long drainTick = buffer.readLong();
             int drainDuration = buffer.readVarInt();
             if (!bounds.isValid() || startTick < 0 || duration < 0 || duration > 600
-                    || drainTick < 0 || drainDuration < 0 || drainDuration > 600) {
+                    || drainTick < 0 || drainDuration < 0 || drainDuration > ArenaLimits.MAX_DRAIN_TICKS) {
                 throw new IllegalArgumentException("Invalid water arena geometry");
             }
             arenas.add(new AnimatedVolume(bounds, startTick, duration, drainTick, drainDuration));

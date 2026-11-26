@@ -30,22 +30,19 @@ final class LightningSpawnPush {
             return clear(level, carriedPlayers);
         }
 
-        Vec3 center = Vec3.atBottomCenterOf(arena.center());
         double edgeDistance = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_EDGE_DISTANCE.get();
         double liftHeight = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_LIFT_HEIGHT.get();
         double front = arena.radiusAt(now) - Math.min(2, arena.radius() * 0.2);
         boolean changed = false;
         for (ServerPlayer player : level.players()) {
             UUID id = player.getUUID();
-            Vec3 radial = new Vec3(player.getX() - center.x, 0, player.getZ() - center.z);
-            double distance = radial.length();
-            double halfWidth = player.getBbWidth() * 0.5;
-            double targetRadius = Math.max(0, arena.radius() - Math.max(edgeDistance, halfWidth + 0.1));
             if (player.isCreative() || player.isSpectator() || !player.isAlive()) {
                 changed |= lifts.remove(id) != null;
                 continue;
             }
-            if (!arena.containsY(player.getY()) || distance >= targetRadius) {
+            ArenaSpawnWaveMotion motion = ArenaSpawnWaveMotion.at(arena.center(), player.position(), front,
+                    arena.radius(), player.getBbWidth(), edgeDistance, 0.1);
+            if (!arena.containsY(player.getY()) || motion.distance() >= motion.targetRadius()) {
                 if (lifts.remove(id) != null) {
                     stopUnlessCarried(player, carriedPlayers);
                     changed = true;
@@ -56,8 +53,7 @@ final class LightningSpawnPush {
                 continue;
             }
 
-            double transportFront = front - halfWidth;
-            if (distance <= transportFront && contacts.add(id)) {
+            if (motion.distance() <= motion.transportFront() && contacts.add(id)) {
                 lifts.put(id, player.getY() + liftHeight);
                 player.stopRiding();
                 changed = true;
@@ -67,15 +63,13 @@ final class LightningSpawnPush {
                 continue;
             }
             carriedPlayers.add(id);
-            double step = Math.min(speed, Math.max(0, Math.min(transportFront, targetRadius) - distance));
-            Vec3 direction = distance > 1.0E-6 ? radial.scale(1 / distance) : new Vec3(1, 0, 0);
             double ceiling = arena.maximumY() - player.getBbHeight() - 0.1;
             // Apply the same lift and outward force again after collisions instead of moving through terrain.
             double upward = Mth.clamp((Math.min(lift, ceiling) - player.getY()) * 0.2, -0.15, 0.2);
             if (liftHeight == 0) {
                 upward = player.getDeltaMovement().y;
             }
-            setMotion(player, new Vec3(direction.x * step, upward, direction.z * step));
+            setMotion(player, motion.velocity(speed, upward));
         }
         changed |= lifts.keySet().removeIf(id -> {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);

@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.ArenaGeometry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -497,11 +498,9 @@ final class LightningTeleportMovement {
     }
 
     private boolean isSafeBody(ServerLevel level, AABB bounds, boolean allowEntityOverlap) {
-        BlockPos center = boss.getArenaCenter();
-        double dx = Math.max(Math.abs(bounds.minX - center.getX() - 0.5), Math.abs(bounds.maxX - center.getX() - 0.5));
-        double dz = Math.max(Math.abs(bounds.minZ - center.getZ() - 0.5), Math.abs(bounds.maxZ - center.getZ() - 0.5));
         double radius = boss.getCombatRadius();
-        if (dx * dx + dz * dz > radius * radius || bounds.minY < boss.getArenaMinimumY()
+        if (ArenaGeometry.farthestCornerDistanceSquared(boss.getArenaCenter(), bounds) > radius * radius
+                || bounds.minY < boss.getArenaMinimumY()
                 || bounds.maxY > boss.getArenaMaximumY() || !level.getWorldBorder().isWithinBounds(bounds)
                 || !isLoaded(level, bounds.inflate(1))) {
             return false;

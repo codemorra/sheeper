@@ -372,7 +372,7 @@ public final class LightningStormData extends SavedData {
             var arena = new LightningWeatherPacket.Arena(BlockPos.of(entry.getLong("Center")), entry.getDouble("Radius"),
                     entry.getInt("MinimumY"), entry.getInt("MaximumY"),
                     entry.getLong("Start"), Mth.clamp(entry.getInt("Transition"), 0, 1200),
-                    entry.getLong("DrainStart"), Mth.clamp(entry.getInt("DrainDuration"), 0, 600));
+                    entry.getLong("DrainStart"), Mth.clamp(entry.getInt("DrainDuration"), 0, ArenaLimits.MAX_DRAIN_TICKS));
             if (entry.hasUUID("Boss") && arena.isValid()) {
                 var storm = new Storm(arena);
                 storm.deathDrainAt = arena.isDraining() ? 0 : entry.getLong("DeathDrainAt");

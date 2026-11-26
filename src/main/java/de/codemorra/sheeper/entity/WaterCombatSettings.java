@@ -5,6 +5,7 @@ import java.util.Set;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.ArenaGeometry;
 import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.world.WaterArenaData;
 import net.minecraft.core.BlockPos;
@@ -78,8 +79,8 @@ final class WaterCombatSettings {
      */
     boolean hasArenaRoom(WaterArenaData.VolumeBounds bounds) {
         double radius = Math.min(bounds.radius(), boss.getCombatRadius());
-        double requiredRadius = boss.getBbWidth() * Math.sqrt(0.5D) + 0.25D
-                + WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE.get();
+        double requiredRadius = ArenaGeometry.movementClearance(boss.getBbWidth(),
+                WaterSheeperConfig.WATER_MOVEMENT_EDGE_DISTANCE.get());
         double height = bounds.maximumY() + 1.0D - bounds.minimumY();
         double requiredHeight = boss.getBbHeight() + 0.15D;
         if (radius <= requiredRadius || height < requiredHeight) {

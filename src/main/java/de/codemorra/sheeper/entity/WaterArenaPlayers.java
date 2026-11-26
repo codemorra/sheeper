@@ -7,6 +7,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.world.ArenaGeometry;
 import de.codemorra.sheeper.world.ArenaWater;
 import de.codemorra.sheeper.world.WaterArenaBoundary;
 import de.codemorra.sheeper.world.WaterArenaData;
@@ -81,13 +82,9 @@ final class WaterArenaPlayers {
 
     /** The farthest horizontal body corner must fit behind the inner circular edge. */
     private boolean isInsideEntry(ServerPlayer player) {
-        AABB body = player.getBoundingBox();
-        double x = boss.getArenaCenter().getX() + 0.5D;
-        double z = boss.getArenaCenter().getZ() + 0.5D;
-        double dx = Math.max(Math.abs(body.minX - x), Math.abs(body.maxX - x));
-        double dz = Math.max(Math.abs(body.minZ - z), Math.abs(body.maxZ - z));
         double radius = Math.max(0, boss.getArenaRadius() - transitionWidth());
-        return dx * dx + dz * dz <= radius * radius;
+        return ArenaGeometry.farthestCornerDistanceSquared(boss.getArenaCenter(), player.getBoundingBox())
+                <= radius * radius;
     }
 
     /**

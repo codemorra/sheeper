@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningTornadoVisuals;
 import de.codemorra.sheeper.world.LightningTornado;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
@@ -56,7 +57,7 @@ public record LightningTornadoPacket(ResourceLocation dimension, UUID owner, Lis
         var tornado = new LightningTornado(owner, buffer.readBlockPos(), buffer.readDouble(), buffer.readVarInt(),
                 buffer.readVarInt(), readPoint(buffer), readPoint(buffer), buffer.readDouble(), buffer.readDouble(),
                 buffer.readDouble(), buffer.readLong(), buffer.readLong(), buffer.readLong(), buffer.readLong());
-        if (!(tornado.arenaRadius() >= 1 && tornado.arenaRadius() <= 128
+        if (!(ArenaLimits.isValidRadius(tornado.arenaRadius())
                 && tornado.minimumY() >= -2032 && tornado.maximumY() <= 2032
                 && tornado.isInsideArena(tornado.position()) && tornado.velocity().lengthSqr() <= 2
                 && tornado.radius() >= 0.35 && tornado.radius() <= 9 && tornado.height() >= 1 && tornado.height() <= 16

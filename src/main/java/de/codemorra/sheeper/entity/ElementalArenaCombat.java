@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -189,7 +190,7 @@ class ElementalArenaCombat {
     double getScaledMaxHealth() {
         double bonus = (highestPlayerCount - 1)
                 * additionalHealthPercent.getAsDouble() / 100.0D;
-        return Math.min(1024.0D, baseHealth.getAsDouble() * (1 + bonus));
+        return Math.min(ArenaLimits.MAX_BOSS_HEALTH, baseHealth.getAsDouble() * (1 + bonus));
     }
 
     /**

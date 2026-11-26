@@ -12,6 +12,7 @@ import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
+import de.codemorra.sheeper.world.ArenaGeometry;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import de.codemorra.sheeper.world.LightningArenaWind;
 import de.codemorra.sheeper.world.LightningStormData;
@@ -173,8 +174,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     private double minimumArenaRadius() {
-        double bodyMargin = getBbWidth() * Math.sqrt(0.5) + 0.25;
-        return bodyMargin + LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE.get();
+        return ArenaGeometry.movementClearance(getBbWidth(), LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE.get());
     }
 
     private boolean hasArenaRoom(double radius, int floor, int ceiling) {
@@ -234,13 +234,6 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                         arc.getInt("DischargeTicks"), arc.getBoolean("Compact"));
     }
 
-    private double horizontalDistanceSquared(double x, double z) {
-        BlockPos center = getArenaCenter();
-        double dx = x - center.getX() - 0.5D;
-        double dz = z - center.getZ() - 0.5D;
-        return dx * dx + dz * dz;
-    }
-
     /** Keeps the bar tied to the storm arena while the boss teleports. */
     @Override
     protected void updateBossBarViewers(ServerBossEvent event) {
@@ -251,13 +244,14 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     public boolean isWithinMovementArea(double x, double z) {
-        return horizontalDistanceSquared(x, z) <= getMovementRadius() * getMovementRadius();
+        double radius = getMovementRadius();
+        return ArenaGeometry.horizontalDistanceSquared(getArenaCenter(), x, z) <= radius * radius;
     }
 
     /** Includes the whole storm cylinder, independently of combat admission. */
     boolean isInsideArena(LivingEntity target) {
         double radius = getCombatRadius();
-        return horizontalDistanceSquared(target.getX(), target.getZ()) <= radius * radius
+        return ArenaGeometry.horizontalDistanceSquared(getArenaCenter(), target.getX(), target.getZ()) <= radius * radius
                 && isWithinArenaHeight(target.getBoundingBox().getCenter().y);
     }
 
@@ -293,12 +287,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     /** Requires the player's horizontal footprint to clear the side band on entry. */
     private boolean fitsBehindStorm(ServerPlayer player, double innerRadius) {
-        AABB body = player.getBoundingBox();
-        double centerX = getArenaCenter().getX() + 0.5;
-        double centerZ = getArenaCenter().getZ() + 0.5;
-        double x = Math.max(Math.abs(body.minX - centerX), Math.abs(body.maxX - centerX));
-        double z = Math.max(Math.abs(body.minZ - centerZ), Math.abs(body.maxZ - centerZ));
-        return x * x + z * z <= innerRadius * innerRadius;
+        return ArenaGeometry.farthestCornerDistanceSquared(getArenaCenter(), player.getBoundingBox())
+                <= innerRadius * innerRadius;
     }
 
     @Override
