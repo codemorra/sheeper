@@ -42,6 +42,39 @@ final class LightningTravelArcRenderer {
         }
     }
 
+    /** Keeps short branching bolts attached to the body while its charge builds and fades. */
+    static void renderLineCharge(LightningSheeperEntity boss, Vec3 feet, float partialTick, PoseStack poses,
+            MultiBufferSource buffers) {
+        double time = (boss.tickCount + (double) partialTick) * 0.72;
+        double width = boss.getBbWidth();
+        double height = boss.getBbHeight();
+        float yaw = -Mth.rotLerp(partialTick, boss.yBodyRotO, boss.yBodyRot) * Mth.DEG_TO_RAD;
+        float charge = boss.getLineCharge(partialTick);
+        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
+        Matrix4f matrix = poses.last().pose();
+        for (int index = 0; index < 6; index++) {
+            double phase = time + index * 2.61;
+            double angle = index * Math.PI / 3 + Math.sin(phase * 0.28) * 0.33;
+            double y = height * (0.39 + (index % 3) * 0.22);
+            Vec3 start = bodySparkPoint(feet, width, y - height * 0.16, yaw, angle - 0.26);
+            Vec3 bend = bodySparkPoint(feet, width * (1.08 + 0.09 * Math.sin(phase)), y, yaw, angle + 0.24);
+            Vec3 end = bodySparkPoint(feet, width, y + height * 0.16, yaw, angle + 0.02);
+            Vec3 side = new Vec3(Math.cos(angle + 0.5), 0, Math.sin(angle + 0.5)).yRot(yaw).scale(0.55);
+            Vec3 up = new Vec3(0, 0.55, 0);
+            float alpha = charge * (float) (0.76 + 0.24 * Math.sin(phase));
+            drawSegment(buffer, matrix, start, bend, side, up, alpha);
+            drawSegment(buffer, matrix, bend, end, side, up, alpha * 0.8F);
+            if (index % 2 == 0) {
+                Vec3 branch = bodySparkPoint(feet, width * 1.22, y + height * 0.04, yaw, angle + 0.47);
+                drawSegment(buffer, matrix, bend, branch, side, up, alpha * 0.55F);
+            }
+        }
+    }
+
+    private static Vec3 bodySparkPoint(Vec3 feet, double width, double y, float yaw, double angle) {
+        return feet.add(new Vec3(Math.cos(angle) * width * 0.62, y, Math.sin(angle) * width).yRot(yaw));
+    }
+
     /** Connects several flickering paths through a common core at the travel endpoint. */
     private static void renderCharge(LightningSheeperEntity boss, TravelArc arc, float partialTick, PoseStack poses,
             MultiBufferSource buffers) {

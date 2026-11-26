@@ -1,5 +1,6 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -114,6 +115,21 @@ final class LightningTeleportMovement {
             }
             return false;
         }
+        prepareJump(focus);
+        return false;
+    }
+
+    /** Starts a combat jump now, using the same destination search, walk and visible flight as ordinary movement. */
+    boolean prepareCombatJump(ServerPlayer focus) {
+        if (isPreparing() || boss.getMovementRadius() <= 0) {
+            return false;
+        }
+        idle = false;
+        focusId = focus.getUUID();
+        return prepareJump(focus);
+    }
+
+    private boolean prepareJump(@Nullable ServerPlayer focus) {
         destination = findDestination(focus);
         if (destination == null) {
             finish();
@@ -127,7 +143,7 @@ final class LightningTeleportMovement {
         } else {
             showWarning();
         }
-        return false;
+        return true;
     }
 
     /** Updates the focus after landing while keeping the pause that just started. */
@@ -208,6 +224,12 @@ final class LightningTeleportMovement {
 
     @Nullable
     private Vec3 safeDestination(ServerLevel level, Vec3 point) {
+        Vec3 destination = safeTerrainDestination(level, point);
+        return destination != null && hasPlayerClearance(level, destination) ? destination : null;
+    }
+
+    @Nullable
+    private Vec3 safeTerrainDestination(ServerLevel level, Vec3 point) {
         int x = Mth.floor(point.x);
         int z = Mth.floor(point.z);
         if (!boss.isWithinMovementArea(x + 0.5, z + 0.5)
@@ -219,12 +241,16 @@ final class LightningTeleportMovement {
             return null;
         }
         Vec3 destination = new Vec3(x + 0.5, surface, z + 0.5);
-        return destination.subtract(boss.position()).horizontalDistanceSqr() >= 1 && isSafe(destination)
+        return destination.subtract(boss.position()).horizontalDistanceSqr() >= 1 && hasSafeLanding(level, destination)
                 ? destination : null;
     }
 
     private boolean isSafe(Vec3 target) {
         ServerLevel level = (ServerLevel) boss.level;
+        return hasSafeLanding(level, target) && hasPlayerClearance(level, target);
+    }
+
+    private boolean hasSafeLanding(ServerLevel level, Vec3 target) {
         if (!boss.isWithinMovementArea(target.x, target.z)) {
             return false;
         }
@@ -233,12 +259,69 @@ final class LightningTeleportMovement {
             return false;
         }
         Double surface = boss.findArenaSurface(level, Mth.floor(target.x), Mth.floor(target.z), Mth.ceil(target.y));
-        if (surface == null || Math.abs(surface - target.y) > 1.0E-6D) {
-            return false;
-        }
+        return surface != null && Math.abs(surface - target.y) <= 1.0E-6;
+    }
+
+    private boolean hasPlayerClearance(ServerLevel level, Vec3 target) {
         double distance = LightningSheeperConfig.LIGHTNING_TELEPORT_PLAYER_DISTANCE.get();
         return level.players().stream().noneMatch(player -> player.isAlive() && !player.isRemoved()
                 && !player.isSpectator() && player.distanceToSqr(target) < distance * distance);
+    }
+
+    /** Finds a line attack destination using player distance as a preference and terrain as a requirement. */
+    @Nullable
+    Vec3 findLineDestination(List<ServerPlayer> players, double preferredDistance) {
+        ServerLevel level = (ServerLevel) boss.level;
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter()).add(0, boss.getY() - boss.getArenaCenter().getY(), 0);
+        Vec3 destination = null;
+        double bestScore = Double.POSITIVE_INFINITY;
+        for (int attempt = 0; attempt < 48; attempt++) {
+            Vec3 anchor;
+            double distance;
+            if (attempt < 24) {
+                anchor = players.get(boss.getRandom().nextInt(players.size())).position();
+                distance = preferredDistance + boss.getRandom().nextDouble() * 2;
+            } else if (attempt < 36) {
+                anchor = boss.position();
+                distance = 1 + boss.getRandom().nextDouble() * 5;
+            } else {
+                anchor = center;
+                distance = Math.sqrt(boss.getRandom().nextDouble()) * boss.getMovementRadius();
+            }
+            double angle = boss.getRandom().nextDouble() * Math.PI * 2;
+            Vec3 point = anchor.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+            Vec3 candidate = safeTerrainDestination(level, point);
+            if (candidate == null) {
+                continue;
+            }
+            double nearest = players.stream().mapToDouble(player -> player.position().subtract(candidate)
+                    .horizontalDistance()).min().orElse(preferredDistance);
+            // Prefer points that meet the spacing, then pick the closest match on either side of it.
+            double score = Math.abs(nearest - preferredDistance)
+                    + (nearest < preferredDistance ? boss.getCombatRadius() * 2 : 0);
+            if (score < bestScore) {
+                bestScore = score;
+                destination = candidate;
+                if (score <= 0.5) {
+                    break;
+                }
+            }
+        }
+        return destination;
+    }
+
+    /** Uses the normal flight duration without imposing the normal teleport's minimum player distance. */
+    boolean beginLineTravel(Vec3 destination) {
+        if (!hasSafeLanding((ServerLevel) boss.level, destination)) {
+            return false;
+        }
+        startTravel(destination, LightningSheeperEntity.ARC_TRAVEL_TICKS);
+        return true;
+    }
+
+    /** Rechecks the terrain after the line attack's flight before materializing. */
+    void landLineTravel(Vec3 destination) {
+        finishTravel(destination, hasSafeLanding((ServerLevel) boss.level, destination));
     }
 
     /** Checks the full scaled body against arena bounds, loaded terrain, and hazards. */
@@ -369,15 +452,22 @@ final class LightningTeleportMovement {
     /** Starts a visible flight to an attack position already checked by its caller. */
     int startAttackTravel(Vec3 target) {
         int ticks = attackTravelTicks(target);
+        startTravel(target, ticks);
+        return ticks;
+    }
+
+    private void startTravel(Vec3 target, int ticks) {
         faceDestination(target);
         boss.startTravelArc(target, ticks);
         showDeparture();
-        return ticks;
     }
 
     /** Arrives when the visible bolt reaches its destination and rechecks the landing conditions. */
     boolean landAttackTeleport(Vec3 target) {
-        boolean safe = isSafe(target);
+        return finishTravel(target, isSafe(target));
+    }
+
+    private boolean finishTravel(Vec3 target, boolean safe) {
         if (safe) {
             teleportTo(target);
         }
@@ -394,8 +484,7 @@ final class LightningTeleportMovement {
     /** Keeps the source position until the visible lightning form reaches the destination. */
     private void beginArc() {
         arcTicks = LightningSheeperEntity.ARC_TRAVEL_TICKS;
-        boss.startTravelArc(destination, arcTicks);
-        showDeparture();
+        startTravel(destination, arcTicks);
     }
 
     /** Moves the boss to a destination that the caller has already checked. */

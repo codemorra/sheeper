@@ -252,34 +252,39 @@ public final class LightningSheeperConfig {
             .comment("Maximum rest seconds between special attacks. If set below the minimum, the minimum is used.")
             .defineInRange("attack.pauseMaxSeconds", 7.0, 0.05, 30.0);
 
-    /** Targeted lightning rows (lineAttack). */
+    /** Sequential lightning rows (lineAttack). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_LINE_ENABLED = BUILDER
-            .comment("Enables the special attack that fires lightning rows toward arena players.")
+            .comment("Enables the attack that fires lightning rows one at a time from the Sheeper.")
             .define("lineAttack.enabled", true);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_COOLDOWN = BUILDER
-            .comment("Combat seconds after the last row finishes before this special attack is ready again.")
+            .comment("Combat seconds after the last row is launched before this special attack is ready again.")
             .defineInRange("lineAttack.cooldownSeconds", 20.0, 1.0, 120.0);
 
-    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_SHOTS = BUILDER
-            .comment("Number of lightning rows fired each time the attack is used.")
-            .defineInRange("lineAttack.shotCount", 6, 1, 16);
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_WAVE_COUNT_MIN = BUILDER
+            .comment("Minimum number of firing positions used in one attack. Each position launches eight rows.")
+            .defineInRange("lineAttack.waveCountMin", 5, 1, 16);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_SOLO_INTERVAL = BUILDER
-            .comment("Seconds between rows when one player is participating.")
-            .defineInRange("lineAttack.soloIntervalSeconds", 1.5, 0.25, 5.0);
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_WAVE_COUNT_MAX = BUILDER
+            .comment("Maximum number of firing positions in one attack. At least waveCountMin.")
+            .defineInRange("lineAttack.waveCountMax", 8, 1, 16);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_MULTIPLAYER_INTERVAL = BUILDER
-            .comment("Seconds between rows when several players are participating.")
-            .defineInRange("lineAttack.multiplayerIntervalSeconds", 0.5, 0.25, 5.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_CHARGE_DURATION = BUILDER
+            .comment("Seconds the Sheeper charges before teleporting to the first firing position.")
+            .defineInRange("lineAttack.chargeSeconds", 1.0, 0.25, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_TELEPORT_DISTANCE = BUILDER
+            .comment("Preferred horizontal distance in blocks to the nearest player when choosing a firing position.",
+                    "The Sheeper can teleport closer if terrain or other players limit the available positions.")
+            .defineInRange("lineAttack.teleportDistance", 24.0, 1.0, 64.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_SPEED = BUILDER
             .comment("Speed at which each row travels toward the arena edge, in blocks per second.")
             .defineInRange("lineAttack.speedBlocksPerSecond", 18.0, 8.0, 36.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_DAMAGE = BUILDER
-            .comment("Health points dealt to a player hit by one row before armor and difficulty scaling.",
-                    "Each row can damage a player once. 0 disables damage.")
+            .comment("Health points at the center of a lightning impact, before armor and difficulty scaling.",
+                    "The outer block deals half damage. Each row can damage a player once. 0 disables damage.")
             .defineInRange("lineAttack.damage", 5.0, 0.0, 24.0);
 
     /** Lightning storm phase (strike). */
@@ -654,11 +659,13 @@ public final class LightningSheeperConfig {
             .defineInRange("lightningRod.finaleSeconds", 4.0, 0.5, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_FINALE_DAMAGE = BUILDER
-            .comment("Damage in health points per half-second pulse outside the shelter spheres, before armor and difficulty.")
+            .comment(
+                    "Damage in health points per half-second pulse outside the shelter spheres, before armor and difficulty.")
             .defineInRange("lightningRod.finaleDamage", 6.0, 0.0, 16.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION = BUILDER
-            .comment("Seconds the shelter spheres take to fade after the final bolt. The Sheeper stays in lightning form.")
+            .comment(
+                    "Seconds the shelter spheres take to fade after the final bolt. The Sheeper stays in lightning form.")
             .defineInRange("lightningRod.shelterDissolveSeconds", 1.5, 0.5, 3.0);
 
     /**

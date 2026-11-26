@@ -1,8 +1,10 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -10,24 +12,33 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
-import net.minecraft.commands.arguments.EntityAnchorArgument;
-import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
-/** Fires fixed, terrain-following lines of lightning toward successive arena players. */
+/** Fires eight terrain-following lightning rows from each of several teleport positions. */
 final class LightningLineAttack {
     private static final double STRIKE_SPACING = 1.6;
     private static final double HIT_RADIUS = 1.15;
+    private static final double EDGE_RADIUS = HIT_RADIUS + 1;
     private static final double HIT_HEIGHT = 3;
+    private static final int ROW_INTERVAL_TICKS = 10;
+    private static final int ROWS_PER_POSITION = 8;
+    private static final int FIRST_ROW_DELAY_TICKS = 5;
+    private static final int TURN_BEFORE_TELEPORT_TICKS = 10;
+    private static final int CHARGE_FADE_TICKS = 20;
 
     private static final class Line {
         private final Vec3 origin;
         private final Vec3 direction;
         private final double length;
         private final long firedAt;
+        private final List<Vec3> impacts = new ArrayList<>();
         private final Set<UUID> hit = new HashSet<>();
+        private final Map<UUID, Long> pendingEdgeHits = new HashMap<>();
         private double surfaceY;
         private double nextDistance;
         private int points;
@@ -43,113 +54,195 @@ final class LightningLineAttack {
     }
 
     private final LightningSheeperEntity boss;
+    private final LightningTeleportMovement teleports;
     private final List<Line> active = new ArrayList<>();
     @Nullable
-    private ServerPlayer aim;
+    private UUID lastTarget;
     @Nullable
-    private UUID previousTarget;
-    private int shotsRemaining;
-    private long nextShotAt;
+    private UUID secondLastTarget;
+    private int chargeTicks;
+    private int edgeHitDelay;
+    private int positionsRemaining;
+    private int rowsRemaining;
+    private long chargeEndsAt;
+    private long nextRowAt;
+    private long nextPositionAt;
+    private long landingAt = -1;
+    private boolean destinationPlanned;
+    @Nullable
+    private Vec3 nextDestination;
+    private long fadeStartedAt = -1;
+    private double teleportDistance;
     private double blocksPerTick;
     private float damage;
 
-    LightningLineAttack(LightningSheeperEntity boss) {
+    LightningLineAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
+        this.teleports = teleports;
     }
 
-    /** Starts with a visible aim before the first row travels out from the current boss position. */
-    void start(ServerLevel level) {
+    /** Charges at the current position before the first jump. */
+    void start(ServerLevel level, List<ServerPlayer> participants) {
         clear();
-        shotsRemaining = LightningSheeperConfig.LIGHTNING_LINE_SHOTS.get();
+        int minimum = LightningSheeperConfig.LIGHTNING_LINE_WAVE_COUNT_MIN.get();
+        int maximum = LightningSheeperConfig.LIGHTNING_LINE_WAVE_COUNT_MAX.get();
+        positionsRemaining = minimum + boss.getRandom().nextInt(Math.max(0, maximum - minimum) + 1);
+        chargeTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_LINE_CHARGE_DURATION.get());
+        teleportDistance = LightningSheeperConfig.LIGHTNING_LINE_TELEPORT_DISTANCE.get();
         blocksPerTick = LightningSheeperConfig.LIGHTNING_LINE_SPEED.get() / 20;
+        edgeHitDelay = (int) Math.ceil(STRIKE_SPACING / blocksPerTick);
         damage = LightningSheeperConfig.LIGHTNING_LINE_DAMAGE.get().floatValue();
-        nextShotAt = level.getGameTime() + 8;
+        chargeEndsAt = level.getGameTime() + chargeTicks;
+        nextPositionAt = chargeEndsAt;
+        playCharge(participants);
     }
 
     boolean isActive() {
-        return shotsRemaining > 0 || !active.isEmpty();
+        return isFiring() || !active.isEmpty() || fadeStartedAt >= 0;
+    }
+
+    /** @return whether the Sheeper is charging or still has another row to launch */
+    boolean isFiring() {
+        return positionsRemaining > 0 || rowsRemaining > 0;
     }
 
     void tick(ServerLevel level, List<ServerPlayer> participants) {
         long now = level.getGameTime();
-        if (shotsRemaining > 0) {
-            aimAndFire(level, participants, now);
+        if (isFiring() && now < chargeEndsAt) {
+            boss.setLineCharge(1 - (chargeEndsAt - now) / (float) chargeTicks);
+        }
+        if (positionsRemaining > 0) {
+            advanceTeleport(participants, now);
+        }
+        if (rowsRemaining > 0 && now >= nextRowAt) {
+            fireRow(participants, now);
+            nextRowAt += ROW_INTERVAL_TICKS;
+            if (--rowsRemaining == 0 && positionsRemaining == 0) {
+                fadeStartedAt = now;
+            }
+        }
+        if (fadeStartedAt >= 0) {
+            float strength = Math.max(0, 1 - (now - fadeStartedAt) / (float) CHARGE_FADE_TICKS);
+            boss.setLineCharge(strength);
+            if (strength == 0) {
+                fadeStartedAt = -1;
+            }
         }
         var lines = active.iterator();
         while (lines.hasNext()) {
             Line line = lines.next();
-            tickLine(level, line, participants, now);
-            if (line.reachedEdge) {
+            tickLine(level, line, now);
+            applyRowDamage(line, participants, now);
+            if (line.reachedEdge && line.pendingEdgeHits.isEmpty()) {
                 lines.remove();
             }
         }
     }
 
-    private void aimAndFire(ServerLevel level, List<ServerPlayer> participants, long now) {
-        if (aim == null || !aim.isAlive() || !participants.contains(aim)) {
-            aim = chooseTarget(participants);
-        }
-        if (aim == null) {
-            return;
-        }
-        boss.setTarget(aim);
-        boss.lookAt(EntityAnchorArgument.Anchor.EYES, aim.getEyePosition());
-        boss.setYHeadRot(boss.getYRot());
-        if (now < nextShotAt) {
-            if ((nextShotAt - now) % 3 == 0) {
-                Vec3 head = boss.getEyePosition();
-                level.sendParticles(ParticleTypes.ELECTRIC_SPARK, head.x, head.y, head.z, 5, 0.24, 0.18, 0.24, 0.02);
+    /** Turns toward the next position even while the current position fires its last rows. */
+    private void advanceTeleport(List<ServerPlayer> participants, long now) {
+        if (landingAt >= 0) {
+            if (now >= landingAt) {
+                teleports.landLineTravel(nextDestination);
+                beginPosition(now);
             }
             return;
         }
-
-        fireTowards(aim, now);
-        previousTarget = aim.getUUID();
-        aim = null;
-        shotsRemaining--;
-        double interval = participants.size() > 1 ? LightningSheeperConfig.LIGHTNING_LINE_MULTIPLAYER_INTERVAL.get()
-                : LightningSheeperConfig.LIGHTNING_LINE_SOLO_INTERVAL.get();
-        nextShotAt = now + SheeperConfig.secondsToTicks(interval);
-    }
-
-    @Nullable
-    private ServerPlayer chooseTarget(List<ServerPlayer> participants) {
-        List<ServerPlayer> available = participants.stream()
-                .filter(player -> player.isAlive() && !player.getUUID().equals(previousTarget)).toList();
-        List<ServerPlayer> choices = available.isEmpty()
-                ? participants.stream().filter(ServerPlayer::isAlive).toList() : available;
-        return choices.isEmpty() ? null : choices.get(boss.getRandom().nextInt(choices.size()));
-    }
-
-    /** Locks the heading at release and clips the ray against the captured arena boundary. */
-    private void fireTowards(ServerPlayer target, long now) {
-        Vec3 origin = boss.position();
-        Vec3 offset = target.position().subtract(origin);
-        Vec3 direction = new Vec3(offset.x, 0, offset.z).normalize();
-        if (direction.lengthSqr() == 0) {
-            double yaw = Math.toRadians(boss.getYRot());
-            direction = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
+        if (now < nextPositionAt - TURN_BEFORE_TELEPORT_TICKS) {
+            return;
         }
+        if (!destinationPlanned) {
+            nextDestination = teleports.findLineDestination(participants, teleportDistance);
+            destinationPlanned = true;
+        }
+        if (nextDestination != null) {
+            teleports.faceDestination(nextDestination);
+        }
+        if (now >= nextPositionAt) {
+            if (nextDestination != null && teleports.beginLineTravel(nextDestination)) {
+                boss.setLineCharge(1);
+                landingAt = now + LightningSheeperEntity.ARC_TRAVEL_TICKS;
+            } else {
+                beginPosition(now);
+            }
+        }
+    }
+
+    /** Starts the next rows one quarter second after arrival and resets their target history. */
+    private void beginPosition(long now) {
+        boss.setLineCharge(1);
+        positionsRemaining--;
+        rowsRemaining = ROWS_PER_POSITION;
+        nextPositionAt = now + ROWS_PER_POSITION * ROW_INTERVAL_TICKS;
+        nextRowAt = now + FIRST_ROW_DELAY_TICKS;
+        nextDestination = null;
+        destinationPlanned = false;
+        landingAt = -1;
+        lastTarget = null;
+        secondLastTarget = null;
+    }
+
+    /** Plays the warning from the Sheeper's direction even for distant participants. */
+    private void playCharge(List<ServerPlayer> participants) {
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        if (volume <= 0) {
+            return;
+        }
+        Vec3 source = boss.getEyePosition();
+        for (ServerPlayer player : participants) {
+            Vec3 ear = player.getEyePosition();
+            Vec3 direction = source.subtract(ear);
+            Vec3 audible = direction.lengthSqr() > 36 ? ear.add(direction.normalize().scale(6)) : source;
+            player.connection.send(new ClientboundSoundPacket(SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.HOSTILE,
+                    audible.x, audible.y, audible.z, volume, 1.35F, boss.getRandom().nextLong()));
+        }
+    }
+
+    /** Counts untargeted rows too so a player cannot be selected again until the third following row. */
+    private Vec3 chooseDirection(Vec3 origin, List<ServerPlayer> participants) {
+        var eligible = participants.stream()
+                .filter(player -> player.isAlive() && !player.getUUID().equals(lastTarget)
+                        && !player.getUUID().equals(secondLastTarget))
+                .toList();
+        ServerPlayer target = eligible.isEmpty() ? null : eligible.get(boss.getRandom().nextInt(eligible.size()));
+        secondLastTarget = lastTarget;
+        lastTarget = target == null ? null : target.getUUID();
+        if (target != null) {
+            Vec3 offset = target.position().subtract(origin);
+            Vec3 direction = new Vec3(offset.x, 0, offset.z).normalize();
+            if (direction.lengthSqr() > 0) {
+                return direction;
+            }
+        }
+        double angle = boss.getRandom().nextDouble() * Math.PI * 2;
+        return new Vec3(Math.cos(angle), 0, Math.sin(angle));
+    }
+
+    /** Clips each row against the captured arena boundary before it starts travelling. */
+    private void fireRow(List<ServerPlayer> participants, long now) {
+        Vec3 origin = boss.position();
+        Vec3 direction = chooseDirection(origin, participants);
         Vec3 relative = origin.subtract(Vec3.atBottomCenterOf(boss.getArenaCenter()));
         double projection = direction.dot(relative);
         double radius = boss.getCombatRadius();
         double discriminant = projection * projection + radius * radius - relative.horizontalDistanceSqr();
         if (discriminant >= 0) {
             double length = -projection + Math.sqrt(discriminant);
-            if (length >= 0) {
+            if (length > 1.0E-6) {
                 // Stay just inside the boundary despite floating-point error at the exit.
-                active.add(new Line(origin, direction, Math.max(0, length - 1.0E-6), now));
+                active.add(new Line(origin, direction, length - 1.0E-6, now));
             }
         }
     }
 
-    private void tickLine(ServerLevel level, Line line, List<ServerPlayer> participants, long now) {
+    private void tickLine(ServerLevel level, Line line, long now) {
         double advance = (now - line.firedAt) * blocksPerTick;
         while (!line.reachedEdge && line.nextDistance <= advance) {
             Vec3 point = findImpact(level, line);
             if (point != null) {
                 line.surfaceY = point.y;
-                strike(level, line, point, participants);
+                LightningStrikeEffect.spawnWeatherBolt(level, point, boss.getStormCloudY(point), line.points % 4 == 0);
+                line.impacts.add(point);
             }
             line.points++;
             line.reachedEdge = line.nextDistance >= line.length;
@@ -177,14 +270,42 @@ final class LightningLineAttack {
         return Double.isFinite(y) ? new Vec3(center.x, y, center.z) : null;
     }
 
-    private void strike(ServerLevel level, Line line, Vec3 point, List<ServerPlayer> participants) {
-        LightningStrikeEffect.spawnWeatherBolt(level, point, boss.getStormCloudY(point), line.points % 4 == 0);
-        for (ServerPlayer player : participants) {
-            if (player.isAlive() && !line.hit.contains(player.getUUID())
-                    && LightningAreaDamage.hurtPlayer(boss, player, point, HIT_RADIUS, HIT_HEIGHT, damage)) {
-                line.hit.add(player.getUUID());
+    /** Gives the next impact in a row time to register as a direct hit before applying edge damage. */
+    private void applyRowDamage(Line line, List<ServerPlayer> participants, long now) {
+        if (damage > 0 && (!line.impacts.isEmpty() || !line.pendingEdgeHits.isEmpty())) {
+            for (ServerPlayer player : participants) {
+                UUID id = player.getUUID();
+                if (!player.isAlive() || line.hit.contains(id)) {
+                    continue;
+                }
+                float amount = damageAt(player, line.impacts);
+                Long edgeDue = line.pendingEdgeHits.get(id);
+                if (amount == damage || edgeDue != null && now >= edgeDue) {
+                    line.pendingEdgeHits.remove(id);
+                    float hitDamage = amount == damage ? damage : damage * 0.5F;
+                    if (LightningAreaDamage.hurtPlayer(boss, player, hitDamage)) {
+                        line.hit.add(id);
+                    }
+                } else if (amount > 0 && edgeDue == null) {
+                    line.pendingEdgeHits.put(id, now + edgeHitDelay);
+                }
+            }
+            line.pendingEdgeHits.values().removeIf(due -> due <= now);
+        }
+        line.impacts.clear();
+    }
+
+    private float damageAt(ServerPlayer player, List<Vec3> impacts) {
+        float edgeDamage = 0;
+        for (Vec3 impact : impacts) {
+            if (LightningAreaDamage.contains(boss, player, impact, HIT_RADIUS, HIT_HEIGHT)) {
+                return damage;
+            }
+            if (edgeDamage == 0 && LightningAreaDamage.contains(boss, player, impact, EDGE_RADIUS, HIT_HEIGHT)) {
+                edgeDamage = damage * 0.5F;
             }
         }
+        return edgeDamage;
     }
 
     private double surface(ServerLevel level, double x, double z, double referenceY) {
@@ -199,9 +320,18 @@ final class LightningLineAttack {
     }
 
     void clear() {
+        if (landingAt >= 0) {
+            boss.clearTravelArc();
+        }
         active.clear();
-        shotsRemaining = 0;
-        aim = null;
-        previousTarget = null;
+        positionsRemaining = 0;
+        rowsRemaining = 0;
+        nextDestination = null;
+        destinationPlanned = false;
+        landingAt = -1;
+        fadeStartedAt = -1;
+        lastTarget = null;
+        secondLastTarget = null;
+        boss.setLineCharge(0);
     }
 }
