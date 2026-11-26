@@ -1,5 +1,8 @@
 package de.codemorra.sheeper.client;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -13,6 +16,7 @@ import com.mojang.math.Vector4f;
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
+import de.codemorra.sheeper.network.LightningArenaFlashPacket;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -37,6 +41,9 @@ import org.lwjgl.opengl.GL30;
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class ArenaFogRenderer {
+    private static final int FLASH_TICKS = 8;
+    private static final Map<LightningArenaFlashPacket, Long> arenaFlashes = new HashMap<>();
+    private static ClientLevel flashLevel;
     private static ShaderInstance shader;
     private static RenderTarget depthCopy;
     private static boolean capturedDepth;
@@ -52,6 +59,19 @@ public final class ArenaFogRenderer {
     /** The resource manager owns shader disposal and supplies a replacement after reloads. */
     static void setShader(ShaderInstance loaded) {
         shader = loaded;
+    }
+
+    /** Starts the flash upon receipt so it plays alongside the opening sound. */
+    public static void receiveFlash(LightningArenaFlashPacket packet) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || !packet.dimension().equals(level.dimension().location())) {
+            return;
+        }
+        if (flashLevel != level) {
+            arenaFlashes.clear();
+            flashLevel = level;
+        }
+        arenaFlashes.put(packet, level.getGameTime());
     }
 
     /**
@@ -162,7 +182,8 @@ public final class ArenaFogRenderer {
     private static boolean canRender(Minecraft minecraft, Camera camera) {
         ClientLevel level = minecraft.level;
         return level != null && shader != null && WaterArenaVisuals.canBlendFog(camera)
-                && (LightningSheeperConfig.LIGHTNING_FOG_INTENSITY.get() > 0
+                && (flashLevel == level && !arenaFlashes.isEmpty()
+                        || LightningSheeperConfig.LIGHTNING_FOG_INTENSITY.get() > 0
                         && !LightningWeatherVisuals.visibleArenas(level).isEmpty()
                         || WaterSheeperConfig.WATER_FOG_INTENSITY.get() > 0
                                 && !WaterArenaVisuals.activeVolumes(level).isEmpty());
@@ -192,6 +213,9 @@ public final class ArenaFogRenderer {
                             arena.maximumY());
                 }
             }
+            if (flashLevel == frame.level() && !arenaFlashes.isEmpty()) {
+                drawFlashes(frame, renderDistance, time);
+            }
             double waterIntensity = WaterSheeperConfig.WATER_FOG_INTENSITY.get();
             if (waterIntensity > 0) {
                 shader.getUniform("FogColor").set(0.12F, 0.38F, 0.52F, 1.0F);
@@ -207,6 +231,20 @@ public final class ArenaFogRenderer {
             RenderSystem.depthMask(true);
             RenderSystem.enableDepthTest();
             RenderSystem.setShader(() -> previous);
+        }
+    }
+
+    /** Uses scene depth to light the storm volume while leaving unrelated foreground clear. */
+    private static void drawFlashes(FogFrame frame, double renderDistance, double time) {
+        shader.getUniform("FogDensity").set(1.2F);
+        for (var entry : arenaFlashes.entrySet()) {
+            double remaining = 1 - Math.max(0, time - entry.getValue()) / FLASH_TICKS;
+            if (remaining > 0) {
+                var flash = entry.getKey();
+                shader.getUniform("FogColor").set(0.85F, 0.92F, 1.0F, (float) (0.28 * remaining * remaining));
+                drawVolume(frame.camera(), renderDistance, flash.center(), flash.radius(), flash.minimumY(),
+                        flash.maximumY());
+            }
         }
     }
 
@@ -229,10 +267,21 @@ public final class ArenaFogRenderer {
         BufferUploader.drawWithShader(vertices.end());
     }
 
-    /** Releases the temporary GPU target when leaving a world. */
+    /** Releases temporary frames on world unload and expires completed flashes. */
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END && Minecraft.getInstance().level == null && depthCopy != null) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != flashLevel) {
+            arenaFlashes.clear();
+            flashLevel = null;
+        } else if (level != null) {
+            long now = level.getGameTime();
+            arenaFlashes.values().removeIf(start -> now - start >= FLASH_TICKS);
+        }
+        if (level == null && depthCopy != null) {
             releaseDepth();
         }
     }

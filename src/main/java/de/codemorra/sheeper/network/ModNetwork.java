@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "33";
+    private static final String VERSION = "34";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -62,6 +62,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningRodShelterPacket.class, 9, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningRodShelterPacket::encode).decoder(LightningRodShelterPacket::decode)
                 .consumerMainThread(LightningRodShelterPacket::handle).add();
+        CHANNEL.messageBuilder(LightningArenaFlashPacket.class, 10, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningArenaFlashPacket::encode).decoder(LightningArenaFlashPacket::decode)
+                .consumerMainThread(LightningArenaFlashPacket::handle).add();
     }
 
     /**
@@ -97,6 +100,11 @@ public final class ModNetwork {
     }
 
     public static void sendWeather(ServerPlayer observer, LightningWeatherPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /** Sends an arena light pulse to observers in the same dimension. */
+    public static void sendLightningArenaFlash(ServerPlayer observer, LightningArenaFlashPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 
