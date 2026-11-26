@@ -216,7 +216,8 @@ public final class LightningArenaWind {
                 continue;
             }
             Vec3 direction = field.directionAt(now);
-            if (!LightningWindField.isExposed(level, player, direction)) {
+            double windExposure = LightningWindField.exposure(level, player, direction);
+            if (windExposure <= 0) {
                 continue;
             }
             double drift = 0.018 * field.strength();
@@ -231,7 +232,8 @@ public final class LightningArenaWind {
             }
             double against = Math.max(0, -motion.dot(direction));
             Vec3 candidate = direction.scale(
-                    (drift + gustDrift + against * Math.min(0.9, resistance + gustResistance)) * intensity);
+                    (drift + gustDrift + against * Math.min(0.9, resistance + gustResistance))
+                            * intensity * windExposure);
             if (candidate.lengthSqr() > correction.lengthSqr()) {
                 correction = candidate;
             }
