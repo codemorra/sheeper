@@ -53,7 +53,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     /** World-space endpoints keep the visible lightning and charging form anchored to the attack position. */
     public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks, long chargeStartedAt,
-            int chargeTicks, int calmTicks, int dischargeTicks) {
+            int chargeTicks, int calmTicks, int dischargeTicks, boolean compact) {
         public float progress(double time) {
             return (float) Mth.clamp((time - startTick) / durationTicks, 0, 1);
         }
@@ -203,11 +203,21 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     /** Synchronizes the phase lengths once so clients can animate the charge smoothly between ticks. */
     void startTravelArcCharge(int chargeTicks, int calmTicks, int dischargeTicks) {
+        startTravelArcCharge(chargeTicks, calmTicks, dischargeTicks, false);
+    }
+
+    /** Holds the smaller lightning form at the fan's ground-level origin. */
+    void startFanArcCharge(int chargeTicks, int firingTicks) {
+        startTravelArcCharge(chargeTicks, firingTicks, 0, true);
+    }
+
+    private void startTravelArcCharge(int chargeTicks, int calmTicks, int dischargeTicks, boolean compact) {
         CompoundTag arc = entityData.get(DATA_TRAVEL_ARC).copy();
         arc.putLong("ChargeStartedAt", level.getGameTime());
         arc.putInt("ChargeTicks", chargeTicks);
         arc.putInt("CalmTicks", calmTicks);
         arc.putInt("DischargeTicks", dischargeTicks);
+        arc.putBoolean("Compact", compact);
         entityData.set(DATA_TRAVEL_ARC, arc);
     }
 
@@ -220,7 +230,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                         new Vec3(arc.getDouble("EndX"), arc.getDouble("EndY"), arc.getDouble("EndZ")),
                         arc.getLong("StartTick"), Math.max(1, arc.getInt("DurationTicks")),
                         arc.getLong("ChargeStartedAt"), arc.getInt("ChargeTicks"), arc.getInt("CalmTicks"),
-                        arc.getInt("DischargeTicks"));
+                        arc.getInt("DischargeTicks"), arc.getBoolean("Compact"));
     }
 
     private double horizontalDistanceSquared(double x, double z) {
@@ -320,7 +330,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void move(MoverType type, Vec3 movement) {
-        if (!level.isClientSide && specialAttacks != null && specialAttacks.isRodHovering()) {
+        if (!level.isClientSide && specialAttacks != null && specialAttacks.isHovering()) {
             return;
         }
         // Teleport pauses are stationary, but the short approach still uses vanilla collisions.
@@ -444,7 +454,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 }
             }
         }
-        if (specialAttacks.isRodHovering()) {
+        if (specialAttacks.isHovering()) {
             setDeltaMovement(Vec3.ZERO);
             fallDistance = 0;
         } else if (!teleports.isWalking()) {

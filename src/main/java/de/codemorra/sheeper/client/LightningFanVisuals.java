@@ -26,7 +26,7 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-/** Draws the charge at the Sheeper's head and the arcs to the synchronized impact points. */
+/** Draws the simultaneous fans from the hovering lightning form to the ground. */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LightningFanVisuals {
     private static final Map<Integer, Fan> active = new HashMap<>();
@@ -47,6 +47,10 @@ public final class LightningFanVisuals {
         if (level != currentLevel) {
             active.clear();
             currentLevel = level;
+        }
+        if (packet.ends().isEmpty()) {
+            active.remove(packet.bossId());
+            return;
         }
         long now = level.getGameTime();
         Fan old = active.get(packet.bossId());
@@ -79,7 +83,7 @@ public final class LightningFanVisuals {
         BufferBuilder buffer = tesselator.getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (Fan fan : active.values()) {
-            drawFan(buffer, camera, fan, time, event.getPartialTick());
+            drawFan(buffer, camera, fan, time);
         }
         tesselator.end();
         RenderSystem.depthMask(true);
@@ -87,67 +91,37 @@ public final class LightningFanVisuals {
         RenderSystem.disableBlend();
     }
 
-    /** Interpolates ordinary tracking motion while dropping concealed endpoints immediately. */
-    private static void drawFan(BufferBuilder buffer, Vec3 camera, Fan fan, double time, float partialTick) {
+    /** Matches the previous impact points by player so a target change never drags another fan. */
+    private static void drawFan(BufferBuilder buffer, Vec3 camera, Fan fan, double time) {
         double progress = Mth.clamp((time - fan.receivedAt) / 2, 0, 1);
         var entity = currentLevel.getEntity(fan.current.bossId());
-        LightningSheeperEntity boss = entity instanceof LightningSheeperEntity sheeper ? sheeper : null;
-        if (boss != null && (!boss.isAlive() || boss.isInvisible())) {
+        if (entity instanceof LightningSheeperEntity boss && (!boss.isAlive() || boss.isInvisible())) {
             return;
         }
-        Vec3 origin = boss == null ? fan.previous.origin().lerp(fan.current.origin(), progress)
-                : boss.getBeamOrigin(partialTick);
-        if (fan.current.charge() > 0) {
-            double charge = Mth.lerp(progress, fan.previous.charge(), fan.current.charge());
-            drawCharge(buffer, camera, boss, origin, partialTick, time, charge);
-            return;
-        }
+        Vec3 origin = fan.current.origin();
         var shells = LightningRodShelterVisuals.visibleShells(currentLevel, time);
-        for (int lane = 0; lane < fan.current.ends().size(); lane++) {
-            Vec3 end = fan.current.ends().get(lane);
-            if (end.equals(fan.current.origin())) {
-                continue;
-            }
-            if (fan.previous.charge() == 0) {
-                Vec3 oldEnd = fan.previous.ends().get(lane);
-                // A sudden change in length usually means the arc met or cleared an obstacle.
-                if (!oldEnd.equals(fan.previous.origin()) && oldEnd.distanceToSqr(end) <= 4) {
-                    end = oldEnd.lerp(end, progress);
+        for (var target : fan.current.ends().entrySet()) {
+            List<Vec3> previous = fan.previous.ends().get(target.getKey());
+            List<Vec3> current = target.getValue();
+            for (int lane = 0; lane < current.size(); lane++) {
+                Vec3 end = current.get(lane);
+                if (end.equals(origin)) {
+                    continue;
                 }
+                if (previous != null) {
+                    Vec3 oldEnd = previous.get(lane);
+                    // A sudden change in length usually means the arc met or cleared an obstacle.
+                    if (!oldEnd.equals(fan.previous.origin()) && oldEnd.distanceToSqr(end) <= 4) {
+                        end = oldEnd.lerp(end, progress);
+                    }
+                }
+                drawBolt(buffer, camera, origin, end, time, target.getKey(), lane, shells);
             }
-            drawBolt(buffer, camera, origin, end, time, lane, shells);
         }
     }
 
-    /** Draws staggered, short sparks that converge on the muzzle as the charge builds. */
-    private static void drawCharge(BufferBuilder buffer, Vec3 camera, LightningSheeperEntity boss, Vec3 origin,
-            float partialTick, double time, double charge) {
-        double size = boss == null ? 1 : boss.getSizeMultiplier();
-        Vec3 forward = boss == null ? new Vec3(0, 0, 1) : boss.getViewVector(partialTick);
-        Vec3 reference = Math.abs(forward.y) > 0.95 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
-        Vec3 side = forward.cross(reference).normalize();
-        Vec3 up = side.cross(forward);
-        Vec3 muzzle = origin.add(forward.scale(0.65 * size));
-        double reach = (0.42 + charge * 0.26) * size;
-        for (int index = 0; index < 6; index++) {
-            double life = (time + index * 2.7) / (4 + index * 0.6);
-            double age = Mth.frac(life);
-            // Pick a new direction for each flash and keep it steady as the spark moves inward.
-            double phase = Math.floor(life) * 7.13 + index * 9.47;
-            Vec3 offset = side.scale(Math.sin(phase) * reach)
-                    .add(up.scale(Math.sin(phase * 1.63 + 1) * reach))
-                    .add(forward.scale((0.45 + 0.35 * Math.sin(phase * 2.37)) * reach));
-            Vec3 from = muzzle.add(offset.scale(1 - age * 0.7));
-            Vec3 to = muzzle.add(offset.scale(0.62 - age * 0.6));
-            Vec3 bend = from.lerp(to, 0.5).add(side.scale(Math.sin(phase * 1.91) * 0.09 * size))
-                    .add(up.scale(Math.cos(phase * 1.47) * 0.06 * size));
-            float alpha = (float) ((0.36 + 0.60 * charge) * Math.sin(Math.PI * age));
-            arc(buffer, camera, from, bend, to, 0.018 + charge * 0.017, alpha);
-        }
-    }
-
-    /** Breaks each arc into linked bends while keeping the mouth and impact anchored. */
-    private static void drawBolt(BufferBuilder buffer, Vec3 camera, Vec3 origin, Vec3 end, double time, int lane,
+    /** Breaks each arc into linked bends while keeping the core and impact anchored. */
+    private static void drawBolt(BufferBuilder buffer, Vec3 camera, Vec3 origin, Vec3 end, double time, int targetId, int lane,
             List<LightningRodShelter> shells) {
         Vec3 direction = end.subtract(origin);
         double length = direction.length();
@@ -156,9 +130,9 @@ public final class LightningFanVisuals {
         int segments = Mth.clamp(Mth.ceil(length / 1.4), 1, 112);
         Vec3 from = origin;
         for (int index = 0; index < segments; index++) {
-            double phase = time * 1.28 + lane * 2.86 + index * 3.95;
+            double phase = time * 1.28 + targetId * 0.37 + lane * 2.86 + index * 3.95;
             Vec3 anchor = origin.lerp(end, (index + 1.0) / segments);
-            // Keep the first stretch steady as it leaves the head, like the water beam.
+            // Keep the first stretch steady where it leaves the lightning core.
             double jitter = Mth.clamp(length * index / (2 * segments), 0, 1);
             Vec3 to = index == segments - 1 ? end : anchor.add(side.scale(jitter * 0.19 * Math.sin(phase)))
                     .add(up.scale(jitter * 0.13 * Math.cos(phase * 1.3)));
