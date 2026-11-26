@@ -56,7 +56,7 @@ final class WaterArenaDrain {
             if (!descending.contains(id)) {
                 continue;
             }
-            WaterArenaFallProtection.protect(player);
+            ArenaFallProtection.protect(player);
             if (hasWater && player.getBoundingBox().maxY <= surface - ArenaWater.BOUNDARY_MARGIN) {
                 continue;
             }

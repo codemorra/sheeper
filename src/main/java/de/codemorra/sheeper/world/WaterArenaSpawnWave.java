@@ -82,7 +82,7 @@ public final class WaterArenaSpawnWave {
             // Send the intended motion again even after a wall clipped the previous tick.
             // Vanilla collision remains responsible for preventing movement through blocks.
             WaterArenaPushProtection.apply(player, new Vec3(direction.x * step, upward, direction.z * step));
-            WaterArenaFallProtection.protect(player);
+            ArenaFallProtection.protect(player);
             sync(player);
         }
         var iterator = lifts.keySet().iterator();

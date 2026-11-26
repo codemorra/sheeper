@@ -52,7 +52,7 @@ public final class WaterArenaPushProtection {
             return;
         }
         // Preserve fall protection even when the swimmer's body crosses a vertical water face.
-        WaterArenaFallProtection.protect(player);
+        ArenaFallProtection.protect(player);
         if (!WaterArenaBoundary.containsBody(ArenaWater.activeVolumes(player.level),
                 player.position(), player.getBbHeight())) {
             return;
@@ -61,7 +61,7 @@ public final class WaterArenaPushProtection {
         long until = player.level.getGameTime()
                 + (player.hasEffect(MobEffects.DOLPHINS_GRACE) ? DOLPHIN_IMPULSE_TICKS : IMPULSE_TICKS);
         if (active(player) && state.getLong("Until") == until) {
-            WaterArenaFallProtection.protect(player);
+            ArenaFallProtection.protect(player);
             return;
         }
         if (!active(player)) {
@@ -70,7 +70,7 @@ public final class WaterArenaPushProtection {
         state.putString("Dimension", player.level.dimension().location().toString());
         state.putLong("Until", until);
         player.getPersistentData().put(STATE, state);
-        WaterArenaFallProtection.protect(player);
+        ArenaFallProtection.protect(player);
         synchronize(player);
     }
 
@@ -180,7 +180,7 @@ public final class WaterArenaPushProtection {
         if (WaterArenaBoundary.containsBody(volumes, player.position(), player.getBbHeight())) {
             savePosition(state, player.position());
         }
-        WaterArenaFallProtection.protect(player);
+        ArenaFallProtection.protect(player);
     }
 
     /** Checks every touched chunk without loading terrain for a correction position. */
