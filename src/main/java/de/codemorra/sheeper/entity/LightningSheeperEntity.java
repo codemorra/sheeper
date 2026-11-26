@@ -40,6 +40,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<CompoundTag> DATA_TRAVEL_ARC = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    private static final EntityDataAccessor<Float> DATA_LINE_CHARGE = SynchedEntityData
+            .defineId(LightningSheeperEntity.class, EntityDataSerializers.FLOAT);
 
     /** World-space endpoints keep the visible lightning and charging form anchored to the attack position. */
     public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks, float charge) {
@@ -67,6 +69,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_GRACE::get,
             LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_REGENERATION::get);
     private int encounterEntryTicks = -1;
+    private float previousLineCharge;
 
     public LightningSheeperEntity(EntityType<? extends Sheep> type, Level level) {
         super(type, level, Element.LIGHTNING);
@@ -81,7 +84,20 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_COMBAT_READY, false);
+        entityData.define(DATA_LINE_CHARGE, 0.0F);
         entityData.define(DATA_TRAVEL_ARC, new CompoundTag());
+    }
+
+    /**
+     * @param partialTick interpolation fraction for the charge effect
+     * @return intensity of the lightning clinging to the Sheeper during the row attack
+     */
+    public float getLineCharge(float partialTick) {
+        return Mth.lerp(partialTick, previousLineCharge, entityData.get(DATA_LINE_CHARGE));
+    }
+
+    void setLineCharge(float charge) {
+        entityData.set(DATA_LINE_CHARGE, charge);
     }
 
     /**
@@ -265,6 +281,9 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     @Override
     public void tick() {
+        if (level.isClientSide) {
+            previousLineCharge = entityData.get(DATA_LINE_CHARGE);
+        }
         if (level instanceof ServerLevel server && isAlive()) {
             LightningStormData storm = LightningStormData.get(server);
             arena = storm.startOrResume(server, getUUID(), getArenaCenter(),
@@ -346,7 +365,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     /** Keeps the focus between landings while that player is still participating. */
     @Nullable
-    private ServerPlayer getMovementFocus(List<ServerPlayer> participants) {
+    ServerPlayer getMovementFocus(List<ServerPlayer> participants) {
         if (getTarget() instanceof ServerPlayer player && participants.contains(player)) {
             return player;
         }

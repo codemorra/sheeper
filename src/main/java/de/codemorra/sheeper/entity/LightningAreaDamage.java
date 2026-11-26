@@ -33,7 +33,12 @@ public final class LightningAreaDamage {
     static boolean hurtPlayer(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos,
             double radius, double height, float damage) {
         return damage > 0 && contains(boss, player, pos, radius, height)
-                && player.hurt(new EntityDamageSource("lightningBolt", boss), damage);
+                && hurtPlayer(boss, player, damage);
+    }
+
+    /** Applies lightning damage after the caller has verified range and cover. */
+    static boolean hurtPlayer(LightningSheeperEntity boss, ServerPlayer player, float damage) {
+        return player.hurt(new EntityDamageSource("lightningBolt", boss), damage);
     }
 
     static boolean contains(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos, double radius, double height) {

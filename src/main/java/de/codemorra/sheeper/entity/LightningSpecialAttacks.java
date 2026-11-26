@@ -20,6 +20,7 @@ final class LightningSpecialAttacks {
     }
 
     private final LightningSheeperEntity boss;
+    private final LightningTeleportMovement teleports;
     private final LightningLineAttack line;
     private final LightningRingBarrage ring;
     private final LightningTornadoAttack tornado;
@@ -34,7 +35,8 @@ final class LightningSpecialAttacks {
 
     LightningSpecialAttacks(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
-        line = new LightningLineAttack(boss);
+        this.teleports = teleports;
+        line = new LightningLineAttack(boss, teleports);
         ring = new LightningRingBarrage(boss, teleports);
         tornado = new LightningTornadoAttack(boss);
         fan = new LightningFanAttack(boss);
@@ -42,7 +44,7 @@ final class LightningSpecialAttacks {
     }
 
     boolean isAttacking() {
-        return line.isActive() || ring.isActive() || tornado.isActive() || fan.isActive() || rod.isActive();
+        return line.isFiring() || ring.isActive() || tornado.isActive() || fan.isActive() || rod.isActive();
     }
 
     boolean isRodHovering() {
@@ -105,15 +107,25 @@ final class LightningSpecialAttacks {
         if (!tornado.isActive()) {
             tornadoCooldown = Math.max(0, tornadoCooldown - 1);
         }
-        if (!line.isActive()) {
+        if (!line.isFiring()) {
             lineCooldown = Math.max(0, lineCooldown - 1);
         }
         if (!ring.isActive()) {
             ringCooldown = Math.max(0, ringCooldown - 1);
         }
         if (line.isActive()) {
+            boolean wasFiring = line.isFiring();
             line.tick(level, players);
-            return;
+            if (wasFiring) {
+                if (!line.isFiring()) {
+                    // Recovery starts after the last launch while the rows keep travelling to the edge.
+                    ServerPlayer focus = boss.getMovementFocus(players);
+                    if (focus != null) {
+                        teleports.prepareCombatJump(focus);
+                    }
+                }
+                return;
+            }
         }
         if (ring.isActive()) {
             ring.tick(level, players);
@@ -132,7 +144,7 @@ final class LightningSpecialAttacks {
             return;
         }
         restTicks = Math.max(0, restTicks - 1);
-        if (restTicks > 0 || teleportPreparing) {
+        if (restTicks > 0 || teleportPreparing || line.isActive()) {
             return;
         }
         var ready = new ArrayList<Attack>(5);
@@ -167,8 +179,8 @@ final class LightningSpecialAttacks {
             }
             case LINE -> {
                 lineCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_LINE_COOLDOWN.get());
-                line.start(level);
-                line.tick(level, players);
+                boss.setTarget(null);
+                line.start(level, players);
             }
             case FAN -> {
                 fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());

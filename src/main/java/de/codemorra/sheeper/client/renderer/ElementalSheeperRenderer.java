@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.animal.Sheep;
 
 /**
@@ -46,6 +47,12 @@ public class ElementalSheeperRenderer extends SheepRenderer {
                 shadowRadius = 0;
                 if (!bolt.isInvisible()) {
                     LightningTravelArcRenderer.render(bolt, arc, partialTick, poses, buffers);
+                    if (!arc.isCharging() && bolt.getLineCharge(partialTick) > 0) {
+                        double time = bolt.level.getGameTime() + (double) partialTick;
+                        Vec3 feet = arc.start().lerp(arc.end(), arc.progress(time))
+                                .subtract(bolt.getPosition(partialTick)).add(0, -bolt.getBbHeight() * 0.5, 0);
+                        LightningTravelArcRenderer.renderLineCharge(bolt, feet, partialTick, poses, buffers);
+                    }
                 }
                 return;
             }
@@ -63,6 +70,10 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         poses.popPose();
         if (sheep instanceof WaterSheeperEntity boss && boss.isAlive() && !boss.isInvisible()) {
             WaterBeamRenderer.render(boss, poses, buffers, light, partialTick);
+        }
+        if (sheep instanceof LightningSheeperEntity boss && boss.isAlive() && !boss.isInvisible()
+                && boss.getLineCharge(partialTick) > 0) {
+            LightningTravelArcRenderer.renderLineCharge(boss, Vec3.ZERO, partialTick, poses, buffers);
         }
     }
 
