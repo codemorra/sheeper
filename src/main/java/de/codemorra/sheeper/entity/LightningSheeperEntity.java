@@ -364,7 +364,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 arenaCombat.tick(participants);
             }
             boolean fighting = canMove && !participants.isEmpty() && tickCombatEntry();
-            specialAttacks.tick(server, participants, fighting, teleports.isPreparing());
+            specialAttacks.tick(server, participants, fighting, teleports.isPreparing() || teleports.isRecoveryDue());
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             specialAttacks.applyTornadoEffects(server, participants);
             tickMovement(participants, canMove);
