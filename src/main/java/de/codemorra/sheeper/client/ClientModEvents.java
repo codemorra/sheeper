@@ -50,12 +50,12 @@ public class ClientModEvents {
         });
     }
 
-    /** Registers the bounded water-fog shader through the resource-pack reload lifecycle. */
+    /** Registers the bounded arena fog shader through the resource-pack reload lifecycle. */
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) throws IOException {
         event.registerShader(new ShaderInstance(event.getResourceManager(),
-                ResourceLocations.create(SheeperMod.MODID, "arena_water_fog"),
-                DefaultVertexFormat.POSITION_TEX), WaterArenaFogRenderer::setShader);
+                ResourceLocations.create(SheeperMod.MODID, "arena_fog"),
+                DefaultVertexFormat.POSITION_TEX), ArenaFogRenderer::setShader);
     }
 
     /** Binds the vapor provider to the shared vanilla smoke sprite animation. */

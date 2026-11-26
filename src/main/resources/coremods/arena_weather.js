@@ -1,4 +1,4 @@
-// Add positional rain without changing the dimension's global weather state.
+// Add positional storm effects without changing the dimension's global weather state.
 function initializeCoreMod() {
   var O = Java.type("org.objectweb.asm.Opcodes");
   var List = Java.type("org.objectweb.asm.tree.InsnList");
@@ -72,6 +72,35 @@ function initializeCoreMod() {
           }
         }
         check(count, "FireBlock rain guard");
+        return node;
+      }
+    },
+    arena_storm_lightmap: {
+      target: { type: "CLASS", name: "net.minecraft.client.renderer.LightTexture" },
+      transformer: function (node) {
+        var count = 0;
+        for (var i = 0; i < node.methods.size(); i++) {
+          var m = node.methods.get(i);
+          if (String(m.name) !== API.mapMethod("m_109881_") || String(m.desc) !== "(F)V") continue;
+          var instructions = m.instructions.toArray();
+          for (var j = 0; j < instructions.length; j++) {
+            var insn = instructions[j];
+            if (
+              insn.getOpcode() === O.INVOKEVIRTUAL &&
+              String(insn.owner) === "net/minecraft/client/multiplayer/ClientLevel" &&
+              String(insn.name) === API.mapMethod("m_104805_") &&
+              String(insn.desc) === "(F)F"
+            ) {
+              // Pass the computed skylight and the render partial tick, keeping block light untouched.
+              var code = new List();
+              code.add(new Var(O.FLOAD, 1));
+              code.add(call("de/codemorra/sheeper/client/LightningWeatherVisuals", "stormSkylight", "(FF)F"));
+              m.instructions.insert(insn, code);
+              count++;
+            }
+          }
+        }
+        check(count, "LightTexture skylight");
         return node;
       }
     },

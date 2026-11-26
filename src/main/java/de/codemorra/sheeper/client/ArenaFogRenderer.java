@@ -16,6 +16,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
@@ -29,12 +30,12 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
 /**
- * Integrates water fog along each visible ray's intersection with the arena.
+ * Integrates fog along each visible ray's intersection with an arena.
  * Scene depth keeps foreground terrain in front of the fog, including when
- * viewing the water volume from outside or along its upper boundary.
+ * viewing the volume from outside or along its upper boundary.
  */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
-public final class WaterArenaFogRenderer {
+public final class ArenaFogRenderer {
     private static ShaderInstance shader;
     private static RenderTarget depthCopy;
     private static boolean capturedDepth;
@@ -44,7 +45,7 @@ public final class WaterArenaFogRenderer {
             Vector4f eye, Vec3 camera, float partialTick) {
     }
 
-    private WaterArenaFogRenderer() {
+    private ArenaFogRenderer() {
     }
 
     /** The resource manager owns shader disposal and supplies a replacement after reloads. */
@@ -158,19 +159,16 @@ public final class WaterArenaFogRenderer {
     }
 
     private static boolean canRender(Minecraft minecraft, Camera camera) {
-        return minecraft.level != null && shader != null
-                && WaterSheeperConfig.WATER_FOG_INTENSITY.get() > 0
-                && !WaterArenaVisuals.activeVolumes(minecraft.level).isEmpty()
-                && WaterArenaVisuals.canBlendFog(camera);
+        ClientLevel level = minecraft.level;
+        return level != null && shader != null && WaterArenaVisuals.canBlendFog(camera)
+                && (!LightningWeatherVisuals.visibleArenas(level).isEmpty()
+                        || WaterSheeperConfig.WATER_FOG_INTENSITY.get() > 0
+                                && !WaterArenaVisuals.activeVolumes(level).isEmpty());
     }
 
     private static void draw(Minecraft minecraft, FogFrame frame) {
         shader.getUniform("InverseViewProjection").set(frame.inverse());
         shader.getUniform("RayOrigin").set(frame.eye().x(), frame.eye().y(), frame.eye().z());
-        shader.getUniform("WaterColor").set(0.12F, 0.38F, 0.52F);
-        // Intensity scales attenuation while preserving the existing base-distance tuning.
-        shader.getUniform("WaterDensity").set((float) (Math.log(20) * WaterSheeperConfig.WATER_FOG_INTENSITY.get()
-                / WaterSheeperConfig.WATER_FOG_DISTANCE.get()));
         shader.setSampler("SceneDepth", frame.depthTexture());
         ShaderInstance previous = RenderSystem.getShader();
         minecraft.getMainRenderTarget().bindWrite(false);
@@ -181,24 +179,23 @@ public final class WaterArenaFogRenderer {
         RenderSystem.setShader(() -> shader);
         try {
             double renderDistance = minecraft.options.getEffectiveRenderDistance() * 16.0D;
-            Vec3 camera = frame.camera();
-            for (var bounds : WaterArenaVisuals.renderVolumes(frame.level(), frame.partialTick())) {
-                // Camera-relative coordinates retain precision far from world origin.
-                double x = bounds.center().getX() + 0.5D - camera.x;
-                double z = bounds.center().getZ() + 0.5D - camera.z;
-                if (Math.hypot(x, z) - bounds.radius() > renderDistance) {
-                    continue;
+            double time = frame.level().getGameTime() + (double) frame.partialTick();
+            shader.getUniform("FogDensity").set(0.031F);
+            for (var arena : LightningWeatherVisuals.visibleArenas(frame.level())) {
+                // Keep distant lightning readable through the storm, and fade as the arena drains.
+                shader.getUniform("FogColor").set(0.08F, 0.10F, 0.14F, 0.72F * arena.opacityAt(time));
+                drawVolume(frame.camera(), renderDistance, arena.center(), arena.radiusAt(time), arena.minimumY(),
+                        arena.maximumY());
+            }
+            double waterIntensity = WaterSheeperConfig.WATER_FOG_INTENSITY.get();
+            if (waterIntensity > 0) {
+                shader.getUniform("FogColor").set(0.12F, 0.38F, 0.52F, 1.0F);
+                shader.getUniform("FogDensity").set((float) (Math.log(20) * waterIntensity
+                        / WaterSheeperConfig.WATER_FOG_DISTANCE.get()));
+                for (var bounds : WaterArenaVisuals.renderVolumes(frame.level(), frame.partialTick())) {
+                    drawVolume(frame.camera(), renderDistance, bounds.center(), bounds.radius(), bounds.minimumY(),
+                            bounds.maximumY() + 1);
                 }
-                shader.getUniform("WaterCylinder").set((float) x, (float) z, (float) bounds.radius());
-                shader.getUniform("WaterHeights").set((float) (bounds.minimumY() - camera.y),
-                        (float) (bounds.maximumY() + 1.0D - camera.y));
-                var vertices = Tesselator.getInstance().getBuilder();
-                vertices.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-                vertices.vertex(-1, -1, 0).uv(0, 0).endVertex();
-                vertices.vertex(1, -1, 0).uv(1, 0).endVertex();
-                vertices.vertex(1, 1, 0).uv(1, 1).endVertex();
-                vertices.vertex(-1, 1, 0).uv(0, 1).endVertex();
-                BufferUploader.drawWithShader(vertices.end());
             }
         } finally {
             RenderSystem.disableBlend();
@@ -206,6 +203,25 @@ public final class WaterArenaFogRenderer {
             RenderSystem.enableDepthTest();
             RenderSystem.setShader(() -> previous);
         }
+    }
+
+    /** Projects one bounded fog cylinder using camera-relative coordinates to retain world precision. */
+    private static void drawVolume(Vec3 camera, double renderDistance, BlockPos center, double radius,
+            double minimumY, double ceilingY) {
+        double x = center.getX() + 0.5D - camera.x;
+        double z = center.getZ() + 0.5D - camera.z;
+        if (radius <= 0 || Math.hypot(x, z) - radius > renderDistance) {
+            return;
+        }
+        shader.getUniform("FogCylinder").set((float) x, (float) z, (float) radius);
+        shader.getUniform("FogHeights").set((float) (minimumY - camera.y), (float) (ceilingY - camera.y));
+        var vertices = Tesselator.getInstance().getBuilder();
+        vertices.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+        vertices.vertex(-1, -1, 0).uv(0, 0).endVertex();
+        vertices.vertex(1, -1, 0).uv(1, 0).endVertex();
+        vertices.vertex(1, 1, 0).uv(1, 1).endVertex();
+        vertices.vertex(-1, 1, 0).uv(0, 1).endVertex();
+        BufferUploader.drawWithShader(vertices.end());
     }
 
     /** Releases the temporary GPU target when leaving a world. */
