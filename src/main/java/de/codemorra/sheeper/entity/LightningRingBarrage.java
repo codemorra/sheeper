@@ -88,8 +88,7 @@ final class LightningRingBarrage {
             warningOrigin = boss.position();
             warningStart = level.getGameTime();
             showWarning(level);
-            float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-            LightningAttackSounds.play(boss, warningOrigin, SoundEvents.RESPAWN_ANCHOR_CHARGE, volume * 0.8F, 1.35F);
+            playRingImpact(warningOrigin);
         }
     }
 
@@ -225,6 +224,11 @@ final class LightningRingBarrage {
         showWave(level, wave);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, origin.x, origin.y + boss.getBbHeight() * 0.52,
                 origin.z, 28, boss.getBbWidth() * 0.40, boss.getBbHeight() * 0.20, boss.getBbWidth() * 0.40, 0.13);
+        playRingImpact(origin);
+    }
+
+    /** Uses the same arena-wide impact cue for the warning and each ring release. */
+    private void playRingImpact(Vec3 origin) {
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, origin, SoundEvents.LIGHTNING_BOLT_IMPACT, volume, 1.4F);
     }
