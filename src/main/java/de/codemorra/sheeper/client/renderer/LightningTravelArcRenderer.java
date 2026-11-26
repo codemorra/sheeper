@@ -85,13 +85,19 @@ final class LightningTravelArcRenderer {
             MultiBufferSource buffers) {
         Vec3 center = arc.end().subtract(boss.getPosition(partialTick));
         double time = boss.level.getGameTime() + (double) partialTick;
-        double radius = boss.getBbWidth() * (0.24 + 0.15 * arc.charge());
-        double height = boss.getBbHeight() * (0.45 + 0.15 * arc.charge());
-        Vec3 side = new Vec3(0.75, 0, 0);
-        Vec3 up = new Vec3(0, 0, 0.75);
+        float charge = arc.chargeAt(time);
+        double radius = boss.getBbWidth() * (0.24 + 0.76 * charge);
+        double height = boss.getBbHeight() * (0.45 + 0.65 * charge);
+        double thickness = 0.60 + 0.55 * charge;
+        Vec3 side = new Vec3(thickness, 0, 0);
+        Vec3 up = new Vec3(0, 0, thickness);
         VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
         Matrix4f matrix = poses.last().pose();
-        for (int index = 0; index < 4; index++) {
+        for (int index = 0; index < 8; index++) {
+            float visibility = index < 4 ? 1 : Mth.clamp(charge * 4 - (index - 4), 0, 1);
+            if (visibility == 0) {
+                break;
+            }
             double phase = time * (0.52 + index * 0.09) + index * 2.51;
             double x = Math.cos(phase) * radius;
             double z = Math.sin(phase * 1.27) * radius;
@@ -99,7 +105,7 @@ final class LightningTravelArcRenderer {
             Vec3 bend = center.add(x, height * 0.29, z);
             Vec3 lowerBend = center.add(-x * 0.72, -height * 0.27, -z * 0.72);
             Vec3 bottom = center.add(x * 0.15, -height * (0.74 + 0.15 * Math.cos(phase)), z * 0.33);
-            float alpha = (float) (0.43 + 0.28 * arc.charge() + 0.19 * Math.sin(phase * 1.91));
+            float alpha = (float) (visibility * (0.34 + 0.50 * charge + 0.14 * Math.sin(phase * 1.91)));
             drawSegment(buffer, matrix, top, bend, side, up, alpha * 0.55F);
             drawSegment(buffer, matrix, bend, center, side, up, alpha);
             drawSegment(buffer, matrix, center, lowerBend, side, up, alpha);

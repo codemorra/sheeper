@@ -52,14 +52,25 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.FLOAT);
 
     /** World-space endpoints keep the visible lightning and charging form anchored to the attack position. */
-    public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks, float charge) {
+    public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks, long chargeStartedAt,
+            int chargeTicks, int calmTicks, int dischargeTicks) {
         public float progress(double time) {
             return (float) Mth.clamp((time - startTick) / durationTicks, 0, 1);
         }
 
-        /** @return whether the travelling lightning has condensed at the destination */
+        /** @return whether the lightning form is suspended at the destination */
         public boolean isCharging() {
-            return charge >= 0;
+            return chargeTicks > 0;
+        }
+
+        /** Grows through the charge, holds in the calm phase, then fades through the barrage. */
+        public float chargeAt(double time) {
+            double age = Math.max(0, time - chargeStartedAt);
+            if (age < chargeTicks) {
+                return (float) (age / chargeTicks);
+            }
+            double dischargeAge = age - chargeTicks - calmTicks;
+            return (float) Mth.clamp(1 - dischargeAge / Math.max(1, dischargeTicks), 0, 1);
         }
     }
 
@@ -190,10 +201,13 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         entityData.set(DATA_TRAVEL_ARC, new CompoundTag());
     }
 
-    /** Turns the existing travel arc into a suspended charge at its endpoint. */
-    void setTravelArcCharge(float progress) {
+    /** Synchronizes the phase lengths once so clients can animate the charge smoothly between ticks. */
+    void startTravelArcCharge(int chargeTicks, int calmTicks, int dischargeTicks) {
         CompoundTag arc = entityData.get(DATA_TRAVEL_ARC).copy();
-        arc.putFloat("Charge", progress);
+        arc.putLong("ChargeStartedAt", level.getGameTime());
+        arc.putInt("ChargeTicks", chargeTicks);
+        arc.putInt("CalmTicks", calmTicks);
+        arc.putInt("DischargeTicks", dischargeTicks);
         entityData.set(DATA_TRAVEL_ARC, arc);
     }
 
@@ -205,7 +219,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 : new TravelArc(new Vec3(arc.getDouble("StartX"), arc.getDouble("StartY"), arc.getDouble("StartZ")),
                         new Vec3(arc.getDouble("EndX"), arc.getDouble("EndY"), arc.getDouble("EndZ")),
                         arc.getLong("StartTick"), Math.max(1, arc.getInt("DurationTicks")),
-                        arc.contains("Charge", Tag.TAG_FLOAT) ? arc.getFloat("Charge") : -1);
+                        arc.getLong("ChargeStartedAt"), arc.getInt("ChargeTicks"), arc.getInt("CalmTicks"),
+                        arc.getInt("DischargeTicks"));
     }
 
     private double horizontalDistanceSquared(double x, double z) {
