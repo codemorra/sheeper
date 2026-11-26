@@ -20,7 +20,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -210,7 +214,7 @@ final class LightningFanAttack {
                 : Double.NaN;
     }
 
-    /** Clips the visible arc to cover and applies damage only when it actually reaches the ground impact. */
+    /** Resolves cover, body hits and ground effects in the order the arc reaches them. */
     private Vec3 traceArc(ServerLevel level, List<ServerPlayer> players, Vec3 origin, Vec3 point, double floor) {
         if (!Double.isFinite(floor)) {
             return origin;
@@ -221,42 +225,81 @@ final class LightningFanAttack {
             return origin;
         }
         LightningStormData storm = LightningStormData.get(level);
-        Vec3 hit = storm.clipLightning(origin, raised);
-        var obstruction = level.clip(new ClipContext(origin, hit, ClipContext.Block.COLLIDER,
+        Vec3 shell = storm.clipLightning(origin, raised);
+        var obstruction = level.clip(new ClipContext(origin, shell, ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, boss));
-        if (obstruction.getType() != HitResult.Type.MISS) {
-            storm.igniteLeaves(level, boss.getUUID(), obstruction.getBlockPos());
-            return obstruction.getLocation();
+        boolean hitBlock = obstruction.getType() != HitResult.Type.MISS;
+        Vec3 end = hitBlock ? obstruction.getLocation() : shell;
+        if (origin.equals(end)) {
+            return origin;
         }
-        if (!hit.equals(raised)) {
-            return hit;
+        long now = level.getGameTime();
+        EntityHitResult interception = findInterception(level, players, origin, end);
+        if (interception != null) {
+            hitEntity((LivingEntity) interception.getEntity(), interception.getLocation(), now);
+            return interception.getLocation();
+        }
+        if (hitBlock) {
+            storm.igniteLeaves(level, boss.getUUID(), obstruction.getBlockPos());
+            return end;
+        }
+        if (!shell.equals(raised)) {
+            return end;
         }
         var support = new BlockPos(impact.x, Math.nextDown(impact.y), impact.z);
         storm.igniteLeaves(level, boss.getUUID(), support);
-        long now = level.getGameTime();
         for (ServerPlayer player : players) {
-            UUID id = player.getUUID();
-            if (now >= nextHitTick.getOrDefault(id, 0L)
-                    && LightningAreaDamage.hurtPlayer(boss, player, impact, HIT_RADIUS, HIT_HEIGHT, damage)) {
-                nextHitTick.put(id, now + 20);
+            if (LightningAreaDamage.contains(boss, player, impact, HIT_RADIUS, HIT_HEIGHT)) {
+                hitEntity(player, impact, now);
             }
         }
         if (damage > 0) {
             for (var target : LightningAreaDamage.mobsAt(boss, impact, HIT_RADIUS, HIT_HEIGHT)) {
-                UUID id = target.getUUID();
-                if (now < nextHitTick.getOrDefault(id, 0L)
-                        || !LightningAreaDamage.contains(boss, target, impact, HIT_RADIUS, HIT_HEIGHT)) {
-                    continue;
+                if (LightningAreaDamage.contains(boss, target, impact, HIT_RADIUS, HIT_HEIGHT)) {
+                    hitEntity(target, impact, now);
                 }
-                if (struckMobs.contains(id)) {
-                    LightningAreaDamage.hurtMob(boss, target, damage);
-                } else if (LightningAreaDamage.strikeMob(target, impact, damage)) {
-                    struckMobs.add(id);
-                }
-                nextHitTick.put(id, now + 20);
             }
         }
         return raised;
+    }
+
+    /** Finds the first living hitbox on the unobstructed part of this arc. */
+    @Nullable
+    private EntityHitResult findInterception(ServerLevel level, List<ServerPlayer> players, Vec3 origin, Vec3 end) {
+        var candidates = level.getEntitiesOfClass(LivingEntity.class, new AABB(origin, end).inflate(0.01),
+                target -> target != boss && target.isAlive() && target.isPickable()
+                        && (target instanceof Player ? players.contains(target) : boss.isInsideArena(target)));
+        EntityHitResult nearest = null;
+        double nearestDistance = origin.distanceToSqr(end);
+        for (LivingEntity candidate : candidates) {
+            AABB bounds = candidate.getBoundingBox();
+            Vec3 point = bounds.contains(origin) ? origin : bounds.clip(origin, end).orElse(null);
+            if (point != null && origin.distanceToSqr(point) < nearestDistance) {
+                nearest = new EntityHitResult(candidate, point);
+                nearestDistance = origin.distanceToSqr(point);
+            }
+        }
+        return nearest;
+    }
+
+    /** Shares the same hit interval between body interception and splash at the ground. */
+    private void hitEntity(LivingEntity target, Vec3 impact, long now) {
+        UUID id = target.getUUID();
+        if (damage <= 0 || now < nextHitTick.getOrDefault(id, 0L)) {
+            return;
+        }
+        if (target instanceof ServerPlayer player) {
+            if (LightningAreaDamage.hurtPlayer(boss, player, damage)) {
+                nextHitTick.put(id, now + 20);
+            }
+            return;
+        }
+        if (struckMobs.contains(id)) {
+            LightningAreaDamage.hurtMob(boss, target, damage);
+        } else if (LightningAreaDamage.strikeMob(target, impact, damage)) {
+            struckMobs.add(id);
+        }
+        nextHitTick.put(id, now + 20);
     }
 
     /** Shares one snapshot with every observer who can be near any of the arena's impacts. */

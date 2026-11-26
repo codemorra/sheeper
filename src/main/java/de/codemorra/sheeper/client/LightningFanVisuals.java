@@ -110,8 +110,9 @@ public final class LightningFanVisuals {
                 }
                 if (previous != null) {
                     Vec3 oldEnd = previous.get(lane);
-                    // A sudden change in length usually means the arc met or cleared an obstacle.
-                    if (!oldEnd.equals(fan.previous.origin()) && oldEnd.distanceToSqr(end) <= 4) {
+                    // An arc that hits cover or a body must not keep drawing past its new end.
+                    if (!oldEnd.equals(fan.previous.origin()) && oldEnd.distanceToSqr(end) <= 4
+                            && oldEnd.distanceToSqr(origin) <= end.distanceToSqr(origin)) {
                         end = oldEnd.lerp(end, progress);
                     }
                 }
