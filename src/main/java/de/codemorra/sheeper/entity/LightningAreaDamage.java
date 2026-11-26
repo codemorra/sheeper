@@ -15,10 +15,14 @@ import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.ForgeEventFactory;
 
 /**
  * Shared cylindrical hit area and solid-cover checks for bolts and electrical
@@ -58,9 +62,61 @@ public final class LightningAreaDamage {
         return true;
     }
 
-    /** Tests the player's hitbox center against active protection spheres in this dimension. */
-    static boolean isSheltered(ServerPlayer player) {
-        return LightningStormData.get(player.getLevel()).isSheltered(player.getBoundingBox().getCenter());
+    /** Tests the target's hitbox center against active protection spheres in this dimension. */
+    static boolean isSheltered(LivingEntity target) {
+        return LightningStormData.get((ServerLevel) target.level).isSheltered(target.getBoundingBox().getCenter());
+    }
+
+    /** Applies ordinary attack damage while leaving player admission and bonuses to the player paths. */
+    static boolean hurtMob(LivingEntity target, DamageSource source, float damage) {
+        return damage > 0 && target.isAlive() && !isSheltered(target) && target.hurt(source, damage);
+    }
+
+    static boolean hurtMob(LightningSheeperEntity boss, LivingEntity target, float damage) {
+        return hurtMob(target, new EntityDamageSource("lightningBolt", boss), damage);
+    }
+
+    /**
+     * Runs vanilla and Forge reactions at a direct impact with the configured damage.
+     * The context bolt is never added to the world, so it cannot deal a second strike.
+     */
+    static boolean strikeMob(LivingEntity target, Vec3 point, float damage) {
+        if (damage <= 0 || !target.isAlive() || target.isInvulnerableTo(DamageSource.LIGHTNING_BOLT)
+                || isSheltered(target)) {
+            return false;
+        }
+        ServerLevel level = (ServerLevel) target.level;
+        var bolt = EntityType.LIGHTNING_BOLT.create(level);
+        if (bolt == null) {
+            return false;
+        }
+        bolt.setPos(point);
+        bolt.setDamage(damage);
+        if (ForgeEventFactory.onEntityStruckByLightning(target, bolt)) {
+            return false;
+        }
+        target.thunderHit(level, bolt);
+        return true;
+    }
+
+    /** Gets candidates within one strike or effect's bounding box, restricted to this arena. */
+    static List<LivingEntity> mobsIn(LightningSheeperEntity boss, AABB bounds) {
+        return boss.level.getEntitiesOfClass(LivingEntity.class, bounds, target -> target != boss
+                && !(target instanceof Player) && target.isAlive() && boss.isInsideArena(target));
+    }
+
+    /** Gets candidates for effects that can reach the whole arena. */
+    static List<LivingEntity> arenaMobs(LightningSheeperEntity boss) {
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
+        double radius = boss.getCombatRadius();
+        return mobsIn(boss, new AABB(center.x - radius, boss.getArenaMinimumY(), center.z - radius,
+                center.x + radius, boss.getArenaMaximumY(), center.z + radius));
+    }
+
+    /** Gets candidates for the columns used by ordinary ground strikes. */
+    static List<LivingEntity> mobsAt(LightningSheeperEntity boss, Vec3 pos, double radius, double height) {
+        return mobsIn(boss, new AABB(pos.x - radius, pos.y, pos.z - radius,
+                pos.x + radius, pos.y + height, pos.z + radius));
     }
 
     static int speedBonusTicks(double durationMultiplier) {
@@ -75,8 +131,8 @@ public final class LightningAreaDamage {
         }
     }
 
-    static boolean contains(LightningSheeperEntity boss, ServerPlayer player, Vec3 pos, double radius, double height) {
-        return contains((ServerLevel) boss.level, boss, player, pos, radius, height);
+    static boolean contains(LightningSheeperEntity boss, LivingEntity target, Vec3 pos, double radius, double height) {
+        return contains((ServerLevel) boss.level, boss, target, pos, radius, height);
     }
 
     /**
@@ -95,9 +151,9 @@ public final class LightningAreaDamage {
         }
     }
 
-    private static boolean contains(ServerLevel level, Entity collisionContext, ServerPlayer player,
+    private static boolean contains(ServerLevel level, Entity collisionContext, LivingEntity target,
             Vec3 pos, double radius, double height) {
-        AABB bounds = player.getBoundingBox();
+        AABB bounds = target.getBoundingBox();
         double dx = Mth.clamp(pos.x, bounds.minX, bounds.maxX) - pos.x;
         double dz = Mth.clamp(pos.z, bounds.minZ, bounds.maxZ) - pos.z;
         if (dx * dx + dz * dz > radius * radius || bounds.maxY <= pos.y || bounds.minY >= pos.y + height) {

@@ -1,7 +1,10 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -25,6 +28,7 @@ final class LightningRodDischarge {
 
     private final LightningSheeperEntity boss;
     private final LightningRodShelters shelters;
+    private final Set<UUID> struckMobs = new HashSet<>();
     private int age;
     private int remaining;
     private float damage;
@@ -41,6 +45,7 @@ final class LightningRodDischarge {
         remaining = durationTicks;
         damage = LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE.get().floatValue();
         previousImpact = null;
+        struckMobs.clear();
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.LIGHTNING_BOLT_THUNDER,
                 volume * 2.4F, 0.9F);
@@ -55,6 +60,9 @@ final class LightningRodDischarge {
                     level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.65,
                             player.getZ(), 7, 0.22, 0.26, 0.22, 0.1);
                 }
+            }
+            for (var target : LightningAreaDamage.arenaMobs(boss)) {
+                LightningAreaDamage.hurtMob(target, DAMAGE, damage);
             }
         }
         age++;
@@ -72,6 +80,9 @@ final class LightningRodDischarge {
             if (position != null) {
                 Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position,
                         boss.getStormCloudY(position), false);
+                if (hit.equals(position) && damage > 0) {
+                    strikeMobsAt(position);
+                }
                 if (audibleBeat) {
                     audibleImpacts.add(hit);
                 }
@@ -89,6 +100,17 @@ final class LightningRodDischarge {
             }
             playImpacts(level, players, audibleImpacts);
             showChargeRelease(level);
+        }
+    }
+
+    /** Only actual ground impacts can trigger a mob's vanilla lightning reaction during the barrage. */
+    private void strikeMobsAt(Vec3 position) {
+        for (var target : LightningAreaDamage.mobsAt(boss, position, 0.75, 3)) {
+            UUID id = target.getUUID();
+            if (!struckMobs.contains(id) && LightningAreaDamage.contains(boss, target, position, 0.75, 3)
+                    && LightningAreaDamage.strikeMob(target, position, damage)) {
+                struckMobs.add(id);
+            }
         }
     }
 
@@ -175,5 +197,6 @@ final class LightningRodDischarge {
     void clear() {
         remaining = 0;
         previousImpact = null;
+        struckMobs.clear();
     }
 }

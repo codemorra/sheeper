@@ -11,7 +11,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -46,8 +46,8 @@ final class LightningWaterConduction {
     }
 
     /** Uses two search fronts to resolve nearby connections and isolated pools quickly. */
-    boolean reaches(BlockPos strike, ServerPlayer player) {
-        List<BlockPos> contact = waterContact(player);
+    boolean reaches(BlockPos strike, LivingEntity target) {
+        List<BlockPos> contact = waterContact(target);
         if (contact.isEmpty() || !water.hasWater(strike)) {
             return false;
         }
@@ -55,9 +55,9 @@ final class LightningWaterConduction {
             return true;
         }
         var fromStrike = new Frontier(List.of(strike), contact.get(0));
-        var fromPlayer = new Frontier(contact, strike);
-        while (!fromStrike.next.isEmpty() && !fromPlayer.next.isEmpty()) {
-            if (expand(fromStrike, fromPlayer) || expand(fromPlayer, fromStrike)) {
+        var fromTarget = new Frontier(contact, strike);
+        while (!fromStrike.next.isEmpty() && !fromTarget.next.isEmpty()) {
+            if (expand(fromStrike, fromTarget) || expand(fromTarget, fromStrike)) {
                 return true;
             }
         }
@@ -80,9 +80,9 @@ final class LightningWaterConduction {
         return false;
     }
 
-    /** Includes wading and swimming by checking the actual submerged part of the player's bounding box. */
-    private List<BlockPos> waterContact(ServerPlayer player) {
-        AABB bounds = player.getBoundingBox().deflate(0.001);
+    /** Includes wading and swimming by checking the submerged part of the target's bounding box. */
+    private List<BlockPos> waterContact(LivingEntity target) {
+        AABB bounds = target.getBoundingBox().deflate(0.001);
         var contact = new ArrayList<BlockPos>();
         for (BlockPos position : BlockPos.betweenClosed(new BlockPos(bounds.minX, bounds.minY, bounds.minZ),
                 new BlockPos(bounds.maxX, bounds.maxY, bounds.maxZ))) {
