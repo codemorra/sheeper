@@ -9,6 +9,7 @@ import de.codemorra.sheeper.config.LavaSheeperConfig;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
+import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import de.codemorra.sheeper.registry.ModEntities;
 import net.minecraft.nbt.CompoundTag;
@@ -85,8 +86,8 @@ final class ElementalGameTests {
             ElementalSheeperEntity boss = bosses.get(index);
             checkSize(context, boss, sizes[index]);
             checkHealth(context, boss, health[index], health[index]);
-            if (boss instanceof WaterSheeperEntity) {
-                // Arena damage permission has its own tests; this scene checks attributes.
+            if (boss instanceof WaterSheeperEntity || boss instanceof LightningSheeperEntity) {
+                // Seed partial health directly because this scene does not start combat.
                 boss.setHealth(health[index] * 0.75F);
             } else {
                 boss.hurt(DamageSource.GENERIC, health[index] * 0.25F);

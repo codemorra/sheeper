@@ -93,7 +93,7 @@ final class LightningLineAttack {
         damage = LightningSheeperConfig.LIGHTNING_LINE_DAMAGE.get().floatValue();
         chargeEndsAt = level.getGameTime() + chargeTicks;
         nextPositionAt = chargeEndsAt;
-        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, boss.getEyePosition(), ModSounds.LIGHTNING_FAN_CRACKLE.get(),
                 volume * 0.85F, 0.72F);
     }
