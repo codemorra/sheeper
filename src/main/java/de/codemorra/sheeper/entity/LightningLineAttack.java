@@ -15,6 +15,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 /** Fires eight terrain-following lightning rows from each of several teleport positions. */
@@ -127,11 +128,15 @@ final class LightningLineAttack {
                 fadeStartedAt = -1;
             }
         }
+        var targets = new ArrayList<LivingEntity>(participants);
+        if (damage > 0 && !active.isEmpty()) {
+            targets.addAll(LightningAreaDamage.arenaMobs(boss));
+        }
         var lines = active.iterator();
         while (lines.hasNext()) {
             Line line = lines.next();
             tickLine(level, line, now);
-            applyRowDamage(line, participants, now);
+            applyRowDamage(line, targets, now);
             if (line.reachedEdge && line.pendingEdgeHits.isEmpty()) {
                 lines.remove();
             }
@@ -257,22 +262,22 @@ final class LightningLineAttack {
     }
 
     /** Gives the next impact in a row time to register as a direct hit before applying edge damage. */
-    private void applyRowDamage(Line line, List<ServerPlayer> participants, long now) {
+    private void applyRowDamage(Line line, List<LivingEntity> targets, long now) {
         if (damage > 0 && (!line.impacts.isEmpty() || !line.pendingEdgeHits.isEmpty())) {
-            for (ServerPlayer player : participants) {
-                UUID id = player.getUUID();
-                if (!player.isAlive() || line.hit.contains(id)) {
+            for (LivingEntity target : targets) {
+                UUID id = target.getUUID();
+                if (!target.isAlive() || line.hit.contains(id)) {
                     continue;
                 }
-                float amount = damageAt(player, line.impacts);
+                Vec3 direct = directImpact(target, line.impacts);
                 Long edgeDue = line.pendingEdgeHits.get(id);
-                if (amount == damage || edgeDue != null && now >= edgeDue) {
+                if (direct != null || edgeDue != null && now >= edgeDue) {
                     line.pendingEdgeHits.remove(id);
-                    float hitDamage = amount == damage ? damage : damage * 0.5F;
-                    if (LightningAreaDamage.hurtPlayer(boss, player, hitDamage)) {
+                    if (hurtTarget(target, direct)) {
                         line.hit.add(id);
                     }
-                } else if (amount > 0 && edgeDue == null) {
+                } else if (edgeDue == null && line.impacts.stream().anyMatch(impact ->
+                        LightningAreaDamage.contains(boss, target, impact, EDGE_RADIUS, HIT_HEIGHT))) {
                     line.pendingEdgeHits.put(id, now + edgeHitDelay);
                 }
             }
@@ -281,17 +286,24 @@ final class LightningLineAttack {
         line.impacts.clear();
     }
 
-    private float damageAt(ServerPlayer player, List<Vec3> impacts) {
-        float edgeDamage = 0;
+    /** Returns the exact bolt position for a central hit, even if several impacts overlap. */
+    @Nullable
+    private Vec3 directImpact(LivingEntity target, List<Vec3> impacts) {
         for (Vec3 impact : impacts) {
-            if (LightningAreaDamage.contains(boss, player, impact, HIT_RADIUS, HIT_HEIGHT)) {
-                return damage;
-            }
-            if (edgeDamage == 0 && LightningAreaDamage.contains(boss, player, impact, EDGE_RADIUS, HIT_HEIGHT)) {
-                edgeDamage = damage * 0.5F;
+            if (LightningAreaDamage.contains(boss, target, impact, HIT_RADIUS, HIT_HEIGHT)) {
+                return impact;
             }
         }
-        return edgeDamage;
+        return null;
+    }
+
+    private boolean hurtTarget(LivingEntity target, @Nullable Vec3 direct) {
+        float amount = direct == null ? damage * 0.5F : damage;
+        if (target instanceof ServerPlayer player) {
+            return LightningAreaDamage.hurtPlayer(boss, player, amount);
+        }
+        return direct == null ? LightningAreaDamage.hurtMob(boss, target, amount)
+                : LightningAreaDamage.strikeMob(target, direct, amount);
     }
 
     private double surface(ServerLevel level, double x, double z, double referenceY) {

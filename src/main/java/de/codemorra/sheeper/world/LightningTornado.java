@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
@@ -104,9 +104,9 @@ public record LightningTornado(UUID owner, BlockPos arenaCenter, double arenaRad
                 && point.y > centerAt(now).y + 0.3 && contact(point, now) * strength >= 0.18;
     }
 
-    /** A steep ledge, wall or roof between the funnel and the player stops its local force. */
-    public static boolean hasClearPath(Level level, Player player, Vec3 center) {
-        Vec3 target = player.getBoundingBox().getCenter();
+    /** A steep ledge, wall or roof between the funnel and the target stops its local effect. */
+    public static boolean hasClearPath(Level level, LivingEntity entity, Vec3 center) {
+        Vec3 target = entity.getBoundingBox().getCenter();
         Vec3 inside = new Vec3(center.x, Math.max(center.y + 0.15, target.y), center.z);
         int minChunkX = Mth.floor(Math.min(inside.x, target.x)) >> 4;
         int maxChunkX = Mth.floor(Math.max(inside.x, target.x)) >> 4;
@@ -119,17 +119,17 @@ public record LightningTornado(UUID owner, BlockPos arenaCenter, double arenaRad
                 }
             }
         }
-        if (reaches(level, player, inside, target)) {
+        if (reaches(level, entity, inside, target)) {
             return true;
         }
         // Let the upper part of the funnel reach over small ledges without passing through a solid wall.
-        Vec3 upperTarget = player.getEyePosition();
+        Vec3 upperTarget = entity.getEyePosition();
         Vec3 upperSource = new Vec3(center.x, Math.max(center.y + 0.15, upperTarget.y), center.z);
-        return reaches(level, player, upperSource, upperTarget);
+        return reaches(level, entity, upperSource, upperTarget);
     }
 
-    private static boolean reaches(Level level, Player player, Vec3 from, Vec3 to) {
-        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player))
+    private static boolean reaches(Level level, LivingEntity entity, Vec3 from, Vec3 to) {
+        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity))
                 .getType() == HitResult.Type.MISS;
     }
 }

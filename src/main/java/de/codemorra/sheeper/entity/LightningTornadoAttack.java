@@ -23,6 +23,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /** Launches a volley of funnels from one teleport destination and advances each until it dissipates. */
@@ -287,20 +289,46 @@ final class LightningTornadoAttack {
                     ArenaFallProtection.protect(player);
                 }
             } else if (damage > 0 && funnel.exposure(player.position(), now) >= 0.15) {
-                damagePlayer(player, now);
+                damageTarget(player, now);
+            }
+        }
+        if (damage > 0) {
+            damageMobs(level, now);
+        }
+    }
+
+    /** Checks mobs locally around each active funnel, sharing the hit timer across overlaps. */
+    private void damageMobs(ServerLevel level, long now) {
+        for (Funnel funnel : funnels) {
+            LightningTornado tornado = funnel.snapshot;
+            if (tornado.isDissolving(now)) {
+                continue;
+            }
+            Vec3 center = tornado.centerAt(now);
+            double reach = tornado.radiusAtHeight(1);
+            var bounds = new AABB(center.x - reach, center.y - 0.5, center.z - reach,
+                    center.x + reach, center.y + tornado.height(), center.z + reach);
+            for (LivingEntity target : LightningAreaDamage.mobsIn(boss, bounds)) {
+                if (!target.isPassenger() && now >= nextHit.getOrDefault(target.getUUID(), 0L)
+                        && tornado.exposure(target.position(), now) >= 0.15
+                        && LightningTornado.hasClearPath(level, target, center)) {
+                    damageTarget(target, now);
+                }
             }
         }
     }
 
-    private void damagePlayer(ServerPlayer player, long now) {
-        UUID id = player.getUUID();
+    private void damageTarget(LivingEntity target, long now) {
+        UUID id = target.getUUID();
         if (nextHit.getOrDefault(id, 0L) > now) {
             return;
         }
         nextHit.put(id, now + hitInterval);
-        Vec3 motion = player.getDeltaMovement();
-        if (LightningAreaDamage.hurtPlayer(boss, player, damage)) {
-            player.setDeltaMovement(motion);
+        Vec3 motion = target.getDeltaMovement();
+        boolean hit = target instanceof ServerPlayer player ? LightningAreaDamage.hurtPlayer(boss, player, damage)
+                : LightningAreaDamage.hurtMob(boss, target, damage);
+        if (hit) {
+            target.setDeltaMovement(motion);
         }
     }
 

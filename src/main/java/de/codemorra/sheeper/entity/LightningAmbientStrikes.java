@@ -168,7 +168,7 @@ final class LightningAmbientStrikes {
         if (strike.water()) {
             showMarker(level, strike, 4, true);
             BlockPos water = new BlockPos(position.x, Math.nextDown(position.y), position.z);
-            dischargeThroughWater(level, water, participants);
+            dischargeThroughWater(level, strike, water, participants);
             return;
         }
         float centerDamage = LightningSheeperConfig.LIGHTNING_AMBIENT_CENTER_DAMAGE.get().floatValue();
@@ -193,6 +193,13 @@ final class LightningAmbientStrikes {
                     player.hurt(STRIKE_DAMAGE, edgeDamage);
                 }
                 LightningAreaDamage.grantSpeedBonus(boss, player, speedTicks);
+            }
+        }
+        for (var target : LightningAreaDamage.mobsAt(boss, position, strike.outerRadius(), strike.height())) {
+            if (LightningAreaDamage.contains(boss, target, position, strike.centerRadius(), strike.height())) {
+                LightningAreaDamage.strikeMob(target, position, centerDamage);
+            } else if (LightningAreaDamage.contains(boss, target, position, strike.outerRadius(), strike.height())) {
+                LightningAreaDamage.hurtMob(target, STRIKE_DAMAGE, edgeDamage);
             }
         }
         if (lingeringTicks > 0) {
@@ -231,13 +238,21 @@ final class LightningAmbientStrikes {
         }
     }
 
-    private void dischargeThroughWater(ServerLevel level, BlockPos strike, List<ServerPlayer> participants) {
+    private void dischargeThroughWater(ServerLevel level, Strike impact, BlockPos strike, List<ServerPlayer> participants) {
         float damage = LightningSheeperConfig.LIGHTNING_AMBIENT_WATER_DAMAGE.get().floatValue();
         if (damage > 0) {
             var conduction = new LightningWaterConduction(level, boss);
             for (ServerPlayer player : participants) {
                 if (player.isAlive() && conduction.reaches(strike, player)) {
                     LightningAreaDamage.hurtPlayer(boss, player, STRIKE_DAMAGE, damage);
+                }
+            }
+            for (var target : LightningAreaDamage.arenaMobs(boss)) {
+                // A target in the visible central hit takes the direct strike. Other targets need a water connection.
+                if (LightningAreaDamage.contains(boss, target, impact.position(), impact.centerRadius(), impact.height())) {
+                    LightningAreaDamage.strikeMob(target, impact.position(), damage);
+                } else if (target.isInWater() && conduction.reaches(strike, target)) {
+                    LightningAreaDamage.hurtMob(target, STRIKE_DAMAGE, damage);
                 }
             }
         }

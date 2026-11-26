@@ -19,6 +19,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -110,13 +111,17 @@ final class LightningRingBarrage {
             warningRemaining--;
             return;
         }
+        var targets = new ArrayList<LivingEntity>(players);
+        if (damage > 0 && !waves.isEmpty()) {
+            targets.addAll(LightningAreaDamage.arenaMobs(boss));
+        }
         var iterator = waves.iterator();
         while (iterator.hasNext()) {
             Wave wave = iterator.next();
             double previous = wave.radius;
             wave.radius = Math.min(wave.limit, previous + speed);
             igniteAlongWave(level, wave, previous);
-            hitPlayers(level, wave, previous, players);
+            hitTargets(level, wave, previous, targets);
             if ((level.getGameTime() - wave.startTick) % 3 == 0) {
                 showWave(level, wave);
             }
@@ -224,32 +229,34 @@ final class LightningRingBarrage {
         LightningAttackSounds.play(boss, origin, SoundEvents.LIGHTNING_BOLT_IMPACT, volume, 1.4F);
     }
 
-    private void hitPlayers(ServerLevel level, Wave wave, double previous, List<ServerPlayer> players) {
+    private void hitTargets(ServerLevel level, Wave wave, double previous, List<LivingEntity> targets) {
         if (damage <= 0) {
             return;
         }
-        for (ServerPlayer player : players) {
-            if (!player.isAlive() || wave.hit.contains(player.getUUID())) {
+        for (LivingEntity target : targets) {
+            if (!target.isAlive() || wave.hit.contains(target.getUUID())) {
                 continue;
             }
-            AABB bounds = player.getBoundingBox();
+            AABB bounds = target.getBoundingBox();
             double near = Math.hypot(Mth.clamp(wave.origin.x, bounds.minX, bounds.maxX) - wave.origin.x,
                     Mth.clamp(wave.origin.z, bounds.minZ, bounds.maxZ) - wave.origin.z);
             double far = Math.hypot(Math.max(Math.abs(bounds.minX - wave.origin.x), Math.abs(bounds.maxX - wave.origin.x)),
                     Math.max(Math.abs(bounds.minZ - wave.origin.z), Math.abs(bounds.maxZ - wave.origin.z)));
-            // Test the full swept band so a fast wave still hits a player between two visible frames.
+            // Test the full swept band so a fast wave still hits a target between two visible frames.
             if (near > wave.radius + width * 0.5 || far < previous - width * 0.5) {
                 continue;
             }
-            double floor = LightningRingSurface.find(level, player.getX(), player.getZ(), wave.origin.y,
+            double floor = LightningRingSurface.find(level, target.getX(), target.getZ(), wave.origin.y,
                     boss.getArenaMinimumY(), boss.getArenaMaximumY() - 1);
             if (!Double.isFinite(floor) || bounds.minY < floor - 0.1 || bounds.minY >= floor + hitHeight) {
                 continue;
             }
-            Vec3 motion = player.getDeltaMovement();
-            if (LightningAreaDamage.hurtPlayer(boss, player, damage)) {
-                wave.hit.add(player.getUUID());
-                player.setDeltaMovement(motion);
+            Vec3 motion = target.getDeltaMovement();
+            boolean hit = target instanceof ServerPlayer player ? LightningAreaDamage.hurtPlayer(boss, player, damage)
+                    : LightningAreaDamage.hurtMob(boss, target, damage);
+            if (hit) {
+                wave.hit.add(target.getUUID());
+                target.setDeltaMovement(motion);
             }
         }
     }

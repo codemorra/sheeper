@@ -2,8 +2,10 @@ package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -32,6 +34,7 @@ final class LightningFanAttack {
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final Map<UUID, Long> nextHitTick = new HashMap<>();
+    private final Set<UUID> struckMobs = new HashSet<>();
     private final Map<UUID, Vec3> focuses = new HashMap<>();
     @Nullable
     private Hover hover;
@@ -238,6 +241,21 @@ final class LightningFanAttack {
                 nextHitTick.put(id, now + 20);
             }
         }
+        if (damage > 0) {
+            for (var target : LightningAreaDamage.mobsAt(boss, impact, HIT_RADIUS, HIT_HEIGHT)) {
+                UUID id = target.getUUID();
+                if (now < nextHitTick.getOrDefault(id, 0L)
+                        || !LightningAreaDamage.contains(boss, target, impact, HIT_RADIUS, HIT_HEIGHT)) {
+                    continue;
+                }
+                if (struckMobs.contains(id)) {
+                    LightningAreaDamage.hurtMob(boss, target, damage);
+                } else if (LightningAreaDamage.strikeMob(target, impact, damage)) {
+                    struckMobs.add(id);
+                }
+                nextHitTick.put(id, now + 20);
+            }
+        }
         return raised;
     }
 
@@ -277,5 +295,6 @@ final class LightningFanAttack {
         lifted = false;
         focuses.clear();
         nextHitTick.clear();
+        struckMobs.clear();
     }
 }

@@ -31,6 +31,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.Sheep;
@@ -254,10 +255,10 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     /** Includes the whole storm cylinder, independently of combat admission. */
-    boolean isInsideArena(ServerPlayer player) {
+    boolean isInsideArena(LivingEntity target) {
         double radius = getCombatRadius();
-        return horizontalDistanceSquared(player.getX(), player.getZ()) <= radius * radius
-                && isWithinArenaHeight(player.getBoundingBox().getCenter().y);
+        return horizontalDistanceSquared(target.getX(), target.getZ()) <= radius * radius
+                && isWithinArenaHeight(target.getBoundingBox().getCenter().y);
     }
 
     /**
