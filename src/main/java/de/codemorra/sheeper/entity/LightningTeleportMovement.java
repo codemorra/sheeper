@@ -334,8 +334,39 @@ final class LightningTeleportMovement {
     }
 
     /** Rechecks the terrain after a flight whose spacing was only a preference. */
-    void landPreferredAttackTravel(Vec3 destination) {
-        finishTravel(destination, hasSafeLanding((ServerLevel) boss.level, destination));
+    boolean landPreferredAttackTravel(Vec3 destination) {
+        return finishTravel(destination, hasSafeLanding((ServerLevel) boss.level, destination));
+    }
+
+    /** Searches below the hover point first and uses the original takeoff point if nearby ground is unsafe. */
+    @Nullable
+    Vec3 findGroundBelow(ServerLevel level, Vec3 departure) {
+        Vec3 origin = boss.position();
+        int bottom = boss.getArenaMinimumY();
+        int highest = Math.min(boss.getArenaMaximumY() - 1, Mth.floor(origin.y));
+        for (int ring = 0; ring <= 4; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
+                        continue;
+                    }
+                    double x = origin.x + dx;
+                    double z = origin.z + dz;
+                    double floor = LightningRingSurface.find(level, x, z, origin.y, bottom, highest);
+                    if (Double.isFinite(floor) && floor < origin.y) {
+                        Vec3 landing = new Vec3(x, floor, z);
+                        if (hasSafeLanding(level, landing)) {
+                            return landing;
+                        }
+                    }
+                }
+            }
+        }
+        if (departure != null && departure.y < origin.y && hasSafeLanding(level, departure)) {
+            return departure;
+        }
+        Vec3 alternate = findIdleDestination(level);
+        return alternate != null && alternate.y < origin.y ? alternate : null;
     }
 
     /** Checks the full scaled body against arena bounds, loaded terrain, and hazards. */

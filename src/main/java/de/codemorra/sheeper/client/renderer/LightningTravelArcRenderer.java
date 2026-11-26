@@ -8,6 +8,7 @@ import de.codemorra.sheeper.entity.LightningSheeperEntity.TravelArc;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.phys.Vec3;
 
 /** Draws the travelling lightning and the compact charge it forms at the arena center. */
@@ -80,37 +81,49 @@ final class LightningTravelArcRenderer {
         return feet.add(new Vec3(Math.cos(angle) * width * 0.62, y, Math.sin(angle) * width).yRot(yaw));
     }
 
-    /** Connects several flickering paths through a common core at the travel endpoint. */
+    /** Builds shifting, irregular forks around the charge's core. */
     private static void renderCharge(LightningSheeperEntity boss, TravelArc arc, float partialTick, PoseStack poses,
             MultiBufferSource buffers) {
         Vec3 center = arc.end().subtract(boss.getPosition(partialTick));
         double time = boss.level.getGameTime() + (double) partialTick;
         float charge = arc.chargeAt(time);
-        double radius = boss.getBbWidth() * (0.24 + 0.76 * charge);
-        double height = boss.getBbHeight() * (0.45 + 0.65 * charge);
+        double radius = boss.getBbWidth() * (0.24 + 2.1 * charge);
+        double height = boss.getBbHeight() * (0.45 + 2.2 * charge);
         double thickness = 0.60 + 0.55 * charge;
-        Vec3 side = new Vec3(thickness, 0, 0);
-        Vec3 up = new Vec3(0, 0, thickness);
         VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
         Matrix4f matrix = poses.last().pose();
-        for (int index = 0; index < 8; index++) {
-            float visibility = index < 4 ? 1 : Mth.clamp(charge * 4 - (index - 4), 0, 1);
+        for (int index = 0; index < 12; index++) {
+            float visibility = index < 4 ? 1 : Mth.clamp(charge * 8 - (index - 4), 0, 1);
             if (visibility == 0) {
                 break;
             }
-            double phase = time * (0.52 + index * 0.09) + index * 2.51;
-            double x = Math.cos(phase) * radius;
-            double z = Math.sin(phase * 1.27) * radius;
-            Vec3 top = center.add(x * 0.56, height * (0.7 + 0.22 * Math.sin(phase * 1.65)), z * 0.56);
-            Vec3 bend = center.add(x, height * 0.29, z);
-            Vec3 lowerBend = center.add(-x * 0.72, -height * 0.27, -z * 0.72);
-            Vec3 bottom = center.add(x * 0.15, -height * (0.74 + 0.15 * Math.cos(phase)), z * 0.33);
-            float alpha = (float) (visibility * (0.34 + 0.50 * charge + 0.14 * Math.sin(phase * 1.91)));
-            drawSegment(buffer, matrix, top, bend, side, up, alpha * 0.55F);
-            drawSegment(buffer, matrix, bend, center, side, up, alpha);
-            drawSegment(buffer, matrix, center, lowerBend, side, up, alpha);
-            drawSegment(buffer, matrix, lowerBend, bottom, side, up, alpha * 0.55F);
+            long beat = Mth.lfloor((time + index * 0.73) / (3 + index % 3));
+            long shape = RandomSupport.mixStafford13(arc.chargeStartedAt() + beat * 31 + index * 131);
+            double angle = fraction(shape, 0) * Math.PI * 2;
+            Vec3 outward = new Vec3(Math.cos(angle), 0, Math.sin(angle));
+            Vec3 across = new Vec3(-outward.z, 0, outward.x);
+            double reach = radius * (0.55 + fraction(shape, 8) * 0.65);
+            double rise = height * (2 * fraction(shape, 16) - 1);
+            Vec3 bend = center.add(outward.scale(reach * 0.36)).add(0, rise * 0.48, 0);
+            Vec3 knee = center.add(outward.scale(reach * 0.73))
+                    .add(across.scale(radius * (fraction(shape, 24) - 0.5))).add(0, rise * 0.65, 0);
+            Vec3 tip = center.add(outward.scale(reach)).add(0, rise, 0);
+            Vec3 side = across.scale(thickness);
+            Vec3 up = outward.scale(0.48).add(0, 0.72, 0).scale(thickness);
+            float alpha = (float) (visibility * (0.32 + 0.50 * charge + 0.17 * fraction(shape, 32)));
+            drawSegment(buffer, matrix, center, bend, side, up, alpha);
+            drawSegment(buffer, matrix, bend, knee, side, up, alpha * 0.84F);
+            drawSegment(buffer, matrix, knee, tip, side, up, alpha * 0.58F);
+            if (fraction(shape, 40) > 0.35) {
+                Vec3 fork = knee.add(across.scale(radius * (2 * fraction(shape, 48) - 1)))
+                        .add(0, height * (fraction(shape, 56) - 0.5), 0);
+                drawSegment(buffer, matrix, bend, fork, side, up, alpha * 0.47F);
+            }
         }
+    }
+
+    private static double fraction(long pattern, int shift) {
+        return ((pattern >>> shift) & 255) / 256.0;
     }
 
     /** Crossed ribbons keep lightning visible from either side of its path. */

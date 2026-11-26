@@ -285,7 +285,7 @@ final class LightningWindLines {
 
     /** Keeps existing ribbons across the snapshot change that starts the retreat. */
     private static Arena lineKey(Arena arena) {
-        return arena.isDraining() ? arena.beginDrain(0, 0) : arena;
+        return arena.isDraining() ? arena.beginDrain(0, 0) : arena.quiet() ? arena.withQuiet(false) : arena;
     }
 
     private static double lineSpeed(LightningWindField field, double time) {

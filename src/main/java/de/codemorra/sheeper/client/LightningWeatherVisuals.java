@@ -17,12 +17,18 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.resources.sounds.TickableSoundInstance;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomSupport;
@@ -30,6 +36,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -49,6 +56,7 @@ public final class LightningWeatherVisuals {
     private static final LightningWindLines WIND_LINES = new LightningWindLines();
     private static List<LightningWindField> winds = List.of();
     private static long lastSnapshot;
+    private static float weatherGain = 1;
 
     private LightningWeatherVisuals() {
     }
@@ -366,9 +374,11 @@ public final class LightningWeatherVisuals {
         ClientLevel level = mc.level;
         if (!hasSnapshot(level)) {
             WIND_LINES.clear();
+            weatherGain = 1;
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
+        updateQuietWeather(level, camera);
         WIND_LINES.tick(level, arenas, winds, camera);
         float strength = intensity(level, camera.x, camera.y, camera.z);
         // Splashes are also visible from outside, unlike the listener-local rain sound.
@@ -393,11 +403,72 @@ public final class LightningWeatherVisuals {
         }
     }
 
+    /** Lowers ongoing rain and thunder without restarting either sample. */
+    private static void updateQuietWeather(ClientLevel level, Vec3 camera) {
+        boolean quiet = arenas.stream().anyMatch(arena -> arena.quiet()
+                && arena.intensityAt(level.getGameTime(), camera.x, camera.y, camera.z) > 0);
+        weatherGain = Mth.approach(weatherGain, quiet ? 0.25F : 1, 0.25F);
+    }
+
+    @SubscribeEvent
+    public static void adjustWeatherVolume(PlaySoundEvent event) {
+        var sound = event.getSound();
+        if (sound != null && sound.getSource() == SoundSource.WEATHER && !(sound instanceof StormWeatherSound)) {
+            var location = sound.getLocation();
+            if (location.equals(SoundEvents.WEATHER_RAIN.getLocation())
+                    || location.equals(SoundEvents.WEATHER_RAIN_ABOVE.getLocation())
+                    || location.equals(SoundEvents.LIGHTNING_BOLT_THUNDER.getLocation())) {
+                event.setSound(new StormWeatherSound(sound));
+            }
+        }
+    }
+
+    /** Lets the sound engine update the volume of a weather sample already in progress. */
+    private static final class StormWeatherSound extends SimpleSoundInstance implements TickableSoundInstance {
+        private final SoundInstance original;
+
+        StormWeatherSound(SoundInstance sound) {
+            super(sound.getLocation(), sound.getSource(), 1, 1, RandomSource.create(),
+                    sound.isLooping(), sound.getDelay(), sound.getAttenuation(), sound.getX(), sound.getY(), sound.getZ(),
+                    sound.isRelative());
+            original = sound;
+        }
+
+        @Override
+        public WeighedSoundEvents resolve(SoundManager manager) {
+            // Forge fires PlaySoundEvent before Minecraft picks the actual sound sample.
+            WeighedSoundEvents event = original.resolve(manager);
+            sound = original.getSound();
+            return event;
+        }
+
+        @Override
+        public float getVolume() {
+            return original.getVolume() * weatherGain;
+        }
+
+        @Override
+        public float getPitch() {
+            return original.getPitch();
+        }
+
+        @Override
+        public void tick() {
+            // The engine samples getVolume after each tick, including during the calm phase.
+        }
+
+        @Override
+        public boolean isStopped() {
+            return false;
+        }
+    }
+
     @SubscribeEvent
     public static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
         arenas = List.of();
         winds = List.of();
         WIND_LINES.clear();
         snapshotLevel = null;
+        weatherGain = 1;
     }
 }

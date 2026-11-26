@@ -24,7 +24,16 @@ import net.minecraftforge.network.NetworkEvent;
 public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> arenas, double boundarySlowdownWidth,
         double boundarySlowdownStrength, List<LightningWindField> winds) {
     public record Arena(BlockPos center, double radius, int minimumY, int maximumY, long start, int transition,
-            long drainStart, int drainDuration) {
+            long drainStart, int drainDuration, boolean quiet) {
+        public Arena(BlockPos center, double radius, int minimumY, int maximumY, long start, int transition,
+                long drainStart, int drainDuration) {
+            this(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, false);
+        }
+
+        /** Updates the temporary silence without changing the captured arena or its animation clocks. */
+        public Arena withQuiet(boolean value) {
+            return new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, value);
+        }
         /** Applies the captured floor and exclusive ceiling to all storm effects. */
         public boolean containsY(double y) {
             return y >= minimumY && y < maximumY;
@@ -117,6 +126,7 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             buffer.writeVarInt(arena.transition());
             buffer.writeLong(arena.drainStart());
             buffer.writeVarInt(arena.drainDuration());
+            buffer.writeBoolean(arena.quiet());
         }
         buffer.writeDouble(boundarySlowdownWidth);
         buffer.writeDouble(boundarySlowdownStrength);
@@ -147,7 +157,8 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             int transition = buffer.readVarInt();
             long drainStart = buffer.readLong();
             int drainDuration = buffer.readVarInt();
-            var arena = new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration);
+            boolean quiet = buffer.readBoolean();
+            var arena = new Arena(center, radius, minimumY, maximumY, start, transition, drainStart, drainDuration, quiet);
             if (!arena.isValid()) {
                 throw new IllegalArgumentException("Invalid arena weather geometry");
             }
@@ -166,6 +177,8 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
         if (windCount < 0 || windCount > count) {
             throw new IllegalArgumentException("Invalid arena wind snapshot size: " + windCount);
         }
+        ForgeConfigSpec.ValueSpec windStrengthSpec = LightningSheeperConfig.SPEC.getSpec()
+                .get(LightningSheeperConfig.LIGHTNING_ROD_WIND_MULTIPLIER.getPath());
         List<LightningWindField> winds = new ArrayList<>(windCount);
         for (int index = 0; index < windCount; index++) {
             int arenaIndex = buffer.readVarInt();
@@ -175,7 +188,7 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             double windStrength = buffer.readDouble();
             int gustCount = buffer.readVarInt();
             if (!(arenaIndex >= 0 && arenaIndex < count && Math.abs(from) <= 2 * Math.PI
-                    && Math.abs(turn) <= Math.PI && turnStart >= 0 && windStrength >= 1 && windStrength <= 4
+                    && Math.abs(turn) <= Math.PI && turnStart >= 0 && windStrengthSpec.test(windStrength)
                     && gustCount >= 0 && gustCount <= 4)) {
                 throw new IllegalArgumentException("Invalid arena wind data");
             }

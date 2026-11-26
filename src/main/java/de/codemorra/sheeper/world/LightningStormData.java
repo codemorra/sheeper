@@ -174,10 +174,14 @@ public final class LightningStormData extends SavedData {
             changed |= enabled ? storm.spawnPush.tick(level, storm.arena, carriedPlayers)
                     : storm.spawnPush.clear(level, carriedPlayers);
             if (enabled) {
-                tickAtmosphere(level, entry.getKey(), storm, now);
-                if (!(level.getEntity(entry.getKey()) instanceof LightningSheeperEntity) && storm.wind.clear()) {
-                    windCleared = true;
+                if (!(level.getEntity(entry.getKey()) instanceof LightningSheeperEntity)) {
+                    windCleared |= storm.wind.clear();
+                    if (storm.arena.quiet()) {
+                        storm.arena = storm.arena.withQuiet(false);
+                        windCleared = true;
+                    }
                 }
+                tickAtmosphere(level, entry.getKey(), storm, now);
             }
         }
         if (changed) {
@@ -214,18 +218,23 @@ public final class LightningStormData extends SavedData {
                 .filter(tornado -> tornado.sampleTick() + 5 >= now && tornado.endTick() > now).toList();
     }
 
-    /** Keeps wind active in a fully formed arena unless the finale needs a calm window. */
-    public void tickWind(ServerLevel level, UUID owner, LightningArenaWind.Mode mode, List<ServerPlayer> participants) {
+    /** Updates wind and the short silence before the lightning rod's final barrage. */
+    public void tickWind(ServerLevel level, UUID owner, LightningArenaWind.Mode mode, List<ServerPlayer> participants,
+            boolean quiet) {
         Storm storm = storms.get(owner);
         if (storm == null) {
             return;
         }
         boolean active = hasStorms() && !storm.arena.isBuilding(level.getGameTime()) && !storm.arena.isDraining()
-                && LightningSheeperConfig.LIGHTNING_WIND_ENABLED.get() && mode != LightningArenaWind.Mode.CALM;
+                && LightningSheeperConfig.LIGHTNING_WIND_ENABLED.get();
+        boolean quietChanged = storm.arena.quiet() != quiet;
+        if (quietChanged) {
+            storm.arena = storm.arena.withQuiet(quiet);
+        }
         boolean changed = active ? storm.wind.tick(level, storm.arena, participants,
                 mode == LightningArenaWind.Mode.INTENSIFIED)
                 : storm.wind.clear();
-        if (changed) {
+        if (changed || quietChanged) {
             sync(level);
         }
     }
@@ -244,11 +253,11 @@ public final class LightningStormData extends SavedData {
                 flash(level, owner, storm.arena, now, true);
                 storm.nextFlash = now + 8 + level.random.nextInt(10);
             } else {
-                if (!(level.getEntity(owner) instanceof LightningSheeperEntity boss)
+                if (storm.arena.quiet() || !(level.getEntity(owner) instanceof LightningSheeperEntity boss)
                         || boss.getCombatParticipants().isEmpty()) {
                     int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
                     for (int index = 0; index < count; index++) {
-                        flash(level, owner, storm.arena, now, false);
+                        flash(level, owner, storm.arena, now, storm.arena.quiet());
                     }
                 }
                 storm.nextFlash = now
@@ -283,8 +292,13 @@ public final class LightningStormData extends SavedData {
                 ground = LightningRingSurface.find(level, x, z, center.getY(), arena.minimumY(), arena.maximumY() - 1);
             }
             if (Double.isFinite(ground)) {
-                LightningStrikeEffect.spawnWeatherBolt(level, owner, new Vec3(x, ground, z),
-                        arena.cloudStrikeY(x, z, now), false);
+                Vec3 position = new Vec3(x, ground, z);
+                double cloudY = arena.cloudStrikeY(x, z, now);
+                if (arena.quiet()) {
+                    LightningStrikeEffect.spawnVisualBolt(level, position, cloudY);
+                } else {
+                    LightningStrikeEffect.spawnWeatherBolt(level, owner, position, cloudY, false);
+                }
                 return;
             }
         }
