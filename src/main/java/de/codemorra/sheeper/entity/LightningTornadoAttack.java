@@ -122,6 +122,8 @@ final class LightningTornadoAttack {
         if (destination != null) {
             teleports.faceDestination(destination);
         }
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.PHANTOM_FLAP, volume, 0.65F);
     }
 
     /** Launches from the landing position once per interval, including a separate lifetime for each funnel. */
