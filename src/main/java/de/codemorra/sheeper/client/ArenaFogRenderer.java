@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector4f;
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -161,7 +162,8 @@ public final class ArenaFogRenderer {
     private static boolean canRender(Minecraft minecraft, Camera camera) {
         ClientLevel level = minecraft.level;
         return level != null && shader != null && WaterArenaVisuals.canBlendFog(camera)
-                && (!LightningWeatherVisuals.visibleArenas(level).isEmpty()
+                && (LightningSheeperConfig.LIGHTNING_FOG_INTENSITY.get() > 0
+                        && !LightningWeatherVisuals.visibleArenas(level).isEmpty()
                         || WaterSheeperConfig.WATER_FOG_INTENSITY.get() > 0
                                 && !WaterArenaVisuals.activeVolumes(level).isEmpty());
     }
@@ -180,12 +182,15 @@ public final class ArenaFogRenderer {
         try {
             double renderDistance = minecraft.options.getEffectiveRenderDistance() * 16.0D;
             double time = frame.level().getGameTime() + (double) frame.partialTick();
-            shader.getUniform("FogDensity").set(0.031F);
-            for (var arena : LightningWeatherVisuals.visibleArenas(frame.level())) {
-                // Keep distant lightning readable through the storm, and fade as the arena drains.
-                shader.getUniform("FogColor").set(0.08F, 0.10F, 0.14F, 0.72F * arena.opacityAt(time));
-                drawVolume(frame.camera(), renderDistance, arena.center(), arena.radiusAt(time), arena.minimumY(),
-                        arena.maximumY());
+            double stormIntensity = LightningSheeperConfig.LIGHTNING_FOG_INTENSITY.get();
+            if (stormIntensity > 0) {
+                shader.getUniform("FogDensity").set((float) (0.031 * stormIntensity));
+                for (var arena : LightningWeatherVisuals.visibleArenas(frame.level())) {
+                    // Keep distant lightning readable through the storm, and fade as the arena drains.
+                    shader.getUniform("FogColor").set(0.08F, 0.10F, 0.14F, 0.72F * arena.opacityAt(time));
+                    drawVolume(frame.camera(), renderDistance, arena.center(), arena.radiusAt(time), arena.minimumY(),
+                            arena.maximumY());
+                }
             }
             double waterIntensity = WaterSheeperConfig.WATER_FOG_INTENSITY.get();
             if (waterIntensity > 0) {

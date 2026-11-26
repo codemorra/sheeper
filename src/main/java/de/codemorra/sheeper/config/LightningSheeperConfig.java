@@ -59,6 +59,11 @@ public final class LightningSheeperConfig {
                     "Movement along the boundary and through the top or bottom stays free.")
             .defineInRange("boundary.slowdownStrength", 0.70, 0.0, 0.75);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOG_INTENSITY = BUILDER
+            .comment("Density multiplier for the fog visible inside and outside the storm arena. 0 hides the fog.",
+                    "Higher values make it denser. The storm's daylight shading is independent of fog density.")
+            .defineInRange("visuals.fogIntensity", 1.0, 0.0, 3.0);
+
     /** Lightning arena buildup (arenaBuild). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
             .comment("Seconds for the storm front to spread from the center to the arena edge. 0 skips the buildup.")
