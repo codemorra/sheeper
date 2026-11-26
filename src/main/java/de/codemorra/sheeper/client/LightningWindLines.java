@@ -22,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 final class LightningWindLines {
     private static final double SPEED = 0.19;
     private static final double VIEW_DISTANCE = 40;
+    private static final double BOUNDARY_VIEW_DISTANCE = 64;
 
     private record Line(Vec3 position, double length, int lifetime, long bornAt) {
         Line move(Vec3 offset) {
@@ -175,6 +176,95 @@ final class LightningWindLines {
         }
     }
 
+    /** Marks the moving boundary with staggered wind ribbons on the surface and along the sides. */
+    void drawBoundary(BufferBuilder buffer, ClientLevel level, Arena arena, Vec3 camera, double time) {
+        Vec3 center = Vec3.atBottomCenterOf(arena.center());
+        Vec3 toCamera = camera.subtract(center);
+        double radius = arena.radiusAt(time);
+        double radialDistance = toCamera.horizontalDistance();
+        if (radius < 0.25 || Math.abs(radialDistance - radius) >= BOUNDARY_VIEW_DISTANCE) {
+            return;
+        }
+        // Keep angular slots stable so the ribbons travel smoothly as the storm expands or retreats.
+        int slots = Math.max(6, Mth.ceil(2 * Math.PI * arena.radius() / 3));
+        double step = 2 * Math.PI / slots;
+        double bearing = Math.atan2(toCamera.z, toCamera.x);
+        double arc = Math.PI;
+        if (radialDistance + radius > BOUNDARY_VIEW_DISTANCE) {
+            double cosine = (radialDistance * radialDistance + radius * radius
+                    - BOUNDARY_VIEW_DISTANCE * BOUNDARY_VIEW_DISTANCE) / (2 * radialDistance * radius);
+            arc = Math.acos(Mth.clamp(cosine, -1, 1));
+        }
+        int first = Mth.floor((bearing - arc) / step);
+        int last = Math.min(first + slots - 1, Mth.ceil((bearing + arc) / step));
+        int firstBand = Mth.floor((camera.y - 12) / 3);
+        int lastBand = Mth.floor((camera.y + 12) / 3);
+        for (int slot = first; slot <= last; slot++) {
+            int index = Math.floorMod(slot, slots);
+            double phase = fractional(time / 22 + index * 0.618);
+            double angle = (slot + phase) * step;
+            double x = center.x + radius * Math.cos(angle);
+            double z = center.z + radius * Math.sin(angle);
+            int blockX = Mth.floor(x);
+            int blockZ = Mth.floor(z);
+            if (!level.getChunkSource().hasChunk(blockX >> 4, blockZ >> 4)) {
+                continue;
+            }
+            double pulse = Math.min(1, Math.min(phase, 1 - phase) * 5);
+            float alpha = arena.opacityAt(time) * (float) (pulse * Math.min(1, radius / 8));
+            double surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING, blockX, blockZ);
+            double water = LightningRingSurface.findWater(level, x, z, arena.minimumY(), arena.maximumY() - 1);
+            double floor = Double.isFinite(water) ? water : surface;
+            if (arena.containsY(floor) && floor > level.getMinBuildHeight()) {
+                // Stack the surface ribbons so the edge stays legible from either side and above water.
+                drawBoundaryLine(buffer, level, arena, center, camera, radius, angle, floor + 0.35,
+                        step * 1.5, alpha * 0.90F);
+                drawBoundaryLine(buffer, level, arena, center, camera, radius, angle + step * 0.5, floor + 1.05,
+                        step * 1.25, alpha * 0.74F);
+            }
+            for (int band = firstBand; band <= lastBand; band++) {
+                if (Math.floorMod(index + band, 2) == 0) {
+                    double y = band * 3 + 0.5 + fractional(index * 0.382) * 2;
+                    double heightFade = Mth.clamp((12 - Math.abs(camera.y - y)) / 4, 0, 1);
+                    if (heightFade > 0) {
+                        drawBoundaryLine(buffer, level, arena, center, camera, radius, angle + step * 0.45, y,
+                                step * 1.35, alpha * (float) heightFade * 0.68F);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Follows the circular edge so the wind stays on the boundary even in small arenas. */
+    private static void drawBoundaryLine(BufferBuilder buffer, ClientLevel level, Arena arena, Vec3 center,
+            Vec3 camera, double radius, double angle, double y, double span, float alpha) {
+        Vec3 previous = null;
+        float previousAlpha = 0;
+        for (int index = 0; index <= 5; index++) {
+            double fraction = index / 5.0;
+            double heading = angle + (fraction - 0.5) * span;
+            Vec3 point = new Vec3(center.x + Math.cos(heading) * radius,
+                    y + Math.sin(fraction * 5) * 0.12, center.z + Math.sin(heading) * radius);
+            double distance = point.distanceTo(camera);
+            if (distance >= BOUNDARY_VIEW_DISTANCE || !arena.containsY(point.y) || !isOpen(level, point)) {
+                previous = null;
+                continue;
+            }
+            Vec3 relative = point.subtract(camera);
+            float brightness = (float) (alpha * Math.sin(Math.PI * fraction)
+                    * Math.min(1, (BOUNDARY_VIEW_DISTANCE - distance) / 8));
+            if (previous != null) {
+                ribbonSegment(buffer, previous, relative, previousAlpha, brightness, 0.10);
+            }
+            previous = relative;
+            previousAlpha = brightness;
+        }
+    }
+
+    private static double fractional(double value) {
+        return value - Math.floor(value);
+    }
+
     void draw(BufferBuilder buffer, ClientLevel level, LightningWindField field, Vec3 camera, double time) {
         Arena arena = field.arena();
         Vec3 direction = field.directionAt(time);
@@ -206,23 +296,32 @@ final class LightningWindLines {
             Vec3 point = center.add(direction.scale((fraction - 0.5) * length))
                     .add(0, Math.sin(fraction * 5) * 0.09, 0);
             float intensity = intensity(arena, time, point);
-            BlockPos pos = new BlockPos(point);
-            if (intensity <= 0 || !level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)
-                    || !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
+            if (intensity <= 0 || !isOpen(level, point)) {
                 previous = null;
                 continue;
             }
             Vec3 relative = point.subtract(camera);
             float brightness = (float) (alpha * intensity * Math.sin(Math.PI * fraction));
             if (previous != null) {
-                vertex(buffer, previous, -0.02, previousAlpha * 0.25F);
-                vertex(buffer, relative, -0.02, brightness * 0.25F);
-                vertex(buffer, relative, 0.02, brightness);
-                vertex(buffer, previous, 0.02, previousAlpha);
+                ribbonSegment(buffer, previous, relative, previousAlpha, brightness, 0.02);
             }
             previous = relative;
             previousAlpha = brightness;
         }
+    }
+
+    private static boolean isOpen(ClientLevel level, Vec3 point) {
+        BlockPos pos = new BlockPos(point);
+        return level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)
+                && level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
+    }
+
+    private static void ribbonSegment(BufferBuilder buffer, Vec3 from, Vec3 to, float fromAlpha, float toAlpha,
+            double halfHeight) {
+        vertex(buffer, from, -halfHeight, fromAlpha * 0.25F);
+        vertex(buffer, to, -halfHeight, toAlpha * 0.25F);
+        vertex(buffer, to, halfHeight, toAlpha);
+        vertex(buffer, from, halfHeight, fromAlpha);
     }
 
     private static float intensity(Arena arena, double time, Vec3 point) {
