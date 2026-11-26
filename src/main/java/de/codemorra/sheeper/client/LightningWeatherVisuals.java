@@ -8,7 +8,6 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import de.codemorra.sheeper.SheeperMod;
-import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.util.ResourceLocations;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
@@ -19,12 +18,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -44,7 +41,6 @@ import net.minecraftforge.fml.common.Mod;
 public final class LightningWeatherVisuals {
     private static final ResourceLocation RAIN = ResourceLocations.create("minecraft",
             "textures/environment/rain.png");
-    private static final double FRONT_VISIBILITY = 48;
     private static final int CLOUD_SEGMENTS = 48;
     private static final int CLOUD_RINGS = 10;
     private static final int RAIN_SPACING = 2;
@@ -127,6 +123,7 @@ public final class LightningWeatherVisuals {
             if (visible(arena, camera, time, viewDistance)) {
                 drawClouds(buffer, arena, camera, time);
                 WIND_LINES.drawFront(buffer, level, arena, camera, time);
+                WIND_LINES.drawBoundary(buffer, level, arena, camera, time);
             }
         }
         for (LightningWindField field : winds) {
@@ -352,9 +349,6 @@ public final class LightningWeatherVisuals {
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
         WIND_LINES.tick(level, arenas, winds, camera);
-        if (level.getGameTime() % 3 == 0) {
-            showFront(level, camera);
-        }
         float strength = intensity(level, camera.x, camera.y, camera.z);
         // Splashes are also visible from outside, unlike the listener-local rain sound.
         for (int index = 0; index < 20; index++) {
@@ -376,103 +370,6 @@ public final class LightningWeatherVisuals {
                     sheltered ? SoundEvents.WEATHER_RAIN_ABOVE : SoundEvents.WEATHER_RAIN,
                     SoundSource.WEATHER, strength * (sheltered ? 0.2F : 0.4F), sheltered ? 0.5F : 1.0F, false);
         }
-    }
-
-    /** Samples only the nearby arc of the storm front, even when viewed from outside. */
-    private static void showFront(ClientLevel level, Vec3 camera) {
-        long now = level.getGameTime();
-        int remaining = 80;
-        for (var arena : arenas) {
-            double radius = arena.radiusAt(now);
-            Vec3 center = Vec3.atBottomCenterOf(arena.center());
-            double dx = camera.x - center.x;
-            double dz = camera.z - center.z;
-            double radial = Math.hypot(dx, dz);
-            if (radius < 0.25 || Math.abs(radial - radius) > FRONT_VISIBILITY) {
-                continue;
-            }
-            // A short visible arc keeps the marker density consistent on large arenas.
-            double arc = radius <= FRONT_VISIBILITY - radial ? Math.PI : Math.min(Math.PI, FRONT_VISIBILITY / radius);
-            double bearing = Math.atan2(dz, dx);
-            int samples = Math.min(64, Math.max(8, (int) Math.ceil(arc * radius)));
-            boolean building = arena.isBuilding(now);
-            boolean draining = arena.isDraining();
-            float opacity = arena.opacityAt(now);
-            for (int index = 0; index < samples && remaining > 0; index++) {
-                if (draining && level.random.nextFloat() >= opacity) {
-                    continue;
-                }
-                double angle = bearing + ((index + level.random.nextDouble()) / samples * 2 - 1) * arc;
-                double x = center.x + Math.cos(angle) * radius;
-                double z = center.z + Math.sin(angle) * radius;
-                double ground = LightningRingSurface.find(level, x, z, center.y, arena.minimumY(),
-                        arena.maximumY() - 1);
-                double water = findFrontWaterSurface(level, arena, x, z, ground);
-                boolean overWater = Double.isFinite(water);
-                double y = overWater ? water : ground;
-                if (!building && !draining && index % 3 == 0
-                        && (!Double.isFinite(y) || Math.abs(camera.y - y) > 5)
-                        && arena.containsY(camera.y)
-                        && camera.distanceToSqr(x, camera.y, z) <= FRONT_VISIBILITY * FRONT_VISIBILITY
-                        && level.getChunkSource().hasChunk(Mth.floor(x) >> 4, Mth.floor(z) >> 4)) {
-                    // Mark the side at altitude or over empty space, where there is no nearby surface marker.
-                    double sideY = Mth.clamp(camera.y + level.random.nextDouble() * 4 - 2,
-                            arena.minimumY(), arena.maximumY() - 0.01);
-                    level.addParticle(ParticleTypes.CLOUD, true, x, sideY, z, 0.22, 0.02, 0.10);
-                    remaining--;
-                }
-                if (remaining == 0 || !Double.isFinite(y)
-                        || camera.distanceToSqr(x, y, z) > FRONT_VISIBILITY * FRONT_VISIBILITY) {
-                    continue;
-                }
-                if (overWater) {
-                    level.addParticle(ParticleTypes.SPLASH, true, x, Math.min(y + 0.05, arena.maximumY() - 0.01),
-                            z, 0.15, 0.08, 0.07);
-                }
-                if (!building) {
-                    double windY = Math.min(y + 0.3 + level.random.nextDouble() * 1.8, arena.maximumY() - 0.01);
-                    // Wisps follow the retreating ring toward the center during teardown.
-                    double windX = draining ? -Math.cos(angle) * 0.22 : 0.22;
-                    double windZ = draining ? -Math.sin(angle) * 0.22 : 0.10;
-                    level.addParticle(ParticleTypes.CLOUD, true, x, windY, z, windX, 0.02, windZ);
-                }
-                if (index % 4 == 0) {
-                    level.addParticle(ParticleTypes.ELECTRIC_SPARK, true, x,
-                            Math.min(y + 0.18, arena.maximumY() - 0.01), z, 0, 0.02, 0);
-                }
-                remaining--;
-            }
-        }
-    }
-
-    /** Uses exposed fluid height so deep or flowing water can carry the front instead of its seabed. */
-    private static double findFrontWaterSurface(ClientLevel level, LightningWeatherPacket.Arena arena,
-            double x, double z, double ground) {
-        int blockX = Mth.floor(x);
-        int blockZ = Mth.floor(z);
-        if (!level.getChunkSource().hasChunk(blockX >> 4, blockZ >> 4)) {
-            return Double.NaN;
-        }
-        int minY = Double.isFinite(ground) ? Math.max(arena.minimumY(), Mth.floor(ground)) : arena.minimumY();
-        int maxY = Math.min(arena.maximumY() - 1, level.getHeight(Heightmap.Types.MOTION_BLOCKING, blockX, blockZ) - 1);
-        var pos = new BlockPos.MutableBlockPos(blockX, maxY, blockZ);
-        for (int y = maxY; y >= minY; y--) {
-            pos.setY(y);
-            var fluid = level.getFluidState(pos);
-            if (!fluid.is(FluidTags.WATER)) {
-                continue;
-            }
-            BlockPos above = pos.above();
-            if (level.getFluidState(above).is(FluidTags.WATER)
-                    || level.getBlockState(above).isFaceSturdy(level, above, Direction.DOWN)) {
-                continue;
-            }
-            double surface = y + fluid.getHeight(level, pos);
-            if (arena.containsY(surface) && (!Double.isFinite(ground) || surface >= ground)) {
-                return surface;
-            }
-        }
-        return Double.NaN;
     }
 
     @SubscribeEvent
