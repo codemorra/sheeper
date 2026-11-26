@@ -105,6 +105,22 @@ public final class SheeperClientConfig {
             .comment("Multiplier for the number of background wind lines in lightning arenas. 0 hides them.")
             .defineInRange("lightning.windLineDensity", 2.0, 0.0, 3.0);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
+            .comment("Base distance in blocks over which arena water fog becomes dense. Higher values improve visibility.")
+            .defineInRange("water.fogDistance", 32.0, 16.0, 96.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_FOG_INTENSITY = BUILDER
+            .comment("Density multiplier for water arena fog. Higher values make it denser. 0 hides it.")
+            .defineInRange("water.fogIntensity", 1.0, 0.0, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOG_INTENSITY = BUILDER
+            .comment("Density multiplier for storm fog. 0 hides the fog. Daylight shading is independent.")
+            .defineInRange("lightning.fogIntensity", 1.0, 0.0, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_ARC_SPACING = BUILDER
+            .comment("Target spacing in blocks between visible lightning arcs on a ring wave. Lower values show more arcs.")
+            .defineInRange("lightning.ringArcSpacing", 1.55, 0.75, 3.1);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     /** Converts an exponential per-update retention factor to its 90% duration. */

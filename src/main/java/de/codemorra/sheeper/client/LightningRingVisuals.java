@@ -13,6 +13,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import de.codemorra.sheeper.SheeperMod;
+import de.codemorra.sheeper.config.SheeperClientConfig;
 import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.network.LightningRingVisualPacket;
 import net.minecraft.client.Minecraft;
@@ -116,7 +117,7 @@ public final class LightningRingVisuals {
         if (radius < 0.25) {
             return;
         }
-        double arcSpacing = Math.max(0.75, packet.spacing() * 3.1);
+        double arcSpacing = SheeperClientConfig.LIGHTNING_RING_ARC_SPACING.get();
         int count = Mth.clamp(Mth.ceil(2 * Math.PI * radius / arcSpacing), 9, 600);
         double step = 2 * Math.PI / count;
         double phase = packet.startTick() % 97 * 0.17 + age * 1.15 / Math.max(4, radius);

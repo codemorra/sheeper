@@ -45,11 +45,6 @@ public final class LightningSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH = ElementalConfigValues
             .boundaryStrength(BUILDER, 0.70);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOG_INTENSITY = BUILDER
-            .comment("Density multiplier for the fog visible inside and outside the storm arena. 0 hides the fog.",
-                    "Higher values make it denser. The storm's daylight shading is independent of fog density.")
-            .defineInRange("visuals.fogIntensity", 1.0, 0.0, 3.0);
-
     /** Lightning arena buildup (arenaBuild). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_PREPARATION_DURATION = BUILDER
             .comment("Seconds for the storm front to spread from the center to the arena edge. 0 skips the buildup.")
@@ -207,13 +202,13 @@ public final class LightningSheeperConfig {
             .comment("Combat seconds after the last row is launched before this special attack is ready again.")
             .defineInRange("lineAttack.cooldownSeconds", 20.0, 1.0, 120.0);
 
-    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_WAVE_COUNT_MIN = BUILDER
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_POSITION_COUNT_MIN = BUILDER
             .comment("Minimum number of firing positions used in one attack. Each position launches eight rows.")
-            .defineInRange("lineAttack.waveCountMin", 5, 1, 16);
+            .defineInRange("lineAttack.positionCountMin", 5, 1, 16);
 
-    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_WAVE_COUNT_MAX = BUILDER
-            .comment("Maximum number of firing positions in one attack. At least waveCountMin.")
-            .defineInRange("lineAttack.waveCountMax", 8, 1, 16);
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_POSITION_COUNT_MAX = BUILDER
+            .comment("Maximum number of firing positions in one attack. If set below the minimum, the minimum is used.")
+            .defineInRange("lineAttack.positionCountMax", 8, 1, 16);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_CHARGE_DURATION = BUILDER
             .comment("Seconds the Sheeper charges before teleporting to the first firing position.")
@@ -284,10 +279,6 @@ public final class LightningSheeperConfig {
             .comment("Damage in health points before armor and difficulty scaling. Each ring can damage a player once.")
             .defineInRange("ring.damage", 6.0, 0.0, 24.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_PARTICLE_SPACING = BUILDER
-            .comment("Spacing of the lightning arcs on the ring. Lower values make the ring denser.")
-            .defineInRange("ring.particleSpacing", 0.5, 0.2, 1.0);
-
     /** Wandering tornado special attack (tornado). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_TORNADO_ENABLED = BUILDER
             .comment("Enables the tornado special attack.")
@@ -321,8 +312,8 @@ public final class LightningSheeperConfig {
             .defineInRange("tornado.dissolveSeconds", 1.25, 0.5, 2.5);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADOS_PER_1000_BLOCKS = BUILDER
-            .comment("Number of tornados per 1,000 blocks of arena floor, capped at 12 per attack.",
-                    "For example, 1.25 gives about 10 tornados at a radius of 50 blocks.")
+            .comment("Tornadoes per 1,000 blocks of arena floor, rounded to a total between 1 and 12 per attack.",
+                    "At an arena radius of 50 blocks, 1.25 gives 10 tornadoes and values from 1.47 reach the cap.")
             .defineInRange("tornado.per1000Blocks", 1.25, 0.1, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TORNADO_RADIUS = BUILDER

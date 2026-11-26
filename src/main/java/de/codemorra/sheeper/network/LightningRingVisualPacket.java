@@ -15,7 +15,7 @@ import net.minecraftforge.network.NetworkEvent;
 /** Synchronizes the origin and clock of a ring wave or the charge preceding the first teleport. */
 public record LightningRingVisualPacket(ResourceLocation dimension, BlockPos arenaCenter, double arenaRadius,
         int minY, int maxY, Vec3 origin, long startTick, int warningTicks, double speed, float width,
-        float spacing, float bodyHeight) {
+        float bodyHeight) {
     public void encode(FriendlyByteBuf buffer) {
         buffer.writeResourceLocation(dimension);
         buffer.writeBlockPos(arenaCenter);
@@ -29,7 +29,6 @@ public record LightningRingVisualPacket(ResourceLocation dimension, BlockPos are
         buffer.writeVarInt(warningTicks);
         buffer.writeDouble(speed);
         buffer.writeFloat(width);
-        buffer.writeFloat(spacing);
         buffer.writeFloat(bodyHeight);
     }
 
@@ -37,13 +36,13 @@ public record LightningRingVisualPacket(ResourceLocation dimension, BlockPos are
         var packet = new LightningRingVisualPacket(buffer.readResourceLocation(), buffer.readBlockPos(),
                 buffer.readDouble(), buffer.readVarInt(), buffer.readVarInt(),
                 new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble()), buffer.readLong(),
-                buffer.readVarInt(), buffer.readDouble(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+                buffer.readVarInt(), buffer.readDouble(), buffer.readFloat(), buffer.readFloat());
         if (!(ArenaLimits.isValidRadius(packet.arenaRadius) && packet.minY >= -2032 && packet.maxY <= 2032
                 && packet.minY <= packet.maxY && packet.origin.y >= packet.minY && packet.origin.y < packet.maxY + 1
                 && packet.isWithinArena(packet.origin.x, packet.origin.z)
                 && packet.startTick >= 0 && packet.warningTicks >= 0 && packet.warningTicks <= 40
                 && packet.speed >= 0.4 && packet.speed <= 1.8 && packet.width >= 0.1F && packet.width <= 2
-                && packet.spacing >= 0.2F && packet.spacing <= 1 && packet.bodyHeight > 0 && packet.bodyHeight <= 32)) {
+                && packet.bodyHeight > 0 && packet.bodyHeight <= 32)) {
             throw new IllegalArgumentException("Invalid lightning ring visual");
         }
         return packet;
