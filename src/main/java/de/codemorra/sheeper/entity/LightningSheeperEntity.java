@@ -470,7 +470,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     }
 
     @Nullable
-    private ServerPlayer closestParticipant(List<ServerPlayer> participants) {
+    ServerPlayer closestParticipant(List<ServerPlayer> participants) {
         return participants.stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
     }
 
