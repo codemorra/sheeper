@@ -6,25 +6,29 @@ import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
-import de.codemorra.sheeper.network.LightningArenaFlashPacket;
-import de.codemorra.sheeper.network.ModNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /** Moves the boss over the arena, then holds its lightning form through the final barrage. */
 final class LightningRodAttack {
     private static final int CENTER_SEARCH_RADIUS = 4;
-    private static final double PREFERRED_HOVER_HEIGHT = 6;
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final LightningRodShelters shelters;
     private final LightningRodDischarge discharge;
     @Nullable
     private Vec3 hoverPosition;
+    private Vec3 departurePosition;
+    @Nullable
+    private Vec3 landingPosition;
+    private int landingTicks;
+    private int landingAttempts;
+    private int openingTicks;
     private int travelTicks;
     private int chargeTicks;
     private int chargeDuration;
@@ -47,13 +51,14 @@ final class LightningRodAttack {
             return false;
         }
         hoverPosition = position;
+        departurePosition = boss.position();
         boss.setTarget(null);
         chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION.get());
         calmDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION.get());
         finaleDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DURATION.get());
         chargeTicks = chargeDuration;
         showOpening(level);
-        travelTicks = teleports.startAttackTravel(hoverPosition);
+        openingTicks = 4;
         return true;
     }
 
@@ -65,9 +70,13 @@ final class LightningRodAttack {
         return isActive() && travelTicks == 0;
     }
 
-    /** @return ticks before the wind stops, including the remaining flight to the center */
-    int stormTicksRemaining() {
-        return travelTicks + chargeTicks;
+    boolean isQuiet() {
+        return calmTicks > 0 || releaseTicks > 0 || shelters.isDissolving() || landingPosition != null;
+    }
+
+    /** @return ticks before damaging random strikes stop, including the flight to the center */
+    int chargeStormTicksRemaining() {
+        return openingTicks + travelTicks + chargeTicks;
     }
 
     /** Retains lightning form through travel, the discharge and the final shelter fade. */
@@ -76,7 +85,23 @@ final class LightningRodAttack {
         if (position == null) {
             return;
         }
+        if (openingTicks > 0) {
+            if (--openingTicks == 0) {
+                travelTicks = teleports.startAttackTravel(position);
+            }
+            return;
+        }
         shelters.tick(level);
+        if (landingPosition != null) {
+            if (--landingTicks == 0) {
+                if (teleports.landPreferredAttackTravel(landingPosition)) {
+                    clear();
+                } else {
+                    beginLanding(level);
+                }
+            }
+            return;
+        }
         if (travelTicks > 0) {
             if (--travelTicks == 0) {
                 if (teleports.isSafeHoverPosition(position)) {
@@ -96,7 +121,8 @@ final class LightningRodAttack {
         }
         if (shelters.isDissolving()) {
             if (shelters.hasDissolved(level.getGameTime())) {
-                clear();
+                shelters.clear();
+                beginLanding(level);
             }
             return;
         }
@@ -135,10 +161,26 @@ final class LightningRodAttack {
         }
     }
 
-    /** Tries the central column first, then the nearest rings if roof or terrain obstructs it. */
+    /** Keeps the bolt visible until the boss can materialize at a checked ground position. */
+    private void beginLanding(ServerLevel level) {
+        if (landingAttempts++ == 2) {
+            clear();
+            return;
+        }
+        landingPosition = teleports.findGroundBelow(level, departurePosition);
+        if (landingPosition == null) {
+            clear();
+            return;
+        }
+        landingTicks = teleports.startAttackTravel(landingPosition);
+    }
+
+    /** Prefers high positions near the center before settling for a lower column. */
     @Nullable
     private Vec3 findHoverPosition(ServerLevel level) {
         BlockPos center = boss.getArenaCenter();
+        double desiredHeight = Mth.lerp(0.8, center.getY(), boss.getArenaMaximumY() - boss.getBbHeight() - 0.1);
+        Vec3 best = null;
         for (int ring = 0; ring <= CENTER_SEARCH_RADIUS; ring++) {
             for (int dx = -ring; dx <= ring; dx++) {
                 for (int dz = -ring; dz <= ring; dz++) {
@@ -147,12 +189,17 @@ final class LightningRodAttack {
                     }
                     Vec3 position = hoverInColumn(level, center, center.getX() + dx, center.getZ() + dz);
                     if (position != null) {
-                        return position;
+                        if (position.y >= desiredHeight - 1) {
+                            return position;
+                        }
+                        if (best == null || position.y > best.y) {
+                            best = position;
+                        }
                     }
                 }
             }
         }
-        return null;
+        return best;
     }
 
     /** Looks for full-body clearance, lowering the hover point if the arena ceiling is close. */
@@ -165,8 +212,12 @@ final class LightningRodAttack {
         Double ground = boss.findArenaSurface(level, x, z);
         double floor = ground == null ? center.getY() : ground;
         double ceiling = boss.getArenaMaximumY() - boss.getBbHeight() - 0.1;
-        double preferred = Math.min(floor + PREFERRED_HOVER_HEIGHT, ceiling);
         double minimum = floor + 0.5;
+        double preferred = Mth.lerp(0.8, floor, ceiling);
+        if (ceiling < minimum) {
+            return null;
+        }
+        preferred = Math.max(preferred, minimum);
         for (double y = preferred; y >= minimum; y = y == minimum ? minimum - 1 : Math.max(minimum, y - 1)) {
             Vec3 position = new Vec3(column.x, y, column.z);
             if (teleports.isSafeHoverPosition(position)) {
@@ -176,14 +227,13 @@ final class LightningRodAttack {
         return null;
     }
 
-    /** Flashes the captured arena at the same time as the opening bang. */
+    /** Strikes the boss before its body becomes the travelling bolt. */
     private void showOpening(ServerLevel level) {
-        var flash = new LightningArenaFlashPacket(level.dimension().location(), boss.getArenaCenter(),
-                boss.getCombatRadius(), boss.getArenaMinimumY(), boss.getArenaMaximumY());
-        level.players().forEach(player -> ModNetwork.sendLightningArenaFlash(player, flash));
+        Vec3 point = boss.getBoundingBox().getCenter();
+        double originY = Math.max(point.y + 16, boss.getStormCloudY(point));
+        LightningStrikeEffect.spawnVisualBolt(level, point, originY, 2.8F);
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, boss.getBoundingBox().getCenter(), SoundEvents.GENERIC_EXPLODE, volume * 2,
-                1.0F);
+        LightningAttackSounds.play(boss, point, SoundEvents.GENERIC_EXPLODE, volume * 2, 1.0F);
     }
 
     private void showChargeStart(ServerLevel level) {
@@ -212,6 +262,11 @@ final class LightningRodAttack {
             discharge.clear();
         }
         hoverPosition = null;
+        departurePosition = null;
+        landingPosition = null;
+        landingTicks = 0;
+        landingAttempts = 0;
+        openingTicks = 0;
         travelTicks = 0;
         chargeTicks = 0;
         calmTicks = 0;

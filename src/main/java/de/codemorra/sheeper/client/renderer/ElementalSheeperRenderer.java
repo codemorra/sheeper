@@ -102,7 +102,8 @@ public class ElementalSheeperRenderer extends SheepRenderer {
             var arc = bolt.getTravelArc();
             if (arc != null) {
                 AABB bounds = arc.isCharging()
-                        ? new AABB(arc.end(), arc.end()).inflate(bolt.getBbHeight())
+                        ? new AABB(arc.end(), arc.end()).inflate(bolt.getBbWidth() * 5, bolt.getBbHeight() * 4,
+                                bolt.getBbWidth() * 5)
                         : new AABB(arc.start(), arc.end()).inflate(1.5);
                 if (frustum.isVisible(bounds)) {
                     return true;

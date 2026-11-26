@@ -27,8 +27,11 @@ public final class LightningStrikeRenderer extends EntityRenderer<LightningStrik
     public void render(LightningStrikeEffect strike, float yaw, float partialTick, PoseStack poses,
             MultiBufferSource buffers, int light) {
         float height = strike.getStrikeHeight();
+        float width = strike.getStrikeWidth();
         int segments = Mth.clamp(Mth.ceil(height), 2, 24);
-        double spread = Math.min(1.4, height * 0.12);
+        double spread = Math.min(1.4, height * 0.12) * width;
+        Vec3 across = CROSS_X.scale(width);
+        Vec3 depth = CROSS_Z.scale(width);
         RandomSource random = RandomSource.create(strike.seed);
         var vertices = buffers.getBuffer(RenderType.lightning());
         var matrix = poses.last().pose();
@@ -38,7 +41,7 @@ public final class LightningStrikeRenderer extends EntityRenderer<LightningStrik
             double offset = Math.sin(fraction * Math.PI) * spread;
             Vec3 to = new Vec3((random.nextDouble() * 2 - 1) * offset, height * fraction,
                     (random.nextDouble() * 2 - 1) * offset);
-            LightningTravelArcRenderer.drawSegment(vertices, matrix, from, to, CROSS_X, CROSS_Z, 0.9F);
+            LightningTravelArcRenderer.drawSegment(vertices, matrix, from, to, across, depth, 0.9F);
             from = to;
         }
     }
@@ -46,8 +49,9 @@ public final class LightningStrikeRenderer extends EntityRenderer<LightningStrik
     @Override
     public boolean shouldRender(LightningStrikeEffect strike, Frustum frustum, double x, double y, double z) {
         Vec3 bottom = strike.position();
+        double width = strike.getStrikeWidth() * 1.7;
         return strike.shouldRender(x, y, z)
-                && frustum.isVisible(new AABB(bottom, bottom.add(0, strike.getStrikeHeight(), 0)).inflate(1.7));
+                && frustum.isVisible(new AABB(bottom, bottom.add(0, strike.getStrikeHeight(), 0)).inflate(width, 1.7, width));
     }
 
     @Override

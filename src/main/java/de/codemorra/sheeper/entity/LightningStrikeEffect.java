@@ -26,6 +26,8 @@ public final class LightningStrikeEffect extends LightningBolt {
     static final int VISUAL_DURATION_TICKS = 8;
     private static final EntityDataAccessor<Float> DATA_HEIGHT = SynchedEntityData
             .defineId(LightningStrikeEffect.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_WIDTH = SynchedEntityData
+            .defineId(LightningStrikeEffect.class, EntityDataSerializers.FLOAT);
     private int age;
 
     public LightningStrikeEffect(EntityType<? extends LightningBolt> type, Level level) {
@@ -36,11 +38,17 @@ public final class LightningStrikeEffect extends LightningBolt {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_HEIGHT, 1.0F);
+        entityData.define(DATA_WIDTH, 1.0F);
     }
 
     /** @return rendered height above the fixed impact point */
     public float getStrikeHeight() {
         return entityData.get(DATA_HEIGHT);
+    }
+
+    /** @return width multiplier for the rendered strike */
+    public float getStrikeWidth() {
+        return entityData.get(DATA_WIDTH);
     }
 
     /** Shared warning marker for both stationary storm centers and moving lanes. */
@@ -89,10 +97,16 @@ public final class LightningStrikeEffect extends LightningBolt {
     }
 
     /** Sends a bolt for presentation without invoking the arena's ignition logic. */
-    static void spawnVisualBolt(ServerLevel level, Vec3 pos, double cloudY) {
+    public static void spawnVisualBolt(ServerLevel level, Vec3 pos, double cloudY) {
+        spawnVisualBolt(level, pos, cloudY, 1.0F);
+    }
+
+    /** Allows an attack to emphasize a visual strike with a wider arc. */
+    static void spawnVisualBolt(ServerLevel level, Vec3 pos, double cloudY, float width) {
         LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
         effect.setPos(pos);
         effect.entityData.set(DATA_HEIGHT, (float) Math.max(0.15, cloudY - pos.y));
+        effect.entityData.set(DATA_WIDTH, width);
         level.addFreshEntity(effect);
     }
 

@@ -40,6 +40,9 @@ final class LightningRodDischarge {
         remaining = durationTicks;
         damage = LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE.get().floatValue();
         previousImpact = null;
+        float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
+        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.LIGHTNING_BOLT_THUNDER,
+                volume * 2.4F, 0.9F);
     }
 
     /** @return whether the barrage has time left after this tick */

@@ -24,7 +24,7 @@ import net.minecraft.world.phys.Vec3;
 /** Runs continuous wind and stronger local gusts in each lightning arena. */
 public final class LightningArenaWind {
     public enum Mode {
-        NORMAL, INTENSIFIED, CALM
+        NORMAL, INTENSIFIED
     }
 
     private static Function<Level, List<LightningWindField>> clientFields = level -> List.of();

@@ -672,7 +672,7 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CHARGE_DURATION = BUILDER
             .comment("Seconds the Sheeper builds its charge after arriving at the center, before the calm phase.")
-            .defineInRange("lightningRod.chargeSeconds", 12.0, 2.0, 20.0);
+            .defineInRange("lightningRod.chargeSeconds", 18.0, 2.0, 30.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_RADIUS = BUILDER
             .comment("Radius of the shelter spheres in blocks, limited by the arena sides and ceiling.")
@@ -684,11 +684,11 @@ public final class LightningSheeperConfig {
             .defineInRange("lightningRod.sheltersPer1000Blocks", 0.38, 0.01, 1.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_WIND_MULTIPLIER = BUILDER
-            .comment("Multiplier for the arena-wide wind during the lightning rod charge.")
-            .defineInRange("lightningRod.windMultiplier", 2.5, 1.0, 4.0);
+            .comment("Multiplier for the arena-wide wind while the Lightning Rod is active.")
+            .defineInRange("lightningRod.windMultiplier", 3.0, 1.0, 6.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CALM_DURATION = BUILDER
-            .comment("Seconds after the charge finishes and random lightning stops, before the final barrage begins.")
+            .comment("Seconds after the charge ends before the final barrage. Storm sounds are quieter during this time.")
             .defineInRange("lightningRod.calmBeforeStrikeSeconds", 2.0, 0.15, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_FINALE_DURATION = BUILDER

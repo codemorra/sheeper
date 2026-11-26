@@ -52,15 +52,21 @@ final class LightningSpecialAttacks {
         return rod.isHovering();
     }
 
+    boolean isRodQuiet() {
+        return rod.isQuiet();
+    }
+
     LightningArenaWind.Mode windMode() {
-        if (!rod.isActive()) {
-            return LightningArenaWind.Mode.NORMAL;
-        }
-        return rod.stormTicksRemaining() > 0 ? LightningArenaWind.Mode.INTENSIFIED : LightningArenaWind.Mode.CALM;
+        return rod.isActive() ? LightningArenaWind.Mode.INTENSIFIED : LightningArenaWind.Mode.NORMAL;
+    }
+
+    /** Stops combat strikes after the rod charges while the storm itself keeps moving. */
+    boolean allowsRandomStrikes() {
+        return !rod.isActive() || rod.chargeStormTicksRemaining() > 0;
     }
 
     int intensifiedStormTicksRemaining() {
-        return rod.stormTicksRemaining();
+        return rod.chargeStormTicksRemaining();
     }
 
     List<LightningTornado> tornadoSnapshots() {
