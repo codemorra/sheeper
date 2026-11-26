@@ -37,9 +37,9 @@ public final class WaterArenaSpawnWave {
             return changed;
         }
         var bounds = volume.bounds();
-        double front = volume.at(level.getGameTime()).radius();
-        double centerX = bounds.center().getX() + 0.5D;
-        double centerZ = bounds.center().getZ() + 0.5D;
+        double front = volume.at(level.getGameTime()).radius() - FRONT_CLEARANCE;
+        double edgeDistance = WaterSheeperConfig.WATER_SPAWN_PUSH_EDGE_DISTANCE.get();
+        double liftHeight = WaterSheeperConfig.WATER_SPAWN_PUSH_LIFT_HEIGHT.get();
         boolean changed = false;
         for (ServerPlayer player : level.players()) {
             UUID id = player.getUUID();
@@ -48,24 +48,19 @@ public final class WaterArenaSpawnWave {
                 changed |= lifts.remove(id) != null;
                 continue;
             }
-            Vec3 radial = new Vec3(player.getX() - centerX, 0, player.getZ() - centerZ);
-            double distance = radial.length();
-            // Keep the whole player inside the water before contact and during transport.
-            double transportFront = front - FRONT_CLEARANCE - player.getBbWidth() * 0.5D;
-            double inset = Math.max(player.getBbWidth() * 0.5D + ArenaWater.BOUNDARY_MARGIN,
-                    WaterSheeperConfig.WATER_SPAWN_PUSH_EDGE_DISTANCE.get());
-            double targetRadius = Math.max(0, bounds.radius() - inset);
+            ArenaSpawnWaveMotion motion = ArenaSpawnWaveMotion.at(bounds.center(), player.position(), front,
+                    bounds.radius(), player.getBbWidth(), edgeDistance, ArenaWater.BOUNDARY_MARGIN);
             boolean eligible = player.isAlive() && !player.isSpectator() && bounds.contains(player.position());
-            if (!eligible || distance >= targetRadius) {
+            if (!eligible || motion.distance() >= motion.targetRadius()) {
                 if (lifts.remove(id) != null) {
                     stop(player);
                     changed = true;
                 }
                 continue;
             }
-            if (!contacts.contains(id) && distance <= transportFront) {
+            if (!contacts.contains(id) && motion.distance() <= motion.transportFront()) {
                 contacts.add(id);
-                lifts.put(id, player.getY() + WaterSheeperConfig.WATER_SPAWN_PUSH_LIFT_HEIGHT.get());
+                lifts.put(id, player.getY() + liftHeight);
                 player.stopRiding();
                 changed = true;
             }
@@ -73,15 +68,11 @@ public final class WaterArenaSpawnWave {
             if (lift == null) {
                 continue;
             }
-            // Follow behind the water front; blocked swimmers can catch up without reaching its outer face.
-            double step = Math.min(speed, Math.max(0, Math.min(transportFront, targetRadius) - distance));
-            Vec3 direction = distance > 1.0E-6D ? radial.scale(1 / distance)
-                    : new Vec3(1, 0, 0);
             double ceiling = bounds.maximumY() + 1 - player.getBbHeight() - ArenaWater.BOUNDARY_MARGIN;
             double upward = Mth.clamp((Math.min(lift, ceiling) - player.getY()) * 0.2D, 0, 0.15D);
             // Send the intended motion again even after a wall clipped the previous tick.
             // Vanilla collision remains responsible for preventing movement through blocks.
-            WaterArenaPushProtection.apply(player, new Vec3(direction.x * step, upward, direction.z * step));
+            WaterArenaPushProtection.apply(player, motion.velocity(speed, upward));
             ArenaFallProtection.protect(player);
             sync(player);
         }

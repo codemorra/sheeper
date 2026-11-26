@@ -11,66 +11,46 @@ public final class WaterSheeperConfig {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Water boss settings and combat bounds. */
-    public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = BUILDER
-            .comment("Solo maximum health of the water Sheeper in health points (2 = one heart).",
-                    "Multiplayer scaling adds health up to 1024; changes preserve the remaining health percentage.")
-            .defineInRange("boss.maxHealth", 300.0, 1.0, 1024.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MAX_HEALTH = ElementalConfigValues
+            .arenaBossHealth(BUILDER, 300.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_HEALTH_PER_ADDITIONAL_PLAYER = BUILDER
-            .comment(
-                    "Additional percentage of solo maximum health per extra simultaneous arena player; 0 disables scaling.",
-                    "Players qualify after 3 continuous seconds. The highest count lasts until full empty-arena recovery.")
-            .defineInRange("healthScaling.additionalPlayerPercent", 50.0, 0.0, 100.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_HEALTH_PER_ADDITIONAL_PLAYER = ElementalConfigValues
+            .additionalPlayerHealth(BUILDER, 50.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SIZE = ElementalConfigValues.elementalSize(BUILDER, "water");
+    public static final ForgeConfigSpec.DoubleValue WATER_SIZE = ElementalConfigValues.elementalSize(BUILDER, "water", 2.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = BUILDER
-            .comment("Horizontal water Sheeper arena and combat radius around its saved spawn position.",
-                    "New arenas capture this radius when they are created.")
-            .defineInRange("arena.combatRadius", 50.0, 1.0, 128.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = ElementalConfigValues
+            .arenaRadius(BUILDER, 50.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_BOSS_BAR_DISTANCE = BUILDER
-            .comment("Maximum distance in blocks beyond the arena where the Water Sheeper health bar is visible.",
-                    "Set to 0 to show it only inside the arena.")
-            .defineInRange("boss.bossBarDistance", 10.0, 0.0, 64.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BOSS_BAR_DISTANCE = ElementalConfigValues
+            .bossBarDistance(BUILDER, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_ARENA_BUILD_DURATION = BUILDER
             .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
             .defineInRange("arenaBuild.durationSeconds", 5.0, 0.5, 30.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_DURATION = BUILDER
-            .comment("Seconds for the virtual water level to sink after the boss disappears.",
-                    "Affected players descend gently and remain protected from fall damage until landing.")
-            .defineInRange("arena.drainDurationSeconds", 8.0, 1.0, 30.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_DURATION = ElementalConfigValues
+            .arenaDrainDuration(BUILDER, 8.0,
+                    "Seconds for the virtual water level to sink after the boss disappears.",
+                    "Affected players descend gently and remain protected from fall damage until landing.");
 
     /** Soft lateral arena boundary (boundary). */
-    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_WIDTH = BUILDER
-            .comment(
-                    "Width in blocks on each side of the outer arena boundary where crossing is slowed; 0 disables it.",
-                    "Combat entry uses its inner edge. Width is capped at half the arena radius.")
-            .defineInRange("boundary.slowdownWidth", 1.5, 0.0, 4.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_WIDTH = ElementalConfigValues
+            .boundaryWidth(BUILDER, 1.5);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_STRENGTH = BUILDER
-            .comment("Maximum fraction of boundary-crossing speed removed at the edge; 0 disables the slowdown.",
-                    "The effect fades smoothly with distance. Movement along the edge remains unaffected.")
-            .defineInRange("boundary.slowdownStrength", 0.35, 0.0, 0.75);
+    public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_STRENGTH = ElementalConfigValues
+            .boundaryStrength(BUILDER, 0.35);
 
     /** Empty-arena grace and recovery (arenaRecovery). */
-    public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = BUILDER
-            .comment("Seconds without arena participants before regeneration begins.",
-                    "The boss rejects damage immediately; returning players cancel recovery.")
-            .defineInRange("arenaRecovery.graceSeconds", 10.0, 0.0, 30.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = ElementalConfigValues
+            .recoveryGrace(BUILDER, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_REGENERATION = BUILDER
-            .comment("Percentage of maximum health restored per second after the empty-arena grace period.",
-                    "Full recovery resets the encounter; returning players stop further healing.")
-            .defineInRange("arenaRecovery.healthPercentPerSecond", 5.0, 0.1, 25.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_REGENERATION = ElementalConfigValues
+            .recoveryRate(BUILDER, 5.0);
 
     /** Water boss movement (movement). */
-    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_EDGE_DISTANCE = BUILDER
-            .comment("Minimum horizontal clearance between the boss body and the virtual arena boundary.",
-                    "The movement radius adapts automatically to arena radius and boss size; 0 keeps body clearance only.")
-            .defineInRange("movement.edgeDistance", 2.0, 0.0, 16.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_EDGE_DISTANCE = ElementalConfigValues
+            .movementEdgeDistance(BUILDER, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds between local circling waypoints.")
@@ -126,19 +106,14 @@ public final class WaterSheeperConfig {
             .defineInRange("movement.idle.intervalMaxSeconds", 5.0, 0.1, 15.0);
 
     /** Damage-free transport during arena expansion (spawnPush). */
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_SPEED = BUILDER
-            .comment("Maximum outward transport speed during arena startup in blocks per second; 0 disables the push.",
-                    "Players follow the expanding front; obstacles do not cancel transport before the wave ends.")
-            .defineInRange("spawnPush.speedBlocksPerSecond", 20.0, 0.0, 40.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_SPEED = ElementalConfigValues
+            .spawnPushSpeed(BUILDER, 20.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_EDGE_DISTANCE = BUILDER
-            .comment(
-                    "Distance from the arena edge where spawn transport stops; players already in this outer ring are spared.")
-            .defineInRange("spawnPush.edgeDistance", 8.0, 0.0, 32.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_EDGE_DISTANCE = ElementalConfigValues
+            .spawnPushEdgeDistance(BUILDER, 8.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_LIFT_HEIGHT = BUILDER
-            .comment("Gentle rise above the player's height at first wave contact, in blocks; ceilings limit the lift.")
-            .defineInRange("spawnPush.liftHeight", 2.0, 0.0, 6.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_LIFT_HEIGHT = ElementalConfigValues
+            .spawnPushLiftHeight(BUILDER, 2.0);
 
     /** Water boss close-range approach (closeRange). */
     public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_DISTANCE = BUILDER

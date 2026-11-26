@@ -11,32 +11,23 @@ public final class LightningSheeperConfig {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     /** Lightning boss settings and combat bounds. */
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = BUILDER
-            .comment("Solo maximum health in health points (2 = one heart).",
-                    "Multiplayer scaling adds health up to 1024 and preserves the remaining health percentage.")
-            .defineInRange("boss.maxHealth", 300.0, 1.0, 1024.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MAX_HEALTH = ElementalConfigValues
+            .arenaBossHealth(BUILDER, 350.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER = BUILDER
-            .comment("Extra percentage of solo health per additional player present for at least 3 seconds.",
-                    "The highest simultaneous player count applies until the boss fully recovers.")
-            .defineInRange("healthScaling.additionalPlayerPercent", 50.0, 0.0, 100.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER = ElementalConfigValues
+            .additionalPlayerHealth(BUILDER, 50.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SIZE = ElementalConfigValues.elementalSize(BUILDER,
-            "lightning");
+            "lightning", 2.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_RADIUS = BUILDER
-            .comment("Horizontal lightning Sheeper arena and combat radius around its saved spawn position.")
-            .defineInRange("arena.combatRadius", 50.0, 1.0, 128.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_RADIUS = ElementalConfigValues
+            .arenaRadius(BUILDER, 50.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOSS_BAR_DISTANCE = BUILDER
-            .comment("Maximum distance in blocks beyond the arena where the Lightning Sheeper health bar is visible.",
-                    "Set to 0 to show it only inside the arena.")
-            .defineInRange("boss.bossBarDistance", 10.0, 0.0, 64.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOSS_BAR_DISTANCE = ElementalConfigValues
+            .bossBarDistance(BUILDER, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_EDGE_DISTANCE = BUILDER
-            .comment("Minimum horizontal distance in blocks between the boss's body and the arena edge.",
-                    "0 keeps only body clearance. Teleports stop if the remaining area is too small.")
-            .defineInRange("movement.edgeDistance", 2.0, 0.0, 16.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_MOVEMENT_EDGE_DISTANCE = ElementalConfigValues
+            .movementEdgeDistance(BUILDER, 2.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_ARENA_HEIGHT = BUILDER
             .comment("Blocks from the boss's spawn point up to the top of the storm arena.",
@@ -48,16 +39,11 @@ public final class LightningSheeperConfig {
                     "Applies to new arenas.")
             .defineInRange("arena.depth", 24, 0, 32);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_WIDTH = BUILDER
-            .comment("Blocks on each side of the storm boundary where crossing is slowed. 0 disables the slowdown.",
-                    "Combat entry uses the inner edge. Width is capped at half the arena radius.")
-            .defineInRange("boundary.slowdownWidth", 1.5, 0.0, 4.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_WIDTH = ElementalConfigValues
+            .boundaryWidth(BUILDER, 1.5);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH = BUILDER
-            .comment(
-                    "Fraction of speed lost when crossing the storm boundary in either direction. 0 disables the slowdown.",
-                    "Movement along the boundary and through the top or bottom stays free.")
-            .defineInRange("boundary.slowdownStrength", 0.70, 0.0, 0.75);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_BOUNDARY_SLOWDOWN_STRENGTH = ElementalConfigValues
+            .boundaryStrength(BUILDER, 0.70);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOG_INTENSITY = BUILDER
             .comment("Density multiplier for the fog visible inside and outside the storm arena. 0 hides the fog.",
@@ -69,23 +55,19 @@ public final class LightningSheeperConfig {
             .comment("Seconds for the storm front to spread from the center to the arena edge. 0 skips the buildup.")
             .defineInRange("arenaBuild.durationSeconds", 5.0, 0.0, 30.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ARENA_DRAIN_DURATION = BUILDER
-            .comment("Seconds for the storm front to retreat and fade after the boss is defeated or removed.")
-            .defineInRange("arena.drainDurationSeconds", 8.0, 1.0, 30.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ARENA_DRAIN_DURATION = ElementalConfigValues
+            .arenaDrainDuration(BUILDER, 8.0,
+                    "Seconds for the storm front to retreat and fade after the boss is defeated or removed.");
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_COMBAT_ENTRY_DELAY = BUILDER
             .comment("Seconds after the first player enters the ready arena before combat hazards begin.")
             .defineInRange("arena.entryDelaySeconds", 2.0, 0.0, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_GRACE = BUILDER
-            .comment("Seconds the arena must stay empty before the boss starts healing.",
-                    "Returning players stop recovery immediately.")
-            .defineInRange("arenaRecovery.graceSeconds", 10.0, 0.0, 30.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_GRACE = ElementalConfigValues
+            .recoveryGrace(BUILDER, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_REGENERATION = BUILDER
-            .comment("Percentage of maximum health restored per second after the grace period.",
-                    "Full recovery resets the encounter.")
-            .defineInRange("arenaRecovery.healthPercentPerSecond", 5.0, 0.1, 25.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_REGENERATION = ElementalConfigValues
+            .recoveryRate(BUILDER, 5.0);
 
     /** Local storm weather (storm). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_STORM_ENABLED = BUILDER
@@ -97,18 +79,14 @@ public final class LightningSheeperConfig {
             .defineInRange("storm.rumbleVolume", 0.6, 0.0, 4.0);
 
     /** Outward transport during arena startup (spawnPush). */
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_SPEED = BUILDER
-            .comment("Maximum outward transport speed during arena startup in blocks per second. 0 disables it.")
-            .defineInRange("spawnPush.speedBlocksPerSecond", 20.0, 0.0, 40.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_SPEED = ElementalConfigValues
+            .spawnPushSpeed(BUILDER, 20.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_EDGE_DISTANCE = BUILDER
-            .comment(
-                    "Distance from the arena edge where spawn transport stops. Players already in this ring are spared.")
-            .defineInRange("spawnPush.edgeDistance", 8.0, 0.0, 32.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_EDGE_DISTANCE = ElementalConfigValues
+            .spawnPushEdgeDistance(BUILDER, 8.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_LIFT_HEIGHT = BUILDER
-            .comment("Rise above the player's height at first storm contact, in blocks. Ceilings limit the lift.")
-            .defineInRange("spawnPush.liftHeight", 2.0, 0.0, 6.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_LIFT_HEIGHT = ElementalConfigValues
+            .spawnPushLiftHeight(BUILDER, 2.0);
 
     /** Lightning teleport movement (teleport). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MIN = BUILDER
@@ -396,7 +374,8 @@ public final class LightningSheeperConfig {
             .defineInRange("fan.durationMinSeconds", 8.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MAX = BUILDER
-            .comment("Maximum total attack duration in seconds, including the opening charge. At least durationMinSeconds.")
+            .comment(
+                    "Maximum total attack duration in seconds, including the opening charge. At least durationMinSeconds.")
             .defineInRange("fan.durationMaxSeconds", 12.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_LEAD = BUILDER
@@ -442,7 +421,8 @@ public final class LightningSheeperConfig {
             .defineInRange("lightningRod.windMultiplier", 3.0, 1.0, 6.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CALM_DURATION = BUILDER
-            .comment("Seconds after the charge ends before the final barrage. Storm sounds are quieter during this time.")
+            .comment(
+                    "Seconds after the charge ends before the final barrage. Storm sounds are quieter during this time.")
             .defineInRange("lightningRod.calmBeforeStrikeSeconds", 2.0, 0.15, 4.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_FINALE_DURATION = BUILDER

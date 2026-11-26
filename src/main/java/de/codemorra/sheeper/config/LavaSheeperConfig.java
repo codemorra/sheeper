@@ -14,7 +14,7 @@ public final class LavaSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue LAVA_MAX_HEALTH = ElementalConfigValues
             .elementalHealth(BUILDER, "lava", 200.0);
 
-    public static final ForgeConfigSpec.DoubleValue LAVA_SIZE = ElementalConfigValues.elementalSize(BUILDER, "lava");
+    public static final ForgeConfigSpec.DoubleValue LAVA_SIZE = ElementalConfigValues.elementalSize(BUILDER, "lava", 2.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

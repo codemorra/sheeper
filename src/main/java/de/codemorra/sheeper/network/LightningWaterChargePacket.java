@@ -3,6 +3,7 @@ package de.codemorra.sheeper.network;
 import java.util.function.Supplier;
 
 import de.codemorra.sheeper.client.LightningWaterChargeVisuals;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -25,7 +26,7 @@ public record LightningWaterChargePacket(ResourceLocation dimension, BlockPos st
     public static LightningWaterChargePacket decode(FriendlyByteBuf buffer) {
         var packet = new LightningWaterChargePacket(buffer.readResourceLocation(), buffer.readBlockPos(),
                 buffer.readBlockPos(), buffer.readDouble(), buffer.readVarInt(), buffer.readVarInt());
-        if (!(packet.radius >= 1 && packet.radius <= 128
+        if (!(ArenaLimits.isValidRadius(packet.radius)
                 && packet.minimumY >= -2032 && packet.maximumY <= 2032
                 && packet.maximumY - packet.minimumY <= 128
                 && packet.contains(packet.strike))) {

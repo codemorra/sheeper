@@ -48,7 +48,7 @@ public final class WaterArenaData extends SavedData {
 
         /** Uses the same geometry limits for saved data and network snapshots. */
         public boolean isValid() {
-            return Double.isFinite(radius) && radius >= 1 && radius <= 128
+            return ArenaLimits.isValidRadius(radius)
                     && Double.isFinite(maximumY) && minimumY <= maximumY && maximumY - minimumY <= 128
                     && minimumY >= -2032 && maximumY <= 2031;
         }
@@ -390,7 +390,7 @@ public final class WaterArenaData extends SavedData {
             Arena arena = new Arena();
             arena.ready = entry.getBoolean("Ready");
             arena.drainTick = Math.max(0, entry.getLong("DrainTick"));
-            arena.drainDuration = Math.max(0, Math.min(600, entry.getInt("DrainDuration")));
+            arena.drainDuration = Math.max(0, Math.min(ArenaLimits.MAX_DRAIN_TICKS, entry.getInt("DrainDuration")));
             arena.drain.load(entry.getList("DrainPlayers", Tag.TAG_COMPOUND));
             arena.spawnWave.load(entry.getCompound("SpawnWave"));
             arena.startupTick = Math.max(0, entry.getLong("StartupTick"));

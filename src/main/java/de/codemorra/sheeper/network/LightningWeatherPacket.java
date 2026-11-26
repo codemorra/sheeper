@@ -8,6 +8,7 @@ import de.codemorra.sheeper.client.LightningWeatherVisuals;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.world.LightningWindField;
 import de.codemorra.sheeper.world.LightningWindGust;
+import de.codemorra.sheeper.world.ArenaLimits;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -106,10 +107,10 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
 
         /** Checks the persisted geometry and the network bounds with the same limits. */
         public boolean isValid() {
-            return Double.isFinite(radius) && radius >= 1 && radius <= 128
+            return ArenaLimits.isValidRadius(radius)
                     && containsY(center.getY()) && minimumY >= -2032 && maximumY <= 2032
                     && maximumY - minimumY <= 128 && transition >= 0 && transition <= 1200
-                    && drainDuration >= 0 && drainDuration <= 600 && (!isDraining() || drainStart >= start)
+                    && drainDuration >= 0 && drainDuration <= ArenaLimits.MAX_DRAIN_TICKS && (!isDraining() || drainStart >= start)
                     && quietStart >= -1 && (!quiet() || quietStart >= start)
                     && quietFadeTicks >= 0 && quietFadeTicks <= 1200
                     && ((!rodDarkened && rodDarkeningChangedAt == -1) || rodDarkeningChangedAt >= start);

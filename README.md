@@ -49,11 +49,10 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 #### Lightning Sheeper encounter
 
-- **Storm arena:** Local rain, dark skies and thunder accompany the fight, with warned lightning strikes along the arena edge.
-- **Teleporting movement:** The boss teleports within its arena, including between attacks.
-- **Lightning waves:** Warned strikes target players and random arena locations, spread outward in waves, and leave damaging electrical zones.
-- **Fronts and rings:** Lightning lanes travel toward the arena boundary. Expanding electric rings follow the ground and can be avoided by jumping.
-- **Keep your distance:** Staying near the boss builds a visible charge that releases a damaging blast and knocks nearby players away.
+- **Storm arena:** Local rain, wind and thunder accompany the fight. Random lightning is announced on the ground and can electrify connected water.
+- **Teleporting movement:** The boss travels in lightning form, including between attacks. It prefers clear skies and searches farther afield when its usual jumps are blocked.
+- **Special attacks:** The boss fires rows of lightning, launches expanding ground rings and roaming tornadoes, and tracks players with lightning fans.
+- **Lightning Rod:** The boss charges above the arena and releases a barrage. Glowing shelter spheres intercept lightning and protect players inside.
 
 ### Explosive wool
 
@@ -108,7 +107,7 @@ Each element has its own common config file with top-level sections such as `[bo
 
 - **Shared options:** Each element has independent `size` and `maxHealth` settings under `[boss]`. Size changes also affect hitboxes. Health changes preserve the remaining health percentage. The server synchronizes boss size to clients.
 - **Water:** `water.toml` controls the virtual arena, movement, attacks, proximity defense, and recovery.
-- **Lightning:** `lightning.toml` controls arena bounds, spawn waves, teleports, attacks, proximity discharge, and local weather.
+- **Lightning:** `lightning.toml` controls arena bounds, the opening wind wave, teleports, attacks, and local weather.
 
 **Presentation: `config/sheeper-client.toml`**
 
@@ -144,7 +143,7 @@ Run the automated verification with Java 17:
 ```
 
 - Builds the mod, checks wool/carpet resources and JAR contents, and runs the GameTests.
-- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water and Lightning boss encounters/persistence, and packet contracts.
+- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water boss encounters/persistence, and packet contracts.
 - Each run uses a fresh test world in `build/gametest/run/`; development worlds and configuration in `run/` are preserved. Test classes and scenes are excluded from the mod JAR.
 - Stops on the first failed test and fails on missing/incomplete results. Results are in `build/reports/gametest/results.xml`; server logs are in `build/gametest/run/logs/`.
 - Pull requests targeting `main` automatically run the same verification with Java 17. Reports and server logs are uploaded as the `verification-reports` artifact, including on failure.
