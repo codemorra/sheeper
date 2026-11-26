@@ -13,6 +13,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.world.ArenaFallProtection;
 import de.codemorra.sheeper.world.LightningArenaBoundaryDrag;
 import de.codemorra.sheeper.world.LightningTornado;
+import de.codemorra.sheeper.world.LightningTornadoMotion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -171,7 +172,7 @@ final class LightningTornadoAttack {
         }
     }
 
-    void tick(ServerLevel level, List<ServerPlayer> participants) {
+    void tick(ServerLevel level) {
         long now = level.getGameTime();
         if (isLaunching()) {
             tickLaunches(level, now);
@@ -185,13 +186,8 @@ final class LightningTornadoAttack {
             }
             funnel.snapshot = buildSnapshot(base, base.subtract(current.position()), now, current.activeFrom(),
                     current.dissolveFrom(), current.endTick());
-            if (current.isDissolving(now)) {
-                softenFalls(level, funnel.snapshot, participants, now);
-            } else if (now >= current.activeFrom()) {
-                damagePlayers(level, funnel.snapshot, participants, now);
-                if (now > current.activeFrom() && (now - current.activeFrom()) % 7 == 0) {
-                    showDebris(level, base);
-                }
+            if (now > current.activeFrom() && !current.isDissolving(now) && (now - current.activeFrom()) % 7 == 0) {
+                showDebris(level, base);
             }
         }
     }
@@ -229,16 +225,6 @@ final class LightningTornadoAttack {
         return new Vec3(next.x, base.y + Mth.clamp(ground - base.y, -0.24, 0.24), next.z);
     }
 
-    /** Keeps players supported by a dissolving funnel safe until their next landing. */
-    private void softenFalls(ServerLevel level, LightningTornado funnel, List<ServerPlayer> players, long now) {
-        for (ServerPlayer player : players) {
-            if (player.isAlive() && !player.isPassenger() && funnel.supportsDescent(player.position(), now)
-                    && LightningTornado.hasClearPath(level, player, funnel.position())) {
-                ArenaFallProtection.protect(player);
-            }
-        }
-    }
-
     private double ground(ServerLevel level, double x, double z, double reference) {
         int min = boss.getArenaMinimumY();
         int max = boss.getArenaMaximumY() - 2;
@@ -251,25 +237,51 @@ final class LightningTornadoAttack {
 
     private LightningTornado buildSnapshot(Vec3 base, Vec3 motion, long now, long activeFrom, long dissolveFrom, long end) {
         double availableHeight = Math.min(height, boss.getArenaMaximumY() - base.y);
-        return new LightningTornado(boss.getArenaCenter(), boss.getCombatRadius(), boss.getArenaMinimumY(),
+        return new LightningTornado(boss.getUUID(), boss.getArenaCenter(), boss.getCombatRadius(), boss.getArenaMinimumY(),
                 boss.getArenaMaximumY(), base, motion, radius, availableHeight, strength, now, activeFrom, dissolveFrom, end);
     }
 
-    private void damagePlayers(ServerLevel level, LightningTornado funnel, List<ServerPlayer> players, long now) {
-        if (damage <= 0) {
+    /** Uses the published funnel snapshot so overlap cannot add another funnel's effect. */
+    void applyPlayerEffects(ServerLevel level, List<ServerPlayer> players) {
+        if (funnels.isEmpty()) {
             return;
         }
+        long now = level.getGameTime();
         for (ServerPlayer player : players) {
-            UUID id = player.getUUID();
-            if (!player.isAlive() || nextHit.getOrDefault(id, 0L) > now || funnel.exposure(player.position(), now) < 0.15
-                    || !LightningTornado.hasClearPath(level, player, funnel.position())) {
+            if (!player.isAlive() || player.isPassenger()) {
                 continue;
             }
-            nextHit.put(id, now + hitInterval);
-            Vec3 motion = player.getDeltaMovement();
-            if (player.hurt(new EntityDamageSource("lightningBolt", boss), damage)) {
-                player.setDeltaMovement(motion);
+            LightningTornado funnel = LightningTornadoMotion.controllingFunnel(player);
+            if (funnel == null && strength == 0 && damage > 0) {
+                // Disabling wind strength still allows contact damage from a funnel.
+                funnel = funnels.stream().map(candidate -> candidate.snapshot)
+                        .filter(candidate -> !candidate.isDissolving(now)
+                                && candidate.exposure(player.position(), now) >= 0.15
+                                && LightningTornado.hasClearPath(level, player, candidate.position()))
+                        .findFirst().orElse(null);
             }
+            if (funnel == null || !boss.getUUID().equals(funnel.owner())) {
+                continue;
+            }
+            if (funnel.isDissolving(now)) {
+                if (funnel.supportsDescent(player.position(), now)) {
+                    ArenaFallProtection.protect(player);
+                }
+            } else if (damage > 0 && funnel.exposure(player.position(), now) >= 0.15) {
+                damagePlayer(player, now);
+            }
+        }
+    }
+
+    private void damagePlayer(ServerPlayer player, long now) {
+        UUID id = player.getUUID();
+        if (nextHit.getOrDefault(id, 0L) > now) {
+            return;
+        }
+        nextHit.put(id, now + hitInterval);
+        Vec3 motion = player.getDeltaMovement();
+        if (player.hurt(new EntityDamageSource("lightningBolt", boss), damage)) {
+            player.setDeltaMovement(motion);
         }
     }
 

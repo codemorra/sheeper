@@ -47,13 +47,13 @@ public record LightningTornadoPacket(ResourceLocation dimension, UUID owner, Lis
         }
         var tornados = new ArrayList<LightningTornado>(count);
         for (int index = 0; index < count; index++) {
-            tornados.add(decodeFunnel(buffer));
+            tornados.add(decodeFunnel(buffer, owner));
         }
         return new LightningTornadoPacket(dimension, owner, List.copyOf(tornados));
     }
 
-    private static LightningTornado decodeFunnel(FriendlyByteBuf buffer) {
-        var tornado = new LightningTornado(buffer.readBlockPos(), buffer.readDouble(), buffer.readVarInt(),
+    private static LightningTornado decodeFunnel(FriendlyByteBuf buffer, UUID owner) {
+        var tornado = new LightningTornado(owner, buffer.readBlockPos(), buffer.readDouble(), buffer.readVarInt(),
                 buffer.readVarInt(), readPoint(buffer), readPoint(buffer), buffer.readDouble(), buffer.readDouble(),
                 buffer.readDouble(), buffer.readLong(), buffer.readLong(), buffer.readLong(), buffer.readLong());
         if (!(tornado.arenaRadius() >= 1 && tornado.arenaRadius() <= 128

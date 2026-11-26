@@ -67,6 +67,11 @@ final class LightningSpecialAttacks {
         return tornado.snapshots();
     }
 
+    /** Applies tornado contact effects after their latest positions have been published. */
+    void applyTornadoEffects(ServerLevel level, List<ServerPlayer> players) {
+        tornado.applyPlayerEffects(level, players);
+    }
+
     /** Advances cooldown and recovery only during combat, and lets an announced teleport finish. */
     void tick(ServerLevel level, List<ServerPlayer> players, boolean fighting, boolean teleportPreparing) {
         if (!fighting) {
@@ -134,7 +139,7 @@ final class LightningSpecialAttacks {
         }
         if (tornado.isActive()) {
             // Funnels roam independently. Keep all other specials and the recovery timer waiting until they end.
-            tornado.tick(level, players);
+            tornado.tick(level);
             return;
         }
         if (fan.isActive()) {

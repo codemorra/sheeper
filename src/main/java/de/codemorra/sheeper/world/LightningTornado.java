@@ -1,5 +1,7 @@
 package de.codemorra.sheeper.world;
 
+import java.util.UUID;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -9,7 +11,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /** Shared terrain-relative funnel geometry for player movement, damage, and presentation. */
-public record LightningTornado(BlockPos arenaCenter, double arenaRadius, int minimumY, int maximumY,
+public record LightningTornado(UUID owner, BlockPos arenaCenter, double arenaRadius, int minimumY, int maximumY,
         Vec3 position, Vec3 velocity, double radius, double height, double strength, long sampleTick,
         long activeFrom, long dissolveFrom, long endTick) {
     public static final int MAX_FUNNELS_PER_ATTACK = 12;
@@ -44,6 +46,16 @@ public record LightningTornado(BlockPos arenaCenter, double arenaRadius, int min
     /** Gives a soft rim that can be crossed even while the core is pulling strongly. */
     public double exposure(Vec3 point, double now) {
         return powerAt(now) * contact(point, now);
+    }
+
+    /** Allows briefly displaced riders to stay with the same funnel across steps and snapshot updates. */
+    boolean retains(Vec3 point, double now) {
+        if (now >= endTick || !isInsideArena(point)) {
+            return false;
+        }
+        Vec3 offset = point.subtract(centerAt(now));
+        double reach = radiusAtHeight(offset.y / height) + 0.65;
+        return offset.y >= -1 && offset.y < height + 0.35 && offset.horizontalDistanceSqr() <= reach * reach;
     }
 
     /** Measures contact before the time envelope, so a fading funnel can still guide a descent. */
@@ -82,7 +94,17 @@ public record LightningTornado(BlockPos arenaCenter, double arenaRadius, int min
                 }
             }
         }
-        return level.clip(new ClipContext(inside, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player))
+        if (reaches(level, player, inside, target)) {
+            return true;
+        }
+        // Let the upper part of the funnel reach over small ledges without passing through a solid wall.
+        Vec3 upperTarget = player.getEyePosition();
+        Vec3 upperSource = new Vec3(center.x, Math.max(center.y + 0.15, upperTarget.y), center.z);
+        return reaches(level, player, upperSource, upperTarget);
+    }
+
+    private static boolean reaches(Level level, Player player, Vec3 from, Vec3 to) {
+        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player))
                 .getType() == HitResult.Type.MISS;
     }
 }
