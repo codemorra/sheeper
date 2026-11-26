@@ -201,7 +201,8 @@ public final class LightningArenaWind {
     /** Adds horizontal drift and reduces the component of movement opposing the wind. */
     public static Vec3 applyWind(Entity entity, MoverType type, Vec3 motion) {
         if (!(entity instanceof Player player) || type != MoverType.SELF || !player.isAlive()
-                || player.isCreative() || player.isSpectator() || player.isPassenger()) {
+                || player.isCreative() || player.isSpectator() || player.isPassenger()
+                || LightningTornadoMotion.isCaptured(player)) {
             return motion;
         }
         Level level = player.level;
