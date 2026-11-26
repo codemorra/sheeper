@@ -676,7 +676,12 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_RADIUS = BUILDER
             .comment("Radius of the shelter spheres in blocks, limited by the arena sides and ceiling.")
-            .defineInRange("lightningRod.shelterRadius", 3.5, 2.0, 6.0);
+            .defineInRange("lightningRod.shelterRadius", 7.0, 2.0, 12.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_DENSITY = BUILDER
+            .comment("Controls how many shelter spheres the arena can produce. A larger radius allows more shelters.",
+                    "At a radius of 50 blocks, a value of 0.38 gives three shelters where terrain permits.")
+            .defineInRange("lightningRod.sheltersPer1000Blocks", 0.38, 0.01, 1.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_WIND_MULTIPLIER = BUILDER
             .comment("Multiplier for the arena-wide wind during the lightning rod charge.")

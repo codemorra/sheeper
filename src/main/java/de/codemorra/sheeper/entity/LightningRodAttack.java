@@ -51,7 +51,6 @@ final class LightningRodAttack {
         chargeTicks = chargeDuration;
         showOpening(level);
         travelTicks = teleports.startAttackTravel(hoverPosition);
-        shelters.tick(level);
         return true;
     }
 
@@ -173,6 +172,7 @@ final class LightningRodAttack {
 
     private void showChargeStart(ServerLevel level) {
         Vec3 point = boss.getEyePosition();
+        shelters.beginFormation(level, boss.getBoundingBox().getCenter());
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, point, SoundEvents.LIGHTNING_BOLT_THUNDER, volume * 1.7F, 0.5F);
         showCharge(level);
