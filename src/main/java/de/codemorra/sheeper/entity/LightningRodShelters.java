@@ -1,6 +1,7 @@
 package de.codemorra.sheeper.entity;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -59,12 +60,16 @@ final class LightningRodShelters {
     /** Samples loaded columns across the arena without using player positions. */
     private void sampleShelters(ServerLevel level, ServerPlayer player, List<LightningRodShelter> placed,
             int count, double radius, boolean preferSky) {
+        if (placed.size() >= count) {
+            return;
+        }
         double arenaRadius = boss.getCombatRadius();
         double available = Math.max(0, arenaRadius - radius - 0.5);
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         int minY = boss.getArenaMinimumY();
         int maxY = boss.getArenaMaximumY() - 1;
-        for (int attempt = 0; attempt < count * 32 && placed.size() < count; attempt++) {
+        var candidates = new ArrayList<LightningRodShelter>();
+        for (int attempt = 0; attempt < count * 32; attempt++) {
             double angle = boss.getRandom().nextDouble() * 2 * Math.PI;
             double distance = Math.sqrt(boss.getRandom().nextDouble()) * available;
             double x = Mth.floor(center.x + Math.cos(angle) * distance) + 0.5;
@@ -81,10 +86,52 @@ final class LightningRodShelters {
             Vec3 feet = findStand(level, player, new Vec3(x, referenceY, z),
                     preferSky ? 0.25 : searchDistance, searchDistance);
             LightningRodShelter shelter = shelterAt(level, player, feet, radius, preferSky);
-            if (shelter != null && placed.stream().noneMatch(other -> overlaps(other, shelter))
-                    && hasApproach(level, player, shelter)) {
-                placed.add(shelter);
+            if (shelter != null && hasApproach(level, player, shelter)) {
+                candidates.add(shelter);
             }
+        }
+        spreadShelters(placed, candidates, count);
+    }
+
+    /** Places each new sphere where its closest neighbor is furthest away in the arena's horizontal plane. */
+    private static void spreadShelters(List<LightningRodShelter> placed, List<LightningRodShelter> candidates, int count) {
+        double[] nearest = new double[candidates.size()];
+        Arrays.fill(nearest, Double.POSITIVE_INFINITY);
+        for (LightningRodShelter shelter : placed) {
+            updateDistances(candidates, nearest, shelter);
+        }
+        while (placed.size() < count) {
+            int best = -1;
+            double distance = -1;
+            for (int index = 0; index < nearest.length; index++) {
+                if (nearest[index] > distance) {
+                    distance = nearest[index];
+                    best = index;
+                }
+            }
+            if (best < 0) {
+                return;
+            }
+            LightningRodShelter shelter = candidates.get(best);
+            placed.add(shelter);
+            updateDistances(candidates, nearest, shelter);
+        }
+    }
+
+    /** Excludes intersections and updates the nearest distance without rescanning earlier placements. */
+    private static void updateDistances(List<LightningRodShelter> candidates, double[] nearest, LightningRodShelter shelter) {
+        for (int index = 0; index < nearest.length; index++) {
+            if (nearest[index] < 0) {
+                continue;
+            }
+            LightningRodShelter candidate = candidates.get(index);
+            if (overlaps(candidate, shelter)) {
+                nearest[index] = -1;
+                continue;
+            }
+            double dx = candidate.center().x - shelter.center().x;
+            double dz = candidate.center().z - shelter.center().z;
+            nearest[index] = Math.min(nearest[index], dx * dx + dz * dz);
         }
     }
 
