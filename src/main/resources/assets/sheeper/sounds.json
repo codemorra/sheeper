@@ -14,5 +14,9 @@
   "internal_explosion_cooked": {
     "subtitle": "subtitles.entity.generic.explode",
     "sounds": [{ "name": "minecraft:entity.generic.explode", "type": "event" }]
+  },
+  "lightning_fan_crackle": {
+    "subtitle": "subtitles.sheeper.lightning_fan_crackle",
+    "sounds": ["sheeper:lightning_fan_crackle"]
   }
 }

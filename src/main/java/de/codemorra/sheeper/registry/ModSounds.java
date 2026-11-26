@@ -11,8 +11,7 @@ import net.minecraftforge.registries.RegistryObject;
 /**
  * Identifies mod cues separately so local volume settings do not alter vanilla
  * sounds.
- * The sound descriptions reuse vanilla sound events and resource-pack
- * replacements.
+ * Sound descriptions can reference bundled samples or vanilla sound events.
  */
 public final class ModSounds {
     private static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(ForgeRegistries.SOUND_EVENTS,
@@ -22,6 +21,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> WARNING_FUSE = register("warning_fuse");
     public static final RegistryObject<SoundEvent> RAW_INTERNAL_EXPLOSION = register("internal_explosion_raw");
     public static final RegistryObject<SoundEvent> COOKED_INTERNAL_EXPLOSION = register("internal_explosion_cooked");
+    public static final RegistryObject<SoundEvent> LIGHTNING_FAN_CRACKLE = register("lightning_fan_crackle");
 
     private ModSounds() {
     }
