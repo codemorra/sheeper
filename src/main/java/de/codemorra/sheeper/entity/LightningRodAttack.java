@@ -29,6 +29,8 @@ final class LightningRodAttack {
     private int chargeTicks;
     private int chargeDuration;
     private int calmTicks;
+    private int calmDuration;
+    private int finaleDuration;
     private int releaseTicks;
 
     LightningRodAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
@@ -47,7 +49,8 @@ final class LightningRodAttack {
         hoverPosition = position;
         boss.setTarget(null);
         chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION.get());
-        calmTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION.get());
+        calmDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION.get());
+        finaleDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DURATION.get());
         chargeTicks = chargeDuration;
         showOpening(level);
         travelTicks = teleports.startAttackTravel(hoverPosition);
@@ -64,7 +67,7 @@ final class LightningRodAttack {
 
     /** @return ticks before the wind stops, including the remaining flight to the center */
     int stormTicksRemaining() {
-        return Math.max(0, travelTicks + chargeTicks - calmTicks);
+        return travelTicks + chargeTicks;
     }
 
     /** Retains lightning form through travel, the discharge and the final shelter fade. */
@@ -105,11 +108,24 @@ final class LightningRodAttack {
                 }
                 showCharge(level);
             }
-            if (--chargeTicks > 0) {
+            if (--chargeTicks == 0) {
+                calmTicks = calmDuration;
+            }
+            return;
+        }
+        if (calmTicks > 0) {
+            if (calmTicks % 4 == 0 && !teleports.isSafeHoverPosition(position)) {
+                clear();
                 return;
             }
-            boss.setTravelArcCharge(1);
-            discharge.start();
+            if (--calmTicks > 0) {
+                return;
+            }
+            if (!teleports.isSafeHoverPosition(position)) {
+                clear();
+                return;
+            }
+            discharge.start(finaleDuration);
         }
         if (!discharge.tick(level, players)) {
             Vec3 impact = boss.getEyePosition();
@@ -172,6 +188,7 @@ final class LightningRodAttack {
 
     private void showChargeStart(ServerLevel level) {
         Vec3 point = boss.getEyePosition();
+        boss.startTravelArcCharge(chargeDuration, calmDuration, finaleDuration);
         shelters.beginFormation(level, boss.getBoundingBox().getCenter());
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, point, SoundEvents.LIGHTNING_BOLT_THUNDER, volume * 1.7F, 0.5F);
@@ -182,7 +199,6 @@ final class LightningRodAttack {
     private void showCharge(ServerLevel level) {
         Vec3 point = boss.position().add(0, boss.getBbHeight() * 0.6, 0);
         float progress = 1 - chargeTicks / (float) chargeDuration;
-        boss.setTravelArcCharge(progress);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, point.x, point.y, point.z,
                 9 + (int) (progress * 24), boss.getBbWidth() * 0.45, boss.getBbHeight() * 0.4,
                 boss.getBbWidth() * 0.45, 0.035 + progress * 0.09);
@@ -198,6 +214,7 @@ final class LightningRodAttack {
         hoverPosition = null;
         travelTicks = 0;
         chargeTicks = 0;
+        calmTicks = 0;
         releaseTicks = 0;
     }
 }

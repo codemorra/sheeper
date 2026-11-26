@@ -6,7 +6,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
-import de.codemorra.sheeper.config.SheeperConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -36,9 +35,9 @@ final class LightningRodDischarge {
         this.shelters = shelters;
     }
 
-    void start() {
+    void start(int durationTicks) {
         age = 0;
-        remaining = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DURATION.get());
+        remaining = durationTicks;
         damage = LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE.get().floatValue();
         previousImpact = null;
     }
@@ -77,7 +76,17 @@ final class LightningRodDischarge {
         }
         if (audibleBeat) {
             playImpacts(level, players, audibleImpacts);
+            showChargeRelease(level);
         }
+    }
+
+    /** Throws off sparks in time with the barrage as the suspended charge shrinks. */
+    private void showChargeRelease(ServerLevel level) {
+        Vec3 center = boss.getBoundingBox().getCenter();
+        double energy = remaining / (double) (age + remaining);
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, center.x, center.y, center.z, 9 + (int) (energy * 26),
+                boss.getBbWidth() * (0.25 + energy * 0.5), boss.getBbHeight() * (0.25 + energy * 0.5),
+                boss.getBbWidth() * (0.25 + energy * 0.5), 0.12 + energy * 0.20);
     }
 
     /** Plays one real impact direction per listener so the barrage stays audible across the arena. */

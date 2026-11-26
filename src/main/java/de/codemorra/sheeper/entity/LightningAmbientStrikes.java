@@ -71,7 +71,9 @@ final class LightningAmbientStrikes {
         }
         int warningTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_WARNING.get());
         boolean intensified = intensifiedTicksRemaining > 0;
-        if (--intervalTicks > 0 || intensified && warningTicks >= intensifiedTicksRemaining) {
+        // Let the last random bolt finish its visible flash before the calm window starts.
+        if (--intervalTicks > 0 || intensified
+                && warningTicks + LightningStrikeEffect.VISUAL_DURATION_TICKS > intensifiedTicksRemaining) {
             return;
         }
         intervalTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_AMBIENT_INTERVAL.get());
