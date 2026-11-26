@@ -1,7 +1,10 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.UUID;
+
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.registry.ModEntities;
+import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -53,12 +56,11 @@ public final class LightningStrikeEffect extends LightningBolt {
     }
 
     /**
-     * Spawns only the visual bolt and shared audio; attacks apply damage
-     * separately.
+     * Spawns the bolt with shared audio and checks its path for leaves.
      */
     static void spawn(LightningSheeperEntity boss, Vec3 pos) {
         ServerLevel level = (ServerLevel) boss.level;
-        spawnVisual(level, pos, boss.getStormCloudY(pos));
+        spawnStrike(level, boss.getUUID(), pos, boss.getStormCloudY(pos));
         float thunder = LightningSheeperConfig.LIGHTNING_STRIKE_THUNDER_VOLUME.get().floatValue();
         float impact = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (thunder > 0) {
@@ -71,9 +73,9 @@ public final class LightningStrikeEffect extends LightningBolt {
         }
     }
 
-    /** Spawns a cosmetic weather bolt. Combat strikes may also play the positional impact cue. */
-    public static void spawnWeatherBolt(ServerLevel level, Vec3 pos, double cloudY, boolean playImpact) {
-        spawnVisual(level, pos, cloudY);
+    /** Checks leaves even for random weather bolts that deal no player damage. */
+    public static void spawnWeatherBolt(ServerLevel level, UUID owner, Vec3 pos, double cloudY, boolean playImpact) {
+        spawnStrike(level, owner, pos, cloudY);
         float volume = LightningSheeperConfig.LIGHTNING_STRIKE_IMPACT_VOLUME.get().floatValue();
         if (playImpact && volume > 0) {
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
@@ -81,11 +83,12 @@ public final class LightningStrikeEffect extends LightningBolt {
         }
     }
 
-    private static void spawnVisual(ServerLevel level, Vec3 pos, double cloudY) {
+    private static void spawnStrike(ServerLevel level, UUID owner, Vec3 pos, double cloudY) {
         LightningStrikeEffect effect = ModEntities.LIGHTNING_STRIKE.get().create(level);
         effect.setPos(pos);
         effect.entityData.set(DATA_HEIGHT, (float) Math.max(0.15, cloudY - pos.y));
         level.addFreshEntity(effect);
+        LightningStormData.get(level).igniteCloudStrike(level, owner, pos, cloudY);
     }
 
     @Override

@@ -112,7 +112,7 @@ final class LightningRodAttack {
         }
         if (!discharge.tick(level, players)) {
             Vec3 impact = boss.getEyePosition();
-            LightningStrikeEffect.spawnWeatherBolt(level, impact, boss.getStormCloudY(position), false);
+            LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), impact, boss.getStormCloudY(position), false);
             LightningRodDischarge.playImpacts(level, players, List.of(impact));
             releaseTicks = LightningStrikeEffect.VISUAL_DURATION_TICKS;
         }

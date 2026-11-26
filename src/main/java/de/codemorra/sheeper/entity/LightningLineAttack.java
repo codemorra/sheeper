@@ -241,7 +241,7 @@ final class LightningLineAttack {
             Vec3 point = findImpact(level, line);
             if (point != null) {
                 line.surfaceY = point.y;
-                LightningStrikeEffect.spawnWeatherBolt(level, point, boss.getStormCloudY(point), line.points % 4 == 0);
+                LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), point, boss.getStormCloudY(point), line.points % 4 == 0);
                 line.impacts.add(point);
             }
             line.points++;

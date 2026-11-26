@@ -15,9 +15,34 @@ public record LightningTornado(UUID owner, BlockPos arenaCenter, double arenaRad
         Vec3 position, Vec3 velocity, double radius, double height, double strength, long sampleTick,
         long activeFrom, long dissolveFrom, long endTick) {
     public static final int MAX_FUNNELS_PER_ATTACK = 12;
+    public static final int STRANDS = 7;
+    public static final int STRAND_STEPS = 20;
+    private static final int FORMATION_TICKS = 16;
 
     public Vec3 centerAt(double now) {
         return position.add(velocity.scale(Mth.clamp(now - sampleTick, 0, 3)));
+    }
+
+    /** @return smooth visual growth of the funnel after launch */
+    public double formationAt(double now) {
+        double progress = Mth.clamp((now - activeFrom) / FORMATION_TICKS, 0, 1);
+        return progress * progress * (3 - 2 * progress);
+    }
+
+    /** Keeps the visible strand and its terrain contact on the same world-space path. */
+    public Vec3 strandPoint(Vec3 center, double now, int strand, int step) {
+        double fraction = (double) step / STRAND_STEPS;
+        double angle = (now % 2000) * 0.29 + strand * Math.PI * 2 / STRANDS + fraction * 8;
+        double size = 0.18 + 0.82 * formationAt(now);
+        double shell = (0.64 + 0.36 * fadeAt(now)) * size;
+        double reach = radiusAtHeight(fraction) * shell * (0.71 + 0.20 * Math.sin(strand * 2.7 + fraction * 4));
+        double y = (0.18 + fraction * (height - 0.48)) * size;
+        return center.add(Math.cos(angle) * reach, y, Math.sin(angle) * reach);
+    }
+
+    /** @return whether the given strand segment flashes at this time */
+    public boolean hasLightning(int strand, int step, double now) {
+        return strand % 3 == 0 && (step + (int) (now / 3)) % 5 < 2;
     }
 
     public double radiusAtHeight(double heightFraction) {

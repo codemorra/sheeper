@@ -38,6 +38,7 @@ public final class LightningStormData extends SavedData {
         private long nextRumble;
         private final LightningArenaWind wind = new LightningArenaWind();
         private final LightningSpawnPush spawnPush = new LightningSpawnPush();
+        private final LightningLeafFire leafFire = new LightningLeafFire();
         private List<LightningTornado> tornados = List.of();
 
         private Storm(LightningWeatherPacket.Arena arena) {
@@ -87,6 +88,7 @@ public final class LightningStormData extends SavedData {
         }
         int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ARENA_DRAIN_DURATION.get());
         storm.arena = storm.arena.beginDrain(level.getGameTime(), duration);
+        storm.leafFire.clear();
         storm.spawnPush.clear(level, Set.of());
         storm.wind.clear();
         updateTornados(level, id, List.of());
@@ -96,6 +98,22 @@ public final class LightningStormData extends SavedData {
 
     public boolean hasStorms() {
         return LightningSheeperConfig.LIGHTNING_STORM_ENABLED.get() && !storms.isEmpty();
+    }
+
+    /** Sets a directly struck leaf alight in the attack owner's arena. */
+    public void igniteLeaves(ServerLevel level, UUID owner, BlockPos pos) {
+        Storm storm = storms.get(owner);
+        if (storm != null && !storm.arena.isDraining() && storm.leafFire.ignite(level, storm.arena, pos)) {
+            setDirty();
+        }
+    }
+
+    /** Checks the visible cloud-to-impact path for leaves in an active arena. */
+    public void igniteCloudStrike(ServerLevel level, UUID owner, Vec3 impact, double cloudY) {
+        Storm storm = storms.get(owner);
+        if (storm != null && !storm.arena.isDraining() && storm.leafFire.strike(level, storm.arena, impact, cloudY)) {
+            setDirty();
+        }
     }
 
     public float intensity(ServerLevel level, BlockPos pos) {
@@ -117,8 +135,12 @@ public final class LightningStormData extends SavedData {
         boolean windCleared = false;
         boolean enabled = hasStorms();
         Set<UUID> carriedPlayers = new HashSet<>();
+        Set<UUID> playersTouchingFire = new HashSet<>();
         for (var entry : storms.entrySet()) {
             Storm storm = entry.getValue();
+            if (!storm.arena.isDraining()) {
+                changed |= storm.leafFire.tick(level, storm.arena, playersTouchingFire);
+            }
             changed |= enabled ? storm.spawnPush.tick(level, storm.arena, carriedPlayers)
                     : storm.spawnPush.clear(level, carriedPlayers);
             if (enabled) {
@@ -191,14 +213,14 @@ public final class LightningStormData extends SavedData {
         boolean building = storm.arena.isBuilding(now);
         if (now >= storm.nextFlash) {
             if (building) {
-                flash(level, storm.arena, now, true);
+                flash(level, owner, storm.arena, now, true);
                 storm.nextFlash = now + 8 + level.random.nextInt(10);
             } else {
                 if (!(level.getEntity(owner) instanceof LightningSheeperEntity boss)
                         || boss.getCombatParticipants().isEmpty()) {
                     int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
                     for (int index = 0; index < count; index++) {
-                        flash(level, storm.arena, now, false);
+                        flash(level, owner, storm.arena, now, false);
                     }
                 }
                 storm.nextFlash = now
@@ -218,7 +240,8 @@ public final class LightningStormData extends SavedData {
         }
     }
 
-    private static void flash(ServerLevel level, LightningWeatherPacket.Arena arena, long now, boolean atFront) {
+    private static void flash(ServerLevel level, UUID owner, LightningWeatherPacket.Arena arena, long now,
+            boolean atFront) {
         BlockPos center = arena.center();
         for (int attempt = 0; attempt < 4; attempt++) {
             double angle = level.random.nextDouble() * Math.PI * 2;
@@ -232,7 +255,7 @@ public final class LightningStormData extends SavedData {
                 ground = LightningRingSurface.find(level, x, z, center.getY(), arena.minimumY(), arena.maximumY() - 1);
             }
             if (Double.isFinite(ground)) {
-                LightningStrikeEffect.spawnWeatherBolt(level, new Vec3(x, ground, z),
+                LightningStrikeEffect.spawnWeatherBolt(level, owner, new Vec3(x, ground, z),
                         arena.cloudStrikeY(x, z, now), false);
                 return;
             }
@@ -266,6 +289,7 @@ public final class LightningStormData extends SavedData {
             if (entry.hasUUID("Boss") && arena.isValid()) {
                 var storm = new Storm(arena);
                 storm.spawnPush.load(entry.getCompound("SpawnPush"));
+                storm.leafFire.load(entry.getList("LeafFire", Tag.TAG_COMPOUND), arena);
                 data.storms.put(entry.getUUID("Boss"), storm);
             }
         }
@@ -287,6 +311,7 @@ public final class LightningStormData extends SavedData {
             entry.putLong("DrainStart", storm.arena.drainStart());
             entry.putInt("DrainDuration", storm.arena.drainDuration());
             entry.put("SpawnPush", storm.spawnPush.save());
+            entry.put("LeafFire", storm.leafFire.save());
             entries.add(entry);
         });
         tag.put("Storms", entries);

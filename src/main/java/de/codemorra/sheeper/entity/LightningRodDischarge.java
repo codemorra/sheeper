@@ -67,7 +67,7 @@ final class LightningRodDischarge {
             boolean repeat = index == 0 && audibleBeat && previousImpact != null;
             Vec3 position = repeat ? resolveSurface(level, previousImpact) : randomImpact(level);
             if (position != null) {
-                LightningStrikeEffect.spawnWeatherBolt(level, position, boss.getStormCloudY(position), false);
+                LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position, boss.getStormCloudY(position), false);
                 if (audibleBeat) {
                     audibleImpacts.add(position);
                 }

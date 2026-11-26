@@ -300,12 +300,28 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             specialAttacks.applyTornadoEffects(server, participants);
             tickMovement(participants, canMove);
+            igniteTravelLeaves(server, storm);
             LightningArenaWind.Mode windMode = specialAttacks.windMode();
             storm.tickWind(server, getUUID(), windMode, fighting ? participants : List.of());
             boolean randomStrikes = fighting && windMode != LightningArenaWind.Mode.CALM;
             ambientStrikes.tick(server, participants, randomStrikes, specialAttacks.intensifiedStormTicksRemaining());
         }
         super.tick();
+    }
+
+    /** Checks only the section of the travelling lightning crossed during this tick. */
+    private void igniteTravelLeaves(ServerLevel level, LightningStormData storm) {
+        TravelArc arc = getTravelArc();
+        if (arc == null || arc.isCharging()) {
+            return;
+        }
+        long now = level.getGameTime();
+        Vec3 from = arc.start().lerp(arc.end(), arc.progress(now));
+        Vec3 to = arc.start().lerp(arc.end(), arc.progress(now + 1));
+        int steps = Math.max(1, Mth.ceil(from.distanceTo(to) * 2));
+        for (int step = 0; step <= steps; step++) {
+            storm.igniteLeaves(level, getUUID(), new BlockPos(from.lerp(to, (double) step / steps)));
+        }
     }
 
     /** Uses ordinary teleports unless the current special is controlling movement. */
