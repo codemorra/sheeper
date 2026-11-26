@@ -30,25 +30,17 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             return y >= minimumY && y < maximumY;
         }
 
-        /** Keeps the cloud bank above the spawn point even in a shallow arena. */
+        /** Scales the cloud thickness down for shallow arenas. */
         public double cloudHalfHeight() {
-            return cloudHalfHeight(center.getY(), maximumY);
+            return Math.min(4.5, (maximumY - center.getY()) / 3.0);
         }
 
-        private static double cloudHalfHeight(int originY, int ceilingY) {
-            return Math.min(4.5, (ceilingY - originY) / 3.0);
-        }
-
-        /** Rain and lightning originate inside the same cloud geometry drawn by the client. */
+        /** Centers the cloud bank on the arena ceiling so it is visible above the storm. */
         public double cloudCenterY() {
-            return cloudCenterY(center.getY(), maximumY);
+            return maximumY;
         }
 
-        public static double cloudCenterY(int originY, int ceilingY) {
-            return ceilingY - 1.7 * cloudHalfHeight(originY, ceilingY);
-        }
-
-        /** Follows the cloud bank's animated midline at the bolt's horizontal position. */
+        /** Follows the cloud bank's animated midline where rain or lightning originates. */
         public double cloudStrikeY(double x, double z, double time) {
             double variation = cloudVariation(x - center.getX() - 0.5, z - center.getZ() - 0.5, time);
             return cloudCenterY() + cloudHalfHeight() * variation * 0.5;
@@ -102,6 +94,11 @@ public record LightningWeatherPacket(ResourceLocation dimension, List<Arena> are
             if (!containsY(y)) {
                 return 0;
             }
+            return columnIntensityAt(time, x, z);
+        }
+
+        /** Fades precipitation at the horizontal front even if it starts above the arena ceiling. */
+        public float columnIntensityAt(double time, double x, double z) {
             double distance = Math.hypot(x - center.getX() - 0.5, z - center.getZ() - 0.5);
             double activeRadius = radiusAt(time);
             return (float) Mth.clamp((activeRadius - distance) / Math.min(3, radius), 0, 1) * opacityAt(time);
