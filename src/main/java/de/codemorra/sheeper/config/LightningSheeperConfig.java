@@ -122,14 +122,17 @@ public final class LightningSheeperConfig {
                     "Leaving the radius cancels the push. Pending pushes survive the end of preparation and loading.")
             .defineInRange("spawnPush.delaySeconds", 0.15, 0.0, 60.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_STRENGTH = BUILDER
-            .comment("Horizontal spawn wave velocity away from the arena center; deals no direct damage.")
-            .defineInRange("spawnPush.horizontalStrength", 1.5, 0.0, 3.9);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_SPEED = BUILDER
+            .comment("Maximum outward transport speed during arena startup in blocks per second. 0 disables it.")
+            .defineInRange("spawnPush.speedBlocksPerSecond", 20.0, 0.0, 40.0);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_UPWARD_STRENGTH = BUILDER
-            .comment("Upward spawn wave velocity. Replaces existing player momentum.",
-                    "The default rises about two blocks at normal gravity, avoiding fall damage on same-height landings.")
-            .defineInRange("spawnPush.upwardStrength", 0.55, 0.0, 1.0);
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_EDGE_DISTANCE = BUILDER
+            .comment("Distance from the arena edge where spawn transport stops. Players already in this ring are spared.")
+            .defineInRange("spawnPush.edgeDistance", 8.0, 0.0, 32.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_LIFT_HEIGHT = BUILDER
+            .comment("Rise above the player's height at first storm contact, in blocks. Ceilings limit the lift.")
+            .defineInRange("spawnPush.liftHeight", 2.0, 0.0, 6.0);
 
     /** Lightning teleport movement (teleport). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_TELEPORT_INTERVAL_MIN = BUILDER

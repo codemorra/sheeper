@@ -126,6 +126,7 @@ public final class LightningWeatherVisuals {
         for (var arena : arenas) {
             if (visible(arena, camera, time, viewDistance)) {
                 drawClouds(buffer, arena, camera, time);
+                WIND_LINES.drawFront(buffer, level, arena, camera, time);
             }
         }
         for (LightningWindField field : winds) {
@@ -350,7 +351,7 @@ public final class LightningWeatherVisuals {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().getPosition();
-        WIND_LINES.tick(level, winds, camera);
+        WIND_LINES.tick(level, arenas, winds, camera);
         if (level.getGameTime() % 3 == 0) {
             showFront(level, camera);
         }
@@ -424,16 +425,17 @@ public final class LightningWeatherVisuals {
                         || camera.distanceToSqr(x, y, z) > FRONT_VISIBILITY * FRONT_VISIBILITY) {
                     continue;
                 }
-                double height = building ? level.random.nextDouble() * 3 : level.random.nextDouble() * 1.8;
                 if (overWater) {
                     level.addParticle(ParticleTypes.SPLASH, true, x, Math.min(y + 0.05, arena.maximumY() - 0.01),
                             z, 0.15, 0.08, 0.07);
                 }
-                double windY = Math.min(y + 0.3 + height, arena.maximumY() - 0.01);
-                // Wisps follow the retreating ring toward the center during teardown.
-                double windX = draining ? -Math.cos(angle) * 0.22 : 0.22;
-                double windZ = draining ? -Math.sin(angle) * 0.22 : 0.10;
-                level.addParticle(ParticleTypes.CLOUD, true, x, windY, z, windX, 0.02, windZ);
+                if (!building) {
+                    double windY = Math.min(y + 0.3 + level.random.nextDouble() * 1.8, arena.maximumY() - 0.01);
+                    // Wisps follow the retreating ring toward the center during teardown.
+                    double windX = draining ? -Math.cos(angle) * 0.22 : 0.22;
+                    double windZ = draining ? -Math.sin(angle) * 0.22 : 0.10;
+                    level.addParticle(ParticleTypes.CLOUD, true, x, windY, z, windX, 0.02, windZ);
+                }
                 if (index % 4 == 0) {
                     level.addParticle(ParticleTypes.ELECTRIC_SPARK, true, x,
                             Math.min(y + 0.18, arena.maximumY() - 0.01), z, 0, 0.02, 0);

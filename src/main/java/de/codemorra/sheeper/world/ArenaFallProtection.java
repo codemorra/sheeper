@@ -9,10 +9,10 @@ import net.minecraftforge.fml.common.Mod;
 
 /** Protects forced arena movement until the player lands or returns to water. */
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
-public final class WaterArenaFallProtection {
+public final class ArenaFallProtection {
     private static final String FALL_PROTECTION = "SheeperArenaFallProtection";
 
-    private WaterArenaFallProtection() {
+    private ArenaFallProtection() {
     }
 
     /** Preserves protection after transport ends, including across a player save. */
@@ -22,8 +22,7 @@ public final class WaterArenaFallProtection {
     }
 
     /**
-     * Keeps a released swimmer safe until landing or returning to water, rather
-     * than granting general damage immunity or a fixed protection timeout.
+     * Keeps launched players protected until landing or entering a fluid.
      */
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {

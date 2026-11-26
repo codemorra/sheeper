@@ -1,9 +1,11 @@
 package de.codemorra.sheeper.world;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -35,6 +37,7 @@ public final class LightningStormData extends SavedData {
         private long nextFlash;
         private long nextRumble;
         private final LightningArenaWind wind = new LightningArenaWind();
+        private final LightningSpawnPush spawnPush = new LightningSpawnPush();
         private List<LightningTornado> tornados = List.of();
 
         private Storm(LightningWeatherPacket.Arena arena) {
@@ -84,6 +87,7 @@ public final class LightningStormData extends SavedData {
         }
         int duration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ARENA_DRAIN_DURATION.get());
         storm.arena = storm.arena.beginDrain(level.getGameTime(), duration);
+        storm.spawnPush.clear(level, Set.of());
         storm.wind.clear();
         updateTornados(level, id, List.of());
         setDirty();
@@ -109,13 +113,15 @@ public final class LightningStormData extends SavedData {
     public void tick(ServerLevel level) {
         long now = level.getGameTime();
         boolean removed = storms.values().removeIf(storm -> storm.arena.hasFinishedDraining(now));
-        if (removed) {
-            setDirty();
-        }
+        boolean changed = removed;
         boolean windCleared = false;
-        if (hasStorms()) {
-            for (var entry : storms.entrySet()) {
-                Storm storm = entry.getValue();
+        boolean enabled = hasStorms();
+        Set<UUID> carriedPlayers = new HashSet<>();
+        for (var entry : storms.entrySet()) {
+            Storm storm = entry.getValue();
+            changed |= enabled ? storm.spawnPush.tick(level, storm.arena, carriedPlayers)
+                    : storm.spawnPush.clear(level, carriedPlayers);
+            if (enabled) {
                 if (!storm.arena.isDraining()) {
                     tickAtmosphere(level, entry.getKey(), storm, now);
                 }
@@ -123,6 +129,9 @@ public final class LightningStormData extends SavedData {
                     windCleared = true;
                 }
             }
+        }
+        if (changed) {
+            setDirty();
         }
         if (removed || windCleared || now % 10 == 0) {
             sync(level);
@@ -255,7 +264,9 @@ public final class LightningStormData extends SavedData {
                     entry.getLong("Start"), Mth.clamp(entry.getInt("Transition"), 0, 1200),
                     entry.getLong("DrainStart"), Mth.clamp(entry.getInt("DrainDuration"), 0, 600));
             if (entry.hasUUID("Boss") && arena.isValid()) {
-                data.storms.put(entry.getUUID("Boss"), new Storm(arena));
+                var storm = new Storm(arena);
+                storm.spawnPush.load(entry.getCompound("SpawnPush"));
+                data.storms.put(entry.getUUID("Boss"), storm);
             }
         }
         return data;
@@ -275,6 +286,7 @@ public final class LightningStormData extends SavedData {
             entry.putInt("Transition", storm.arena.transition());
             entry.putLong("DrainStart", storm.arena.drainStart());
             entry.putInt("DrainDuration", storm.arena.drainDuration());
+            entry.put("SpawnPush", storm.spawnPush.save());
             entries.add(entry);
         });
         tag.put("Storms", entries);
