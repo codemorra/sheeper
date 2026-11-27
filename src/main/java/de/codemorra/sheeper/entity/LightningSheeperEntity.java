@@ -469,6 +469,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                 setTarget(focus);
             }
             if (teleports.tick(canMove, focus, untargetedCombat) && !untargetedCombat) {
+                specialAttacks.onCombatLanding();
                 ServerPlayer nearest = closestParticipant(participants);
                 if (nearest != null) {
                     if (getTarget() != nearest) {
