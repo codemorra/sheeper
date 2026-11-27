@@ -57,6 +57,9 @@ public final class LightningGameTests {
         c.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_SPEED, 0.0);
         c.set(LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKES_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_WIND_ENABLED, false);
+        c.set(LightningSheeperConfig.LIGHTNING_CRACKLE_ENABLED, false);
+        c.set(LightningSheeperConfig.LIGHTNING_CHARGE_RETALIATION_ENABLED, false);
+        c.set(LightningSheeperConfig.LIGHTNING_DODGE_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_LINE_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_RING_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_TORNADO_ENABLED, false);
@@ -130,6 +133,7 @@ public final class LightningGameTests {
     private static void health(GameTestContext c) {
         configure(c);
         c.set(LightningSheeperConfig.LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER, 25.0);
+        c.set(LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_RECOVERY_ENABLED, true);
         c.set(LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_GRACE, 0.3);
         c.set(LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_REGENERATION, 20.0);
         c.set(LightningSheeperConfig.LIGHTNING_MOVEMENT_EDGE_DISTANCE, 7.0);
@@ -151,10 +155,16 @@ public final class LightningGameTests {
         });
         c.at(77, () -> {
             c.near(boss.getHealth(), 62.5, "Returning during grace must cancel regeneration");
+            c.set(LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_RECOVERY_ENABLED, false);
             first.standAt(c.point(2, 1, 12));
         });
-        c.at(89, () -> c.near(boss.getHealth(), 87.5, "An empty arena must heal at the configured rate after grace"));
-        c.at(130, () -> {
+        c.at(92, () -> {
+            c.near(boss.getHealth(), 62.5, "Disabled recovery must preserve damage beyond the grace period");
+            c.near(boss.getMaxHealth(), 125, "Disabled recovery must preserve multiplayer scaling");
+            c.set(LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_RECOVERY_ENABLED, true);
+        });
+        c.at(104, () -> c.near(boss.getHealth(), 87.5, "An empty arena must heal at the configured rate after grace"));
+        c.at(145, () -> {
             c.near(boss.getMaxHealth(), 100, "Full recovery must reset the multiplayer health bonus");
             c.near(boss.getHealth(), 100, "The recovered boss must be at full solo health");
             c.pass();
@@ -189,12 +199,38 @@ public final class LightningGameTests {
                     && boss.isWithinMovementArea(boss.getX(), boss.getZ())
                     && boss.position().subtract(player.position()).horizontalDistance() >= 2,
                     "The landing must move the boss within its arena and honor player clearance");
-            c.pass();
+            player.standAt(origin.add(0, 0, 2));
+            Vec3 aim = boss.getBoundingBox().getCenter();
+            double direction = aim.x >= origin.x ? 1 : -1;
+            shootAlongXAxis(c, player, aim, direction);
+            c.at(tick + 7, () -> {
+                c.expect(boss.getTravelArc() == null && boss.getHealth() < 95,
+                        "An incoming arrow must hit while dodging is disabled");
+                c.set(LightningSheeperConfig.LIGHTNING_DODGE_ENABLED, true);
+                float health = boss.getHealth();
+                shootAlongXAxis(c, player, boss.getBoundingBox().getCenter(), direction);
+                c.at(tick + 11, () -> {
+                    c.expect(boss.getTravelArc() != null && !boss.isPickable(),
+                            "Enabling dodging must turn a collision-course arrow into an early combat teleport");
+                    c.near(boss.getHealth(), health, "The dodge must start before the projectile reaches the boss");
+                    c.pass();
+                });
+            });
             return;
         }
         c.expect(tick < 80, "A combat teleport must visibly travel and land");
         boolean observed = sawArc;
         c.at(tick + 1, () -> observeTeleport(c, boss, player, origin, observed, tick + 1));
+    }
+
+    /** Launches a real, level arrow into the boss's hitbox with several ticks of reaction time. */
+    private static void shootAlongXAxis(GameTestContext c, TestPlayer player, Vec3 aim, double direction) {
+        var arrow = new Arrow(c.level, player);
+        arrow.setPos(aim.x + 5 * direction, aim.y, aim.z);
+        arrow.setNoGravity(true);
+        arrow.setBaseDamage(6);
+        arrow.setDeltaMovement(-direction, 0, 0);
+        c.level.addFreshEntity(arrow);
     }
 
     private static void death(GameTestContext c) {
@@ -348,14 +384,15 @@ public final class LightningGameTests {
         c.set(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MAX, 2.5);
         c.set(LightningSheeperConfig.LIGHTNING_FAN_DAMAGE, 0.0);
         var boss = boss(c);
-        c.player(17, 1, 12);
+        var player = c.player(17, 1, 12);
+        c.set(LightningSheeperConfig.LIGHTNING_CRACKLE_DAMAGE, 2.0);
         Vec3 ground = boss.position();
         boss.setNoAi(false);
         // Observe the real combat controller, including restoration of the hitbox on landing.
-        c.at(1, () -> observeFanFlight(c, boss, ground, new LinkedHashSet<>(), 1));
+        c.at(1, () -> observeFanFlight(c, boss, player, ground, new LinkedHashSet<>(), 1));
     }
 
-    private static void observeFanFlight(GameTestContext c, LightningSheeperEntity boss, Vec3 ground,
+    private static void observeFanFlight(GameTestContext c, LightningSheeperEntity boss, TestPlayer player, Vec3 ground,
             Set<FanPhase> observed, int tick) {
         var arc = boss.getTravelArc();
         if (arc != null) {
@@ -375,12 +412,19 @@ public final class LightningGameTests {
             c.near(boss.position().distanceTo(ground), 0, "The boss must materialize back on the takeoff floor");
             c.pass();
             return;
-        } else if (boss.getLineCharge(1) > 0) {
-            observed.add(FanPhase.CHARGE);
+        } else if (boss.getLineCharge(1) > 0 && observed.add(FanPhase.CHARGE)) {
             c.expect(boss.isPickable(), "The initial charge must happen while the boss still has its natural body");
+            float health = player.getHealth();
+            var melee = DamageSource.playerAttack(player);
+            c.expect(boss.hurt(melee, 2), "The player must be able to hit the charging boss");
+            c.near(player.getHealth(), health, "Disabling charge retaliation must leave the player's health unchanged");
+            c.set(LightningSheeperConfig.LIGHTNING_CHARGE_RETALIATION_ENABLED, true);
+            // A stronger second hit remains valid during vanilla's brief hit immunity.
+            c.expect(boss.hurt(melee, 4), "A stronger melee hit must still be accepted");
+            c.near(player.getHealth(), health - 2, "Charge retaliation must use the configured damage");
         }
         c.expect(tick < 100, "The complete fan flight and landing must be visible in one attack");
-        c.at(tick + 1, () -> observeFanFlight(c, boss, ground, observed, tick + 1));
+        c.at(tick + 1, () -> observeFanFlight(c, boss, player, ground, observed, tick + 1));
     }
 
     private static void tornadoOverlap(GameTestContext c) {
@@ -417,7 +461,8 @@ public final class LightningGameTests {
         c.set(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION, 2.0);
         c.set(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION, 0.4);
         c.set(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DURATION, 0.6);
-        c.set(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE, 3.0);
+        c.set(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE, 1.0);
+        c.set(LightningSheeperConfig.LIGHTNING_ROD_GROUND_FADE_DURATION, 1.0);
         c.set(LightningSheeperConfig.LIGHTNING_ROD_SHELTER_RADIUS, 2.0);
         c.set(LightningSheeperConfig.LIGHTNING_ROD_SHELTER_DENSITY, 0.2);
         c.set(LightningSheeperConfig.LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION, 0.5);
@@ -479,9 +524,22 @@ public final class LightningGameTests {
                 "The boss must still be in lightning form during the final barrage");
         c.expect(exposed.hasEffect(MobEffects.MOVEMENT_SPEED),
                 "An accepted barrage hit must grant the lightning speed bonus");
-        c.at(tick + 16, () -> {
+        int firstHitCount = exposed.damageEvents.size();
+        c.at(tick + 8, () -> c.expect(exposed.damageEvents.size() > firstHitCount,
+                "Electrified ground must damage players again before vanilla hit immunity expires"));
+        c.at(tick + 18, () -> {
+            c.expect(sheltered.damageEvents.isEmpty(), "A fading sphere must still protect its player");
+            int fadeHitCount = exposed.damageEvents.size();
+            c.at(tick + 27, () -> c.expect(exposed.damageEvents.size() > fadeHitCount,
+                    "The floor must keep damaging exposed players after the final strike"));
+        });
+        c.at(tick + 36, () -> {
+            int finalHitCount = exposed.damageEvents.size();
             c.expect(sheltered.damageEvents.isEmpty(), "The shelter must protect its player through the barrage");
-            c.pass();
+            c.at(tick + 42, () -> {
+                c.expect(exposed.damageEvents.size() == finalHitCount, "Ground damage must stop after the fade ends");
+                c.pass();
+            });
         });
     }
 }
