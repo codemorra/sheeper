@@ -69,7 +69,7 @@
       ]
     },
     {
-      "name": "FogColor",
+      "name": "ArenaFogTint",
       "type": "float",
       "count": 4,
       "values": [

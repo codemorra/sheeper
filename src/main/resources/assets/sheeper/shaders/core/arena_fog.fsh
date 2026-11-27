@@ -5,7 +5,7 @@ uniform mat4 InverseViewProjection;
 uniform vec3 RayOrigin;
 uniform vec3 FogCylinder;
 uniform vec2 FogHeights;
-uniform vec4 FogColor;
+uniform vec4 ArenaFogTint;
 uniform float FogDensity;
 
 in vec2 texCoord;
@@ -50,5 +50,5 @@ void main() {
     // Only fog in front of the sampled terrain contributes. Foreground walls
     // remain clear; looking deeper into the arena increases attenuation naturally.
     float opacity = 1.0 - exp(-fogDistance * FogDensity);
-    fragColor = vec4(FogColor.rgb, opacity * FogColor.a);
+    fragColor = vec4(ArenaFogTint.rgb, opacity * ArenaFogTint.a);
 }
