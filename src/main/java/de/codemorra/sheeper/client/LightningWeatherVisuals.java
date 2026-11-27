@@ -156,7 +156,7 @@ public final class LightningWeatherVisuals {
         return hasSnapshot(level);
     }
 
-    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
+    static void draw(ClientLevel level, Vec3 camera, float partialTick, boolean includeRain) {
         if (!hasEffects(level)) {
             return;
         }
@@ -188,20 +188,45 @@ public final class LightningWeatherVisuals {
         }
         Tesselator.getInstance().end();
 
-        mc.gameRenderer.lightTexture().turnOnLightLayer();
-        RenderSystem.setShader(GameRenderer::getParticleShader);
-        RenderSystem.setShaderTexture(0, RAIN);
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        for (var arena : arenas) {
-            if (visible(arena, camera, time, viewDistance)) {
-                drawRain(buffer, level, arena, camera, time);
-            }
+        if (includeRain) {
+            drawRainColumns(mc, level, camera, time, viewDistance);
         }
-        Tesselator.getInstance().end();
-        mc.gameRenderer.lightTexture().turnOffLightLayer();
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
+    }
+
+    /** Draws the arena's world-anchored rain with the active shaderpack's weather program. */
+    static boolean drawShaderRain(ClientLevel level, Vec3 camera, float partialTick) {
+        if (!hasEffects(level)) {
+            return false;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        double time = level.getGameTime() + (double) partialTick;
+        double viewDistance = minecraft.options.getEffectiveRenderDistance() * 16.0;
+        return OptiFineWeather.draw(() -> drawRainColumns(minecraft, level, camera, time, viewDistance));
+    }
+
+    /** Uses the same vertex layout and texture as Minecraft's weather pass. */
+    private static void drawRainColumns(Minecraft minecraft, ClientLevel level, Vec3 camera, double time,
+            double viewDistance) {
+        var lightmap = minecraft.gameRenderer.lightTexture();
+        lightmap.turnOnLightLayer();
+        try {
+            RenderSystem.setShader(GameRenderer::getParticleShader);
+            RenderSystem.setShaderTexture(0, RAIN);
+            Tesselator tesselator = Tesselator.getInstance();
+            BufferBuilder buffer = tesselator.getBuilder();
+            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+            for (var arena : arenas) {
+                if (visible(arena, camera, time, viewDistance)) {
+                    drawRain(buffer, level, arena, camera, time);
+                }
+            }
+            tesselator.end();
+        } finally {
+            lightmap.turnOffLightLayer();
+        }
     }
 
     private static boolean visible(LightningWeatherPacket.Arena arena, Vec3 camera, double time, double viewDistance) {

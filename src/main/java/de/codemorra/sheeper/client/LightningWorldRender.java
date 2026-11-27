@@ -47,9 +47,10 @@ public final class LightningWorldRender {
     private static int depthBuffer;
     private static int width;
     private static int height;
+    private static boolean shaderRainRendered;
 
     private record Frame(ClientLevel level, Vec3 camera, float partialTick, Matrix4f projection, Matrix4f view,
-            int sceneDepth, List<LightningStrikeEffect> strikes, List<BossEffect> bosses) {
+            int sceneDepth, List<LightningStrikeEffect> strikes, List<BossEffect> bosses, boolean fallbackRain) {
     }
 
     private record BossEffect(LightningSheeperEntity boss, @Nullable TravelArc arc) {
@@ -79,11 +80,16 @@ public final class LightningWorldRender {
 
     @SubscribeEvent
     public static void renderWeather(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER && !usesOptiFinePass()) {
-            ClientLevel level = Minecraft.getInstance().level;
-            if (level != null) {
-                drawEffects(level, event.getCamera().getPosition(), event.getPartialTick(), false);
-            }
+        ClientLevel level = Minecraft.getInstance().level;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || level == null) {
+            return;
+        }
+        Vec3 camera = event.getCamera().getPosition();
+        float partialTick = event.getPartialTick();
+        if (!usesOptiFinePass()) {
+            drawEffects(level, camera, partialTick, false, true);
+        } else if (!shaderRainRendered) {
+            shaderRainRendered = LightningWeatherVisuals.drawShaderRain(level, camera, partialTick);
         }
     }
 
@@ -122,7 +128,7 @@ public final class LightningWorldRender {
         }
         if (hasEffects(level) || !strikes.isEmpty() || !bosses.isEmpty()) {
             pendingFrame = new Frame(level, camera, partialTick, event.getProjectionMatrix().copy(),
-                    event.getPoseStack().last().pose().copy(), sceneDepth, strikes, bosses);
+                    event.getPoseStack().last().pose().copy(), sceneDepth, strikes, bosses, !shaderRainRendered);
         }
     }
 
@@ -136,6 +142,7 @@ public final class LightningWorldRender {
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onRenderTick(TickEvent.RenderTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
+            shaderRainRendered = false;
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
@@ -156,8 +163,9 @@ public final class LightningWorldRender {
     }
 
     /** Draws the same camera-relative geometry in the vanilla or shaderpack pass. */
-    private static void drawEffects(ClientLevel level, Vec3 camera, float partialTick, boolean shaderPack) {
-        LightningWeatherVisuals.draw(level, camera, partialTick);
+    private static void drawEffects(ClientLevel level, Vec3 camera, float partialTick, boolean shaderPack,
+            boolean includeRain) {
+        LightningWeatherVisuals.draw(level, camera, partialTick, includeRain);
         LightningTornadoVisuals.draw(level, camera, partialTick);
         LightningStrikeMarkerVisuals.draw(level, camera, partialTick);
         LightningWaterChargeVisuals.draw(level, camera, partialTick);
@@ -202,7 +210,7 @@ public final class LightningWorldRender {
             view.setIdentity();
             view.mulPoseMatrix(frame.view());
             RenderSystem.applyModelViewMatrix();
-            drawEffects(frame.level(), frame.camera(), frame.partialTick(), true);
+            drawEffects(frame.level(), frame.camera(), frame.partialTick(), true, frame.fallbackRain());
             drawEntityLightning(frame);
         } finally {
             GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, previousFramebuffer);
