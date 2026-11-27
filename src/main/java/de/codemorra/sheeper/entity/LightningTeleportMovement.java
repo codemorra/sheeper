@@ -441,6 +441,48 @@ final class LightningTeleportMovement {
         return destination;
     }
 
+    /**
+     * Samples the whole movement area for a lightning row salvo. When a distance
+     * preference cannot be met, the previous position takes priority over players.
+     */
+    @Nullable
+    Vec3 findLineAttackDestination(List<ServerPlayer> players, double minimumJump, double minimumPlayerDistance) {
+        ServerLevel level = (ServerLevel) boss.level;
+        Vec3 origin = boss.position();
+        Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter()).add(0, origin.y - boss.getArenaCenter().getY(), 0);
+        double radius = boss.getMovementRadius();
+        Landing best = null;
+        double bestJumpShortfall = Double.POSITIVE_INFINITY;
+        double bestPlayerShortfall = Double.POSITIVE_INFINITY;
+        for (int attempt = 0; attempt < 48; attempt++) {
+            double angle = boss.getRandom().nextDouble() * Math.PI * 2;
+            double distance = Math.sqrt(boss.getRandom().nextDouble()) * radius;
+            Vec3 point = center.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+            Landing landing = findLanding(level, point, false, Double.POSITIVE_INFINITY);
+            if (landing == null) {
+                continue;
+            }
+            Vec3 destination = landing.position();
+            double jumpShortfall = Math.max(0, minimumJump - destination.subtract(origin).horizontalDistance());
+            if (jumpShortfall > bestJumpShortfall) {
+                continue;
+            }
+            double nearest = players.stream().mapToDouble(player -> destination.subtract(player.position())
+                    .horizontalDistance()).min().orElse(minimumPlayerDistance);
+            double playerShortfall = Math.max(0, minimumPlayerDistance - nearest);
+            if (best == null || jumpShortfall < bestJumpShortfall || playerShortfall < bestPlayerShortfall
+                    || playerShortfall == bestPlayerShortfall && landing.exposed() && !best.exposed()) {
+                best = landing;
+                bestJumpShortfall = jumpShortfall;
+                bestPlayerShortfall = playerShortfall;
+                if (jumpShortfall == 0 && playerShortfall == 0 && (landing.exposed() || !canPreferSky(level))) {
+                    break;
+                }
+            }
+        }
+        return best == null ? null : best.position();
+    }
+
     /** Uses the normal flight duration without imposing the normal teleport's minimum player distance. */
     boolean beginPreferredAttackTravel(Vec3 destination) {
         if (!hasSafeLanding((ServerLevel) boss.level, destination)) {

@@ -18,15 +18,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
-/** Fires eight terrain-following lightning rows from each of several teleport positions. */
+/** Fires a salvo of terrain-following lightning rows at each teleport position. */
 final class LightningLineAttack {
     private static final double STRIKE_SPACING = 1.6;
     private static final double HIT_RADIUS = 1.15;
     private static final double EDGE_RADIUS = HIT_RADIUS + 1;
     private static final double HIT_HEIGHT = 3;
-    private static final int ROW_INTERVAL_TICKS = 10;
-    private static final int ROWS_PER_POSITION = 8;
-    private static final int FIRST_ROW_DELAY_TICKS = 5;
+    private static final int SALVO_DELAY_TICKS = 5;
     private static final int TURN_BEFORE_TELEPORT_TICKS = 10;
     private static final int CHARGE_FADE_TICKS = 20;
 
@@ -55,23 +53,21 @@ final class LightningLineAttack {
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final List<Line> active = new ArrayList<>();
-    @Nullable
-    private UUID lastTarget;
-    @Nullable
-    private UUID secondLastTarget;
     private int chargeTicks;
     private int edgeHitDelay;
     private int positionsRemaining;
-    private int rowsRemaining;
+    private int minimumRows;
+    private int maximumRows;
     private long chargeEndsAt;
-    private long nextRowAt;
+    private long nextSalvoAt = -1;
     private long nextPositionAt;
     private long landingAt = -1;
     private boolean destinationPlanned;
     @Nullable
     private Vec3 nextDestination;
     private long fadeStartedAt = -1;
-    private double teleportDistance;
+    private double playerDistance;
+    private double positionDistance;
     private double blocksPerTick;
     private float damage;
 
@@ -87,7 +83,10 @@ final class LightningLineAttack {
         int maximum = LightningSheeperConfig.LIGHTNING_LINE_POSITION_COUNT_MAX.get();
         positionsRemaining = minimum + boss.getRandom().nextInt(Math.max(0, maximum - minimum) + 1);
         chargeTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_LINE_CHARGE_DURATION.get());
-        teleportDistance = LightningSheeperConfig.LIGHTNING_LINE_TELEPORT_DISTANCE.get();
+        minimumRows = LightningSheeperConfig.LIGHTNING_LINE_ROW_COUNT_MIN.get();
+        maximumRows = Math.max(minimumRows, LightningSheeperConfig.LIGHTNING_LINE_ROW_COUNT_MAX.get());
+        playerDistance = LightningSheeperConfig.LIGHTNING_LINE_TELEPORT_DISTANCE.get();
+        positionDistance = LightningSheeperConfig.LIGHTNING_LINE_PREVIOUS_POSITION_DISTANCE.get();
         blocksPerTick = LightningSheeperConfig.LIGHTNING_LINE_SPEED.get() / 20;
         edgeHitDelay = (int) Math.ceil(STRIKE_SPACING / blocksPerTick);
         damage = LightningSheeperConfig.LIGHTNING_LINE_DAMAGE.get().floatValue();
@@ -104,7 +103,7 @@ final class LightningLineAttack {
 
     /** @return whether the Sheeper is charging or still has another row to launch */
     boolean isFiring() {
-        return positionsRemaining > 0 || rowsRemaining > 0;
+        return positionsRemaining > 0 || nextSalvoAt >= 0;
     }
 
     void tick(ServerLevel level, List<ServerPlayer> participants) {
@@ -112,15 +111,17 @@ final class LightningLineAttack {
         if (isFiring() && now < chargeEndsAt) {
             boss.setLineCharge(1 - (chargeEndsAt - now) / (float) chargeTicks);
         }
-        if (positionsRemaining > 0) {
-            advanceTeleport(participants, now);
-        }
-        if (rowsRemaining > 0 && now >= nextRowAt) {
-            fireRow(participants, now);
-            nextRowAt += ROW_INTERVAL_TICKS;
-            if (--rowsRemaining == 0 && positionsRemaining == 0) {
+        if (nextSalvoAt >= 0 && now >= nextSalvoAt) {
+            fireSalvo(participants, now);
+            nextSalvoAt = -1;
+            if (positionsRemaining == 0) {
                 fadeStartedAt = now;
+            } else {
+                nextPositionAt = now + TURN_BEFORE_TELEPORT_TICKS;
             }
+        }
+        if (positionsRemaining > 0 && nextSalvoAt < 0) {
+            advanceTeleport(participants, now);
         }
         if (fadeStartedAt >= 0) {
             float strength = Math.max(0, 1 - (now - fadeStartedAt) / (float) CHARGE_FADE_TICKS);
@@ -144,7 +145,7 @@ final class LightningLineAttack {
         }
     }
 
-    /** Turns toward the next position even while the current position fires its last rows. */
+    /** Plans the next landing and turns toward it before starting the lightning flight. */
     private void advanceTeleport(List<ServerPlayer> participants, long now) {
         if (landingAt >= 0) {
             if (now >= landingAt) {
@@ -157,7 +158,7 @@ final class LightningLineAttack {
             return;
         }
         if (!destinationPlanned) {
-            nextDestination = teleports.findPreferredAttackDestination(participants, teleportDistance);
+            nextDestination = teleports.findLineAttackDestination(participants, positionDistance, playerDistance);
             destinationPlanned = true;
         }
         if (nextDestination != null) {
@@ -173,44 +174,43 @@ final class LightningLineAttack {
         }
     }
 
-    /** Starts the next rows one quarter second after arrival and resets their target history. */
+    /** Schedules one salvo after the boss has materialized at the new position. */
     private void beginPosition(long now) {
         boss.setLineCharge(1);
         positionsRemaining--;
-        rowsRemaining = ROWS_PER_POSITION;
-        nextPositionAt = now + ROWS_PER_POSITION * ROW_INTERVAL_TICKS;
-        nextRowAt = now + FIRST_ROW_DELAY_TICKS;
+        nextSalvoAt = now + SALVO_DELAY_TICKS;
         nextDestination = null;
         destinationPlanned = false;
         landingAt = -1;
-        lastTarget = null;
-        secondLastTarget = null;
     }
 
-    /** Counts untargeted rows too so a player cannot be selected again until the third following row. */
-    private Vec3 chooseDirection(Vec3 origin, List<ServerPlayer> participants) {
-        var eligible = participants.stream()
-                .filter(player -> player.isAlive() && !player.getUUID().equals(lastTarget)
-                        && !player.getUUID().equals(secondLastTarget))
-                .toList();
-        ServerPlayer target = eligible.isEmpty() ? null : eligible.get(boss.getRandom().nextInt(eligible.size()));
-        secondLastTarget = lastTarget;
-        lastTarget = target == null ? null : target.getUUID();
-        if (target != null) {
-            Vec3 offset = target.position().subtract(origin);
-            Vec3 direction = new Vec3(offset.x, 0, offset.z).normalize();
-            if (direction.lengthSqr() > 0) {
-                return direction;
+    /** Assigns at most one row to each living participant in this salvo. */
+    private void fireSalvo(List<ServerPlayer> participants, long now) {
+        Vec3 origin = boss.position();
+        var available = new ArrayList<ServerPlayer>();
+        for (ServerPlayer player : participants) {
+            if (player.isAlive()) {
+                available.add(player);
             }
         }
-        double angle = boss.getRandom().nextDouble() * Math.PI * 2;
-        return new Vec3(Math.cos(angle), 0, Math.sin(angle));
+        int count = minimumRows + boss.getRandom().nextInt(maximumRows - minimumRows + 1);
+        for (int index = 0; index < count; index++) {
+            Vec3 direction = Vec3.ZERO;
+            if (!available.isEmpty()) {
+                var target = available.remove(boss.getRandom().nextInt(available.size()));
+                Vec3 offset = target.position().subtract(origin);
+                direction = new Vec3(offset.x, 0, offset.z).normalize();
+            }
+            if (direction.lengthSqr() == 0) {
+                double angle = boss.getRandom().nextDouble() * Math.PI * 2;
+                direction = new Vec3(Math.cos(angle), 0, Math.sin(angle));
+            }
+            fireRow(origin, direction, now, index == 0);
+        }
     }
 
     /** Clips each row against the captured arena boundary before it starts travelling. */
-    private void fireRow(List<ServerPlayer> participants, long now) {
-        Vec3 origin = boss.position();
-        Vec3 direction = chooseDirection(origin, participants);
+    private void fireRow(Vec3 origin, Vec3 direction, long now, boolean strikeOrigin) {
         Vec3 relative = origin.subtract(Vec3.atBottomCenterOf(boss.getArenaCenter()));
         double projection = direction.dot(relative);
         double radius = boss.getCombatRadius();
@@ -219,7 +219,13 @@ final class LightningLineAttack {
             double length = -projection + Math.sqrt(discriminant);
             if (length > 1.0E-6) {
                 // Stay just inside the boundary despite floating-point error at the exit.
-                active.add(new Line(origin, direction, length - 1.0E-6, now));
+                Line line = new Line(origin, direction, length - 1.0E-6, now);
+                if (!strikeOrigin) {
+                    // The first row already supplies the salvo's shared impact and sound at the origin.
+                    line.nextDistance = Math.min(STRIKE_SPACING, line.length);
+                    line.points = 1;
+                }
+                active.add(line);
             }
         }
     }
@@ -324,13 +330,11 @@ final class LightningLineAttack {
         }
         active.clear();
         positionsRemaining = 0;
-        rowsRemaining = 0;
+        nextSalvoAt = -1;
         nextDestination = null;
         destinationPlanned = false;
         landingAt = -1;
         fadeStartedAt = -1;
-        lastTarget = null;
-        secondLastTarget = null;
         boss.setLineCharge(0);
     }
 }
