@@ -17,6 +17,7 @@ import net.minecraft.world.phys.Vec3;
 /** Moves the boss over the arena, then holds its lightning form through the final barrage. */
 final class LightningRodAttack {
     private static final int CENTER_SEARCH_RADIUS = 4;
+    private static final int RETURN_DELAY_TICKS = 10;
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final LightningRodShelters shelters;
@@ -35,7 +36,9 @@ final class LightningRodAttack {
     private int calmTicks;
     private int calmDuration;
     private int finaleDuration;
-    private int releaseTicks;
+    private long finalStrikeAt = -1;
+    private int groundFadeTicks;
+    private boolean landed;
 
     LightningRodAttack(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
@@ -56,6 +59,7 @@ final class LightningRodAttack {
         chargeDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CHARGE_DURATION.get());
         calmDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_CALM_DURATION.get());
         finaleDuration = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_FINALE_DURATION.get());
+        groundFadeTicks = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ROD_GROUND_FADE_DURATION.get());
         chargeTicks = chargeDuration;
         showOpening(level);
         openingTicks = 4;
@@ -67,11 +71,11 @@ final class LightningRodAttack {
     }
 
     boolean isHovering() {
-        return isActive() && travelTicks == 0;
+        return isActive() && travelTicks == 0 && !landed;
     }
 
     boolean isQuiet() {
-        return calmTicks > 0 || releaseTicks > 0 || shelters.isDissolving() || landingPosition != null;
+        return calmTicks > 0 || finalStrikeAt >= 0;
     }
 
     /** @return the fade duration during the calm before the discharge */
@@ -84,7 +88,7 @@ final class LightningRodAttack {
         return openingTicks + travelTicks + chargeTicks;
     }
 
-    /** Retains lightning form through travel, the discharge and the final shelter fade. */
+    /** Advances travel, charge and discharge before the overlapping landing and arena fade. */
     void tick(ServerLevel level, List<ServerPlayer> players) {
         Vec3 position = hoverPosition;
         if (position == null) {
@@ -97,14 +101,8 @@ final class LightningRodAttack {
             return;
         }
         shelters.tick(level);
-        if (landingPosition != null) {
-            if (--landingTicks == 0) {
-                if (teleports.landPreferredAttackTravel(landingPosition)) {
-                    clear();
-                } else {
-                    beginLanding(level);
-                }
-            }
+        if (finalStrikeAt >= 0) {
+            tickRelease(level, players);
             return;
         }
         if (travelTicks > 0) {
@@ -115,19 +113,6 @@ final class LightningRodAttack {
                 } else {
                     clear();
                 }
-            }
-            return;
-        }
-        if (releaseTicks > 0) {
-            if (--releaseTicks == 0) {
-                shelters.beginDissolve(level);
-            }
-            return;
-        }
-        if (shelters.isDissolving()) {
-            if (shelters.hasDissolved(level.getGameTime())) {
-                shelters.clear();
-                beginLanding(level);
             }
             return;
         }
@@ -163,22 +148,56 @@ final class LightningRodAttack {
             Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), impact,
                     boss.getStormCloudY(position), false);
             LightningRodDischarge.playImpacts(level, players, List.of(hit));
-            releaseTicks = LightningStrikeEffect.VISUAL_DURATION_TICKS;
+            discharge.energizeGround(level);
+            discharge.tickGround(level, players);
+            finalStrikeAt = level.getGameTime();
+            shelters.beginDissolve(level, groundFadeTicks);
+        }
+    }
+
+    /** Keeps the shelter and ground clocks independent of movement back to the floor. */
+    private void tickRelease(ServerLevel level, List<ServerPlayer> players) {
+        long now = level.getGameTime();
+        long elapsed = now - finalStrikeAt;
+        if (elapsed < groundFadeTicks) {
+            discharge.tickGround(level, players);
+        }
+        if (!landed) {
+            if (landingPosition != null) {
+                if (--landingTicks == 0) {
+                    if (teleports.landPreferredAttackTravel(landingPosition)) {
+                        landed = true;
+                    } else {
+                        beginLanding(level);
+                    }
+                }
+            } else if (elapsed >= RETURN_DELAY_TICKS) {
+                beginLanding(level);
+            }
+        }
+        if (landed && shelters.hasDissolved(now)) {
+            clear();
         }
     }
 
     /** Keeps the bolt visible until the boss can materialize at a checked ground position. */
     private void beginLanding(ServerLevel level) {
         if (landingAttempts++ == 2) {
-            clear();
+            finishWithoutLanding();
             return;
         }
         landingPosition = teleports.findGroundBelow(level, departurePosition);
         if (landingPosition == null) {
-            clear();
+            finishWithoutLanding();
             return;
         }
         landingTicks = teleports.startAttackTravel(landingPosition);
+    }
+
+    /** Lets gravity restore the body when terrain no longer offers a checked landing. */
+    private void finishWithoutLanding() {
+        boss.clearTravelArc();
+        landed = true;
     }
 
     /** Prefers high positions near the center before settling for a lower column. */
@@ -276,6 +295,8 @@ final class LightningRodAttack {
         travelTicks = 0;
         chargeTicks = 0;
         calmTicks = 0;
-        releaseTicks = 0;
+        finalStrikeAt = -1;
+        groundFadeTicks = 0;
+        landed = false;
     }
 }

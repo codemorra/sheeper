@@ -50,6 +50,12 @@ public final class LightningRingSurface {
         return ground;
     }
 
+    /** Finds the surface electrified by Lightning Rod, including exposed water. */
+    public static double findForRod(Level level, double x, double z, double referenceY, int minY, int maxY) {
+        double water = findWater(level, x, z, minY, maxY);
+        return Double.isFinite(water) ? water : find(level, x, z, referenceY, minY, maxY);
+    }
+
     /**
      * Returns the nearest exposed floor at this point, or NaN without loading
      * chunks.
