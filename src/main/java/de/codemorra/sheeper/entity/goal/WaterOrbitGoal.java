@@ -409,7 +409,8 @@ public final class WaterOrbitGoal extends Goal {
 
     /** Attempts a short speed boost; its cooldown starts when the boost ends. */
     private void beginSprint(long now) {
-        if (now >= sprintReadyTick && WaterSheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get() > 0
+        if (WaterSheeperConfig.WATER_MOVEMENT_SPRINT_ENABLED.get()
+                && now >= sprintReadyTick && WaterSheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get() > 0
                 && boss.getRandom().nextDouble() < WaterSheeperConfig.WATER_MOVEMENT_SPRINT_CHANCE.get()) {
             sprintEndTick = now + SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MOVEMENT_SPRINT_DURATION.get());
             sprintReadyTick = sprintEndTick
@@ -419,7 +420,8 @@ public final class WaterOrbitGoal extends Goal {
 
     private double speed(long now) {
         double speed = WaterSheeperConfig.WATER_MOVEMENT_SPEED.get();
-        return now < sprintEndTick ? speed * WaterSheeperConfig.WATER_MOVEMENT_SPRINT_MULTIPLIER.get() : speed;
+        return WaterSheeperConfig.WATER_MOVEMENT_SPRINT_ENABLED.get() && now < sprintEndTick
+                ? speed * WaterSheeperConfig.WATER_MOVEMENT_SPRINT_MULTIPLIER.get() : speed;
     }
 
     private static Vec3 horizontal(Vec3 vector) {

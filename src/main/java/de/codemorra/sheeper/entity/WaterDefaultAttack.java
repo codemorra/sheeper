@@ -22,8 +22,6 @@ import net.minecraft.world.phys.Vec3;
  * Close-range approaches suppress shots while the intervals keep advancing.
  */
 final class WaterDefaultAttack {
-    private static final int ENTRY_PAUSE_TICKS = 40;
-
     private enum Phase {
         ENTRY, FIRST_INTERVAL, SECOND_INTERVAL, COMPLETE
     }
@@ -34,7 +32,7 @@ final class WaterDefaultAttack {
     private Phase phase = Phase.ENTRY;
     private boolean closingOnTarget;
     private int meleeTicks;
-    private int phaseTicks = ENTRY_PAUSE_TICKS;
+    private int phaseTicks = entryDelayTicks();
     private int shotTicks;
 
     /** @param boss owner whose navigation and projectile attacks share a target */
@@ -182,7 +180,7 @@ final class WaterDefaultAttack {
         }
         // Recheck after movement so entering close range cannot produce one final shot.
         updateCloseRange(target);
-        if (!isFiring()) {
+        if (!isFiring() || !WaterSheeperConfig.WATER_PROJECTILE_ENABLED.get()) {
             return;
         }
         if (shotTicks > 0) {
@@ -213,7 +211,7 @@ final class WaterDefaultAttack {
         phase = Phase.ENTRY;
         closingOnTarget = false;
         meleeTicks = 0;
-        phaseTicks = ENTRY_PAUSE_TICKS;
+        phaseTicks = entryDelayTicks();
         shotTicks = 0;
     }
 
@@ -253,8 +251,13 @@ final class WaterDefaultAttack {
         closingOnTarget = tag.getBoolean("ClosingOnTarget");
         meleeTicks = closingOnTarget ? Mth.clamp(tag.getInt("MeleeTicks"), 0, 600) : 0;
         if (tag.contains("PhaseTicks", Tag.TAG_INT)) {
-            phaseTicks = isComplete() ? 0 : Mth.clamp(tag.getInt("PhaseTicks"), 1, 1200);
+            int savedTicks = tag.getInt("PhaseTicks");
+            phaseTicks = isComplete() ? 0 : Mth.clamp(savedTicks, phase == Phase.ENTRY ? 0 : 1, 1200);
         }
         shotTicks = Mth.clamp(tag.getInt("ShotTicks"), 0, 12000);
+    }
+
+    private static int entryDelayTicks() {
+        return SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_COMBAT_ENTRY_DELAY.get());
     }
 }

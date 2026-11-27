@@ -53,6 +53,7 @@ final class WaterSpecialAttacks {
      * @param defaultAttack controller to resume when quiet recovery ends
      */
     void tickTimers(List<ServerPlayer> participants, WaterDefaultAttack defaultAttack) {
+        stopDisabledAttacks();
         if (!beamActive) {
             boss.setBeamEyeIntensity(Mth.approach(boss.getBeamEyeIntensity(1), 0,
                     1.0F / BEAM_EYE_FADE_TICKS));
@@ -88,8 +89,29 @@ final class WaterSpecialAttacks {
         }
     }
 
+    /** Releases active attacks and their hazards if their config switches are turned off. */
+    private void stopDisabledAttacks() {
+        if (!WaterSheeperConfig.WATER_BEAM_ENABLED.get()) {
+            beamSightDeadline = 0;
+            if (beamActive) {
+                finishBeam();
+            }
+        }
+        if (!WaterSheeperConfig.WATER_MINES_ENABLED.get() && mines.isActive()) {
+            finishMines();
+        }
+        if (!WaterSheeperConfig.WATER_MAELSTROM_ENABLED.get()) {
+            if (maelstrom.isActive()) {
+                finishMaelstrom();
+            }
+            if (maelstrom.hasExpandingWave()) {
+                maelstrom.stop();
+            }
+        }
+    }
+
     /**
-     * Selects uniformly among eligible specials other than the last one used.
+     * Selects uniformly among eligible specials, avoiding repeats if multiple specials are enabled.
      * A selected beam gets one brief chance to find clear sight before the
      * scheduler considers other specials for this opening.
      *
@@ -100,7 +122,14 @@ final class WaterSpecialAttacks {
         if (suppressesDefault() || maelstrom.hasExpandingWave() || !defaultAttack.isComplete()) {
             return;
         }
-        boolean beamReady = lastSpecial != Special.BEAM && beamCooldown == 0 && !defaultAttack.isClosingOnTarget();
+        boolean beamEnabled = WaterSheeperConfig.WATER_BEAM_ENABLED.get();
+        boolean minesEnabled = WaterSheeperConfig.WATER_MINES_ENABLED.get();
+        boolean maelstromEnabled = WaterSheeperConfig.WATER_MAELSTROM_ENABLED.get();
+        // Isolating one special for playtesting must still allow later casts after cooldown.
+        int enabledCount = (beamEnabled ? 1 : 0) + (minesEnabled ? 1 : 0) + (maelstromEnabled ? 1 : 0);
+        Special excluded = enabledCount > 1 ? lastSpecial : Special.NONE;
+        boolean beamReady = beamEnabled && excluded != Special.BEAM && beamCooldown == 0
+                && !defaultAttack.isClosingOnTarget();
         long now = boss.level.getGameTime();
         if (isSeekingBeamSight()) {
             if (beamReady && now < beamSightDeadline) {
@@ -112,8 +141,8 @@ final class WaterSpecialAttacks {
             beamSightDeadline = 0;
             beamReady = false;
         }
-        boolean minesReady = lastSpecial != Special.MINES && mineCooldown == 0;
-        boolean maelstromReady = lastSpecial != Special.MAELSTROM && maelstromCooldown == 0
+        boolean minesReady = minesEnabled && excluded != Special.MINES && mineCooldown == 0;
+        boolean maelstromReady = maelstromEnabled && excluded != Special.MAELSTROM && maelstromCooldown == 0
                 && (!defaultAttack.isClosingOnTarget()
                 || defaultAttack.getMeleeTicks() >= SheeperConfig
                         .secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_MELEE_DELAY.get()));

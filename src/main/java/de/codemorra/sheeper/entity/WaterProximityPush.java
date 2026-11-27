@@ -52,7 +52,8 @@ final class WaterProximityPush {
         double horizontal = WaterSheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH.get();
         double upward = WaterSheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH.get();
         double damage = WaterSheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get();
-        if (!(boss.level instanceof ServerLevel level) || radius == 0
+        if (!WaterSheeperConfig.WATER_PROXIMITY_PUSH_ENABLED.get()
+                || !(boss.level instanceof ServerLevel level) || radius == 0
                 || horizontal == 0 && upward == 0 && damage == 0) {
             remainingTicks.clear();
             return;

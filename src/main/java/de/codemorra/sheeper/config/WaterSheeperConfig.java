@@ -17,13 +17,29 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_HEALTH_PER_ADDITIONAL_PLAYER = ElementalConfigValues
             .additionalPlayerHealth(BUILDER, 50.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_SIZE = ElementalConfigValues.elementalSize(BUILDER, "water", 2.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = ElementalConfigValues
-            .arenaRadius(BUILDER, 50.0);
+    public static final ForgeConfigSpec.DoubleValue WATER_SIZE = ElementalConfigValues.elementalSize(BUILDER, "water",
+            2.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BOSS_BAR_DISTANCE = ElementalConfigValues
             .bossBarDistance(BUILDER, 10.0);
+
+    /** Virtual water arena dimensions and entry timing (arena). */
+    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_RADIUS = ElementalConfigValues
+            .arenaRadius(BUILDER, 50.0);
+
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT = BUILDER
+            .comment("Blocks from the boss's spawn point up to the arena's virtual water surface.",
+                    "Applies to new arenas.")
+            .defineInRange("arena.height", 12, 4, 24);
+
+    public static final ForgeConfigSpec.IntValue WATER_ARENA_DEPTH = BUILDER
+            .comment("Blocks from the boss's spawn point down to the arena floor.",
+                    "Applies to new arenas.")
+            .defineInRange("arena.depth", 10, 0, 32);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_COMBAT_ENTRY_DELAY = BUILDER
+            .comment("Seconds after the first player enters the ready arena before the projectile phase begins.")
+            .defineInRange("arena.entryDelaySeconds", 2.0, 0.0, 10.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_ARENA_BUILD_DURATION = BUILDER
             .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
@@ -42,6 +58,10 @@ public final class WaterSheeperConfig {
             .boundaryStrength(BUILDER, 0.35);
 
     /** Empty-arena grace and recovery (arenaRecovery). */
+    public static final ForgeConfigSpec.BooleanValue WATER_EMPTY_ARENA_RECOVERY_ENABLED = BUILDER
+            .comment("Allows the boss to heal in an empty arena and reset the fight after full recovery.")
+            .define("arenaRecovery.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_GRACE = ElementalConfigValues
             .recoveryGrace(BUILDER, 10.0);
 
@@ -73,6 +93,10 @@ public final class WaterSheeperConfig {
             .comment("Preferred boss center height above the selected player's center while circling underwater.",
                     "Clamped to the arena volume; melee approaches use closeRange.stopDistance instead.")
             .defineInRange("movement.heightOffset", 1.0, -2.0, 3.0);
+
+    public static final ForgeConfigSpec.BooleanValue WATER_MOVEMENT_SPRINT_ENABLED = BUILDER
+            .comment("Allows short swimming sprints while the boss circles a target.")
+            .define("movement.sprintEnabled", true);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_SPRINT_CHANCE = BUILDER
             .comment("Chance of a short sprint when choosing a waypoint and the sprint cooldown has elapsed.")
@@ -127,6 +151,10 @@ public final class WaterSheeperConfig {
             .defineInRange("closeRange.stopDistance", 2.0, 0.1, 10.0);
 
     /** Water boss proximity push (proximityPush). */
+    public static final ForgeConfigSpec.BooleanValue WATER_PROXIMITY_PUSH_ENABLED = BUILDER
+            .comment("Allows the boss to damage and push players who stay too close.")
+            .define("proximityPush.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue WATER_PROXIMITY_PUSH_RADIUS = BUILDER
             .comment("Distance within which players can trigger and are hit by the shared proximity push.",
                     "Leaving resets the timer. NoAI pauses timers; 0 disables pushes.")
@@ -151,6 +179,11 @@ public final class WaterSheeperConfig {
             .defineInRange("proximityPush.upwardStrength", 1.0, 0.0, 3.9);
 
     /** Water projectiles (projectile). */
+    public static final ForgeConfigSpec.BooleanValue WATER_PROJECTILE_ENABLED = BUILDER
+            .comment("Allows the boss to fire water projectiles.",
+                    "Movement, target changes and the timing of special attacks continue when disabled.")
+            .define("projectile.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue WATER_PROJECTILE_DAMAGE = BUILDER
             .comment("Base damage per water projectile in health points (2 = one heart); difficulty and armor apply.")
             .defineInRange("projectile.damage", 4.88, 0.0, 20.0);
@@ -181,6 +214,10 @@ public final class WaterSheeperConfig {
             .defineInRange("projectile.lifetimeSeconds", 5.0, 0.05, 10.0);
 
     /** Continuous water beam (beam). */
+    public static final ForgeConfigSpec.BooleanValue WATER_BEAM_ENABLED = BUILDER
+            .comment("Enables the water beam special attack.")
+            .define("beam.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_COOLDOWN = BUILDER
             .comment("Seconds after a beam ends before another beam may start.")
             .defineInRange("beam.cooldownSeconds", 20.0, 1.0, 120.0);
@@ -220,6 +257,10 @@ public final class WaterSheeperConfig {
             .defineInRange("beam.damagePerSecond", 4.88, 0.0, 20.0);
 
     /** Maelstrom preparation (maelstrom). */
+    public static final ForgeConfigSpec.BooleanValue WATER_MAELSTROM_ENABLED = BUILDER
+            .comment("Enables the Maelstrom special attack.")
+            .define("maelstrom.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_COOLDOWN = BUILDER
             .comment("Seconds before Maelstrom becomes ready, both at encounter start and after each use.",
                     "The initial countdown starts with the first combat participant; full recovery restarts it.")
@@ -313,6 +354,10 @@ public final class WaterSheeperConfig {
      * Water mines (mines). A maximum below its minimum uses the
      * minimum.
      */
+    public static final ForgeConfigSpec.BooleanValue WATER_MINES_ENABLED = BUILDER
+            .comment("Enables the water mine special attack.")
+            .define("mines.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MIN = BUILDER
             .comment("Minimum seconds during which new water mines appear.")
             .defineInRange("mines.durationMinSeconds", 20.0, 0.5, 60);
@@ -335,7 +380,8 @@ public final class WaterSheeperConfig {
             .defineInRange("mines.cooldownSeconds", 20.0, 1.0, 120.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER = BUILDER
-            .comment("Mine bubble diameter in blocks at detonation. Larger mines need more room and have a wider damage area and pressure wave.")
+            .comment(
+                    "Mine bubble diameter in blocks at detonation. Larger mines need more room and have a wider damage area and pressure wave.")
             .defineInRange("mines.diameter", 2.5, 0.75, 6.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE = BUILDER
@@ -351,17 +397,6 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_AIR_DURATION = BUILDER
             .comment("Seconds a full air bar lasts in a Water Sheeper arena without breathing bonuses.")
             .defineInRange("airStations.airDurationSeconds", 40.0, 20.0, 120.0);
-
-    /** Virtual water arena dimensions (arena). */
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_HEIGHT = BUILDER
-            .comment("Blocks from the boss's spawn point up to the arena's virtual water surface.",
-                    "Applies to new arenas.")
-            .defineInRange("arena.height", 12, 4, 24);
-
-    public static final ForgeConfigSpec.IntValue WATER_ARENA_DEPTH = BUILDER
-            .comment("Blocks from the boss's spawn point down to the arena floor.",
-                    "Applies to new arenas.")
-            .defineInRange("arena.depth", 10, 0, 32);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
