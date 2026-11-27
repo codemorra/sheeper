@@ -19,6 +19,10 @@ final class LightningSpecialAttacks {
         LINE, RING, TORNADO, FAN, ROD
     }
 
+    private enum FanRetry {
+        NONE, WAITING_FOR_LANDING, LANDED
+    }
+
     private final LightningSheeperEntity boss;
     private final LightningTeleportMovement teleports;
     private final LightningLineAttack line;
@@ -31,6 +35,8 @@ final class LightningSpecialAttacks {
     private int ringCooldown;
     private int tornadoCooldown;
     private int fanCooldown;
+    private FanRetry fanRetry = FanRetry.NONE;
+    private int fanFailedAtJump = -1;
     private int rodCooldown = -1;
     private int rodFailedAtJump = -1;
 
@@ -105,6 +111,7 @@ final class LightningSpecialAttacks {
             ring.clear();
             tornado.clear();
             fan.tick(level, List.of());
+            fanRetry = FanRetry.NONE;
             rod.clear();
             return;
         }
@@ -124,6 +131,7 @@ final class LightningSpecialAttacks {
         }
         if (!fanEnabled) {
             fan.clear();
+            fanRetry = FanRetry.NONE;
         }
         if (!rodEnabled) {
             rod.clear();
@@ -180,6 +188,13 @@ final class LightningSpecialAttacks {
         if (restTicks > 0 || teleportPreparing || line.isActive()) {
             return;
         }
+        boolean fanReady = fanEnabled && fanCooldown == 0;
+        boolean retryFan = fanReady && fanRetry == FanRetry.LANDED;
+        if (fanRetry != FanRetry.NONE) {
+            // If the relocation failed or the retry also fails, wait for another ordinary jump.
+            fanFailedAtJump = teleports.jumpAttempts();
+            fanRetry = FanRetry.NONE;
+        }
         var ready = new ArrayList<Attack>(5);
         if (lineEnabled && lineCooldown == 0) {
             ready.add(Attack.LINE);
@@ -190,23 +205,35 @@ final class LightningSpecialAttacks {
         if (tornadoEnabled && tornadoCooldown == 0) {
             ready.add(Attack.TORNADO);
         }
-        if (fanEnabled && fanCooldown == 0) {
+        if (fanReady && fanFailedAtJump != teleports.jumpAttempts()) {
             ready.add(Attack.FAN);
         }
         if (rodEnabled && rodCooldown == 0 && rodFailedAtJump != teleports.jumpAttempts()) {
             ready.add(Attack.ROD);
         }
-        if (ready.isEmpty()) {
+        if (ready.isEmpty() && !retryFan) {
             return;
         }
 
         int min = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get());
         int max = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
         int nextRest = min + boss.getRandom().nextInt(Math.max(0, max - min) + 1);
+        if (retryFan && startAttack(Attack.FAN, level, players)) {
+            restTicks = nextRest;
+            return;
+        }
         while (!ready.isEmpty()) {
-            if (startAttack(ready.remove(boss.getRandom().nextInt(ready.size())), level, players)) {
+            Attack attack = ready.remove(boss.getRandom().nextInt(ready.size()));
+            if (startAttack(attack, level, players)) {
                 restTicks = nextRest;
                 return;
+            }
+            if (attack == Attack.FAN) {
+                if (resumeCombatMovement(players)) {
+                    fanRetry = FanRetry.WAITING_FOR_LANDING;
+                    return;
+                }
+                fanFailedAtJump = teleports.jumpAttempts();
             }
         }
     }
@@ -248,11 +275,16 @@ final class LightningSpecialAttacks {
         return true;
     }
 
-    /** Prepares a normal jump immediately while already released effects continue independently. */
-    private void resumeCombatMovement(List<ServerPlayer> players) {
+    /** @return whether a safe normal jump was prepared without waiting for the movement interval */
+    private boolean resumeCombatMovement(List<ServerPlayer> players) {
         ServerPlayer focus = boss.getMovementFocus(players);
-        if (focus != null) {
-            teleports.prepareCombatJump(focus);
+        return focus != null && teleports.prepareCombatJump(focus);
+    }
+
+    /** A failed fan cast gets one more attempt only after a successful relocation. */
+    void onCombatLanding() {
+        if (fanRetry == FanRetry.WAITING_FOR_LANDING) {
+            fanRetry = FanRetry.LANDED;
         }
     }
 
@@ -271,6 +303,8 @@ final class LightningSpecialAttacks {
         ringCooldown = 0;
         tornadoCooldown = 0;
         fanCooldown = 0;
+        fanRetry = FanRetry.NONE;
+        fanFailedAtJump = -1;
         rodCooldown = -1;
         rodFailedAtJump = -1;
     }
