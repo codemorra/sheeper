@@ -32,6 +32,9 @@ public final class LightningGameTests {
         tests.add(new Scenario("lightning_teleport_removes_hitbox_until_landing", LightningGameTests::teleport));
         tests.add(new Scenario("lightning_death_keeps_storm_then_drains", LightningGameTests::death));
         tests.add(new Scenario("lightning_water_conducts_only_inside_arena", LightningGameTests::waterConduction));
+        tests.add(new Scenario("lightning_rows_fire_together_and_then_teleport", LightningGameTests::rowSalvo));
+        tests.add(new Scenario("lightning_row_teleports_prefer_distance_from_previous_position",
+                LightningGameTests::rowTeleportDistance));
         tests.add(new Scenario("lightning_tornado_retains_rider_during_overlap", LightningGameTests::tornadoOverlap));
         tests.add(new Scenario("lightning_rod_waits_and_shelters_players", LightningGameTests::rod));
     }
@@ -243,6 +246,90 @@ public final class LightningGameTests {
         var creeper = c.spawn(EntityType.CREEPER, 10, 1, 12);
         c.expect(LightningAreaDamage.strikeMob(creeper, creeper.position(), 3) && creeper.isPowered(),
                 "A direct boss lightning strike must still charge a creeper");
+        c.pass();
+    }
+
+    private static void rowSalvo(GameTestContext c) {
+        configure(c);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_POSITION_COUNT_MIN, 2);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_POSITION_COUNT_MAX, 2);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_ROW_COUNT_MIN, 3);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_ROW_COUNT_MAX, 3);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_CHARGE_DURATION, 0.5);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_PREVIOUS_POSITION_DISTANCE, 3.0);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_TELEPORT_DISTANCE, 1.0);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_SPEED, 20.0);
+        c.set(LightningSheeperConfig.LIGHTNING_LINE_DAMAGE, 0.0);
+        var boss = boss(c);
+        boss.getRandom().setSeed(80641);
+        var first = c.player(9, 1, 12);
+        var second = c.player(15, 1, 12);
+        var attack = new LightningLineAttack(boss, new LightningTeleportMovement(boss));
+        attack.start(c.level);
+        awaitRowSalvo(c, boss, attack, first, second, boss.position(), null, 1);
+    }
+
+    private static void awaitRowSalvo(GameTestContext c, LightningSheeperEntity boss, LightningLineAttack attack,
+            TestPlayer first, TestPlayer second, Vec3 start, Vec3 origin, int tick) {
+        attack.tick(c.level, List.of(first, second));
+        if (origin == null && boss.position().subtract(start).horizontalDistance() > 1) {
+            origin = boss.position();
+            // Put both players well inside the arena in visibly different directions from the new position.
+            Vec3 inward = start.subtract(origin).multiply(1, 0, 1).normalize();
+            Vec3 side = new Vec3(-inward.z, 0, inward.x);
+            first.standAt(origin.add(inward.scale(2)).add(side.scale(3)));
+            second.standAt(origin.add(inward.scale(2)).subtract(side.scale(3)));
+        }
+        if (origin != null) {
+            Vec3 firingPosition = origin;
+            List<Vec3> directions = c.entities(LightningStrikeEffect.class).stream()
+                    .map(strike -> strike.position().subtract(firingPosition).multiply(1, 0, 1))
+                    .filter(offset -> offset.horizontalDistanceSqr() > 0.01).map(Vec3::normalize).toList();
+            if (!directions.isEmpty()) {
+                c.expect(directions.size() == 3, "All three rows must advance away from the firing position together");
+                for (TestPlayer player : List.of(first, second)) {
+                    Vec3 towardPlayer = player.position().subtract(origin).multiply(1, 0, 1).normalize();
+                    // Successive impacts can be offset sideways, leaving a fan around each aimed direction.
+                    c.expect(directions.stream().anyMatch(direction -> direction.dot(towardPlayer) > 0.8),
+                            "Each participant must have its own aimed row before the remaining row is assigned");
+                }
+                c.at(tick + 1, () -> awaitRowTeleport(c, boss, attack, first, second, firingPosition, tick + 1));
+                return;
+            }
+        }
+        c.expect(tick < 50, "The first salvo must start after the opening charge and teleport");
+        Vec3 observedOrigin = origin;
+        c.at(tick + 1, () -> awaitRowSalvo(c, boss, attack, first, second, start, observedOrigin, tick + 1));
+    }
+
+    private static void awaitRowTeleport(GameTestContext c, LightningSheeperEntity boss, LightningLineAttack attack,
+            TestPlayer first, TestPlayer second, Vec3 origin, int tick) {
+        attack.tick(c.level, List.of(first, second));
+        if (boss.getTravelArc() != null) {
+            c.expect(boss.position().subtract(origin).horizontalDistanceSqr() < 0.01,
+                    "The second jump must leave from the position that fired the first salvo");
+            c.pass();
+            return;
+        }
+        c.expect(tick < 65, "The boss must teleport again after releasing one salvo");
+        c.at(tick + 1, () -> awaitRowTeleport(c, boss, attack, first, second, origin, tick + 1));
+    }
+
+    private static void rowTeleportDistance(GameTestContext c) {
+        configure(c);
+        var boss = boss(c);
+        boss.getRandom().setSeed(63042);
+        Vec3 origin = c.point(8, 1, 12);
+        boss.setPos(origin);
+        var player = c.player(16, 1, 12);
+        var teleports = new LightningTeleportMovement(boss);
+        Vec3 destination = teleports.findLineAttackDestination(List.of(player), 9, 8);
+        c.expect(destination != null && destination.subtract(origin).horizontalDistance() >= 9
+                && destination.subtract(player.position()).horizontalDistance() < 8,
+                "When the distance preferences conflict, the jump from the previous position must take priority");
+        Vec3 fallback = teleports.findLineAttackDestination(List.of(player), 20, 20);
+        c.expect(fallback != null && boss.isWithinMovementArea(fallback.x, fallback.z),
+                "Unreachable distance preferences must still allow a safe landing in a small arena");
         c.pass();
     }
 
