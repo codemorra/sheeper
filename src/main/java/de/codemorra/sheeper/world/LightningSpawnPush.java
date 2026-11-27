@@ -24,15 +24,18 @@ final class LightningSpawnPush {
 
     /** @return whether the persisted contact or transport state changed */
     boolean tick(ServerLevel level, Arena arena, Set<UUID> carriedPlayers) {
-        double speed = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_SPEED.get() / 20;
+        double configuredSpeed = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_SPEED.get() / 20;
         long now = level.getGameTime();
-        if (!arena.isBuilding(now) || speed <= 0) {
+        if (!arena.isBuilding(now) || configuredSpeed <= 0) {
             return clear(level, carriedPlayers);
         }
 
         double edgeDistance = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_EDGE_DISTANCE.get();
         double liftHeight = LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_LIFT_HEIGHT.get();
-        double front = arena.radiusAt(now) - Math.min(2, arena.radius() * 0.2);
+        double radiusNow = arena.radiusAt(now);
+        // Match the advancing front so a player cannot surge forward after briefly falling behind.
+        double speed = Math.min(configuredSpeed, arena.radiusAt(now + 1) - radiusNow);
+        double front = radiusNow - Math.min(2, arena.radius() * 0.2);
         boolean changed = false;
         for (ServerPlayer player : level.players()) {
             UUID id = player.getUUID();
