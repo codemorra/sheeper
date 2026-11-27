@@ -40,6 +40,7 @@ final class LightningTeleportMovement {
     private int warningRemaining;
     private int arcTicks;
     private int failedJumps;
+    private int jumpAttempts;
     private boolean recoveringJump;
     private double walkRemaining;
     private boolean walking;
@@ -63,6 +64,11 @@ final class LightningTeleportMovement {
     /** Gives the next recovery search a turn before another special attack can start. */
     boolean isRecoveryDue() {
         return failedJumps >= FAILED_JUMPS_BEFORE_RECOVERY && cooldown <= 1;
+    }
+
+    /** @return the number of ordinary jump searches attempted during this encounter */
+    int jumpAttempts() {
+        return jumpAttempts;
     }
 
     /** @return whether this tick's vanilla movement may include a short walk before teleporting */
@@ -166,6 +172,7 @@ final class LightningTeleportMovement {
     }
 
     private boolean prepareJump(@Nullable ServerPlayer focus) {
+        jumpAttempts++;
         recoveringJump = failedJumps >= FAILED_JUMPS_BEFORE_RECOVERY;
         ServerLevel level = (ServerLevel) boss.level;
         destination = recoveringJump ? findRecoveryDestination(level)
@@ -768,6 +775,7 @@ final class LightningTeleportMovement {
         clearDestination();
         cooldown = -1;
         failedJumps = 0;
+        jumpAttempts = 0;
         walking = false;
         idle = false;
         focusId = null;
