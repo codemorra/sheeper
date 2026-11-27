@@ -99,6 +99,11 @@ final class LightningRingBarrage {
         return remaining > 0;
     }
 
+    /** @return whether the boss is building up its next ring at the landing position */
+    boolean isCharging() {
+        return chargeRemaining > 0;
+    }
+
     void tick(ServerLevel level, List<ServerPlayer> players) {
         if (warningRemaining > 0) {
             long age = level.getGameTime() - warningStart;

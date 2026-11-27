@@ -70,6 +70,11 @@ final class LightningRodAttack {
         return hoverPosition != null;
     }
 
+    /** @return whether the opening bolt is charging the boss before its flight to the center */
+    boolean isChargingOnGround() {
+        return openingTicks > 0;
+    }
+
     boolean isHovering() {
         return isActive() && travelTicks == 0 && !landed;
     }
