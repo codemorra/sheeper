@@ -9,11 +9,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /** Runs the boss's melee and projectile defenses independently of the ordinary teleport schedule. */
@@ -21,8 +16,6 @@ final class LightningCombatDefense {
     // A full bow shot can cross the normal 16-block combat spacing in about five ticks.
     private static final int DODGE_WARNING_TICKS = 1;
     private static final int MINIMUM_REACTION_TICKS = DODGE_WARNING_TICKS + 2;
-    private static final int PREDICTION_TICKS = 12;
-    private static final double PROJECTILE_SEARCH_RADIUS = 40;
 
     private final LightningSheeperEntity boss;
     private int ticksUntilCrackle;
@@ -44,20 +37,16 @@ final class LightningCombatDefense {
                 || level.getGameTime() < nextDodgeAt || !boss.isPickable()) {
             return;
         }
-        AABB body = boss.getBoundingBox().inflate(0.25);
-        for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, body.inflate(PROJECTILE_SEARCH_RADIUS),
-                shot -> shot.getOwner() instanceof ServerPlayer player && participants.contains(player))) {
-            if (canReactTo(level, body, projectile)) {
-                // A blocked landing search should not run anew every tick as the same shot approaches.
-                nextDodgeAt = level.getGameTime() + PREDICTION_TICKS;
-                if (teleports.prepareDodge(DODGE_WARNING_TICKS)) {
-                    nextDodgeAt = level.getGameTime() + SheeperConfig.secondsToTicks(
-                            LightningSheeperConfig.LIGHTNING_DODGE_COOLDOWN.get());
-                    level.playSound(null, boss.getX(), boss.getY(), boss.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                            SoundSource.HOSTILE, 0.6F, 1.5F);
-                }
-                break;
-            }
+        if (IncomingProjectile.find(level, boss.getBoundingBox(), Vec3.ZERO, participants, MINIMUM_REACTION_TICKS) == null) {
+            return;
+        }
+        // A blocked landing search should not run anew every tick as the same shot approaches.
+        nextDodgeAt = level.getGameTime() + IncomingProjectile.PREDICTION_TICKS;
+        if (teleports.prepareDodge(DODGE_WARNING_TICKS)) {
+            nextDodgeAt = level.getGameTime() + SheeperConfig.secondsToTicks(
+                    LightningSheeperConfig.LIGHTNING_DODGE_COOLDOWN.get());
+            level.playSound(null, boss.getX(), boss.getY(), boss.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
+                    SoundSource.HOSTILE, 0.6F, 1.5F);
         }
     }
 
@@ -112,30 +101,4 @@ final class LightningCombatDefense {
         boss.setDefenseCrackling(false);
     }
 
-    /**
-     * Predicts short projectile paths from current motion. Arrows need gravity and drag to avoid
-     * missing the threat from a long, descending shot. Other projectiles use their current heading.
-     */
-    private static boolean canReactTo(ServerLevel level, AABB body, Projectile projectile) {
-        Vec3 start = projectile.position();
-        Vec3 motion = projectile.getDeltaMovement();
-        if (motion.lengthSqr() < 0.0225 || body.contains(start)) {
-            return false;
-        }
-        Vec3 point = start;
-        double arrowDrag = projectile.isInWater() ? 0.6 : 0.99;
-        for (int tick = 1; tick <= PREDICTION_TICKS; tick++) {
-            Vec3 next = point.add(motion);
-            Vec3 hit = body.clip(point, next).orElse(null);
-            if (hit != null) {
-                return tick >= MINIMUM_REACTION_TICKS && level.clip(new ClipContext(start, hit,
-                        ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, projectile)).getType() == HitResult.Type.MISS;
-            }
-            point = next;
-            if (projectile instanceof AbstractArrow) {
-                motion = motion.scale(arrowDrag).add(0, projectile.isNoGravity() ? 0 : -0.05, 0);
-            }
-        }
-        return false;
-    }
 }

@@ -14,10 +14,13 @@ import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
+import de.codemorra.sheeper.config.SheeperConfig;
+import de.codemorra.sheeper.config.WaterSheeperConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.MoverType;
@@ -25,7 +28,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** Plans and follows exceptional narrow routes without changing normal swimming navigation. */
+/** Follows exceptional narrow routes and short projectile dodges in bubble form. */
 final class WaterBubbleTravel {
     static final EntityDimensions DIMENSIONS = EntityDimensions.fixed(0.7F, 0.7F);
     private static final int MAX_VISITED = 4_096;
@@ -33,6 +36,11 @@ final class WaterBubbleTravel {
     private static final int RETRY_TICKS = 20;
     private static final int TARGET_CHECK_INTERVAL = 40;
     private static final double MOVEMENT_PER_TICK = 0.18;
+    private static final double DODGE_MOVEMENT_PER_TICK = 0.4;
+    // Even the shorter route leaves time to travel after the body has faded completely.
+    private static final double[] DODGE_DISTANCES = { 7, 5 };
+    // The sidestep and smaller hitbox take effect in the same tick as detection.
+    private static final int MINIMUM_DODGE_REACTION_TICKS = 2;
     private static final Direction[] DIRECTIONS = Direction.values();
 
     private final WaterSheeperEntity boss;
@@ -51,6 +59,8 @@ final class WaterBubbleTravel {
     private long nextTargetCheck;
     private boolean replanned;
     private boolean returning;
+    private boolean dodging;
+    private long nextDodgeAt;
 
     WaterBubbleTravel(WaterSheeperEntity boss) {
         this.boss = boss;
@@ -67,10 +77,52 @@ final class WaterBubbleTravel {
         if (path.isEmpty()) {
             return null;
         }
-        Vec3 end = path.get(path.size() - 1);
-        destination = end;
+        beginTravel(path, false);
+        return destination;
+    }
+
+    /**
+     * Sidesteps a predicted hit only when there is a clear corridor to a place
+     * where the boss can return to full size.
+     */
+    boolean tryDodge(ServerLevel level, List<ServerPlayer> participants) {
+        long now = level.getGameTime();
+        if (!WaterSheeperConfig.WATER_DODGE_ENABLED.get() || now < nextDodgeAt || !boss.isInArenaWater()) {
+            return false;
+        }
+        var shot = IncomingProjectile.find(level, boss.getBoundingBox(), boss.getDeltaMovement(), participants,
+                MINIMUM_DODGE_REACTION_TICKS);
+        if (shot == null) {
+            return false;
+        }
+        nextDodgeAt = now + IncomingProjectile.PREDICTION_TICKS;
+        Vec3 side = new Vec3(-shot.motion().z, 0, shot.motion().x).normalize();
+        if (side.lengthSqr() == 0) {
+            side = new Vec3(1, 0, 0);
+        }
+        // Prefer moving away from the impact point before trying the other side.
+        double direction = shot.impact().subtract(boss.getBoundingBox().getCenter()).dot(side) > 0 ? -1 : 1;
+        Vec3 start = boss.position();
+        for (double distance : DODGE_DISTANCES) {
+            Vec3 end = start.add(side.scale(direction * distance));
+            if (!boss.canMaterializeAt(end) || !boss.canTravelAsBubbles(start, end)) {
+                end = start.subtract(side.scale(direction * distance));
+                if (!boss.canMaterializeAt(end) || !boss.canTravelAsBubbles(start, end)) {
+                    continue;
+                }
+            }
+            beginTravel(List.of(end), true);
+            nextDodgeAt = now + SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_DODGE_COOLDOWN.get());
+            return true;
+        }
+        return false;
+    }
+
+    private void beginTravel(List<Vec3> path, boolean dodge) {
+        destination = path.get(path.size() - 1);
         lastSafe = boss.canMaterializeAt(boss.position()) ? boss.position() : null;
         route.addAll(path);
+        dodging = dodge;
         replanned = false;
         returning = false;
         nextAttempt = 0;
@@ -78,7 +130,16 @@ final class WaterBubbleTravel {
         boss.getNavigation().stop();
         boss.setDeltaMovement(Vec3.ZERO);
         boss.setBubbleForm(true);
-        return destination;
+    }
+
+    /** Makes the dodge available again after the arena has fully reset. */
+    void resetDodgeCooldown() {
+        nextDodgeAt = 0;
+    }
+
+    /** @return whether the active bubble route started as a projectile dodge */
+    boolean isDodging() {
+        return dodging;
     }
 
     /** A regular route to one candidate must not hide other exits behind narrow openings. */
@@ -213,7 +274,11 @@ final class WaterBubbleTravel {
             route.clear();
             if (!returning && !replanned && destination != null) {
                 replanned = true;
-                route.addAll(findRoute(List.of(destination), false, false, point -> true));
+                if (!dodging) {
+                    route.addAll(findRoute(List.of(destination), false, false, point -> true));
+                } else if (boss.canMaterializeAt(destination) && boss.canTravelAsBubbles(current, destination)) {
+                    route.add(destination);
+                }
             }
             if (route.isEmpty()) {
                 abandoned = !returning;
@@ -237,8 +302,9 @@ final class WaterBubbleTravel {
         }
 
         Vec3 motion = next.subtract(current);
-        if (motion.lengthSqr() > MOVEMENT_PER_TICK * MOVEMENT_PER_TICK) {
-            motion = motion.normalize().scale(MOVEMENT_PER_TICK);
+        double speed = dodging && !returning ? DODGE_MOVEMENT_PER_TICK : MOVEMENT_PER_TICK;
+        if (motion.lengthSqr() > speed * speed) {
+            motion = motion.normalize().scale(speed);
         }
         boss.move(MoverType.SELF, motion);
         if (boss.position().distanceToSqr(next) < 1.0E-6) {
@@ -254,6 +320,7 @@ final class WaterBubbleTravel {
         destination = null;
         lastSafe = null;
         nextAttempt = 0;
+        dodging = false;
         boss.setDeltaMovement(Vec3.ZERO);
         boss.setBubbleForm(false);
     }
@@ -341,6 +408,7 @@ final class WaterBubbleTravel {
         if (boss.isInBubbleForm()) {
             tag.putBoolean("Active", true);
             tag.putBoolean("Returning", returning);
+            tag.putBoolean("Dodging", dodging);
             savePoint(tag, "Destination", destination);
             savePoint(tag, "LastSafe", lastSafe);
         }
@@ -353,6 +421,7 @@ final class WaterBubbleTravel {
         nextAttempt = 0;
         replanned = false;
         returning = tag.getBoolean("Returning");
+        dodging = tag.getBoolean("Dodging");
         destination = loadPoint(tag.getCompound("Destination"));
         lastSafe = loadPoint(tag.getCompound("LastSafe"));
         boss.setBubbleForm(tag.getBoolean("Active"));

@@ -52,7 +52,8 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
     private static final double SWIM_SPEED_MULTIPLIER = 4.0D;
     private static final double LAVA_ESCAPE_SPEED = 0.16;
     private static final int DEATH_ANIMATION_TICKS = 60;
-    private static final int BUBBLE_FADE_TICKS = 8;
+    private static final int BUBBLE_FADE_TICKS = 4;
+    private static final double BUBBLE_TORSO_HEIGHT = 15.0 / 16;
     public static final double BEAM_RADIUS = 0.25D;
     private static final EntityDataAccessor<Float> DATA_BEAM_EYES = SynchedEntityData
             .defineId(WaterSheeperEntity.class, EntityDataSerializers.FLOAT);
@@ -126,9 +127,14 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         entityData.define(DATA_BUBBLE_FORM, false);
     }
 
-    /** @return whether the boss is traversing a narrow route as a bubble cloud */
+    /** @return whether the boss is travelling as a bubble cloud */
     public boolean isInBubbleForm() {
         return bubbleTravel != null && entityData.get(DATA_BUBBLE_FORM);
+    }
+
+    /** @return whether the server is following a dodge while other hazards may continue */
+    boolean isDodgingProjectiles() {
+        return bubbleTravel.isDodging();
     }
 
     @Override
@@ -669,6 +675,10 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
                 target = defaultAttack.extendProjectilePhase(participants);
                 setTarget(target);
             }
+            if (specialAttacks.allowsProjectileDodge()
+                    && level instanceof ServerLevel server && bubbleTravel.tryDodge(server, participants)) {
+                return;
+            }
             if (isPerformingMaelstrom()) {
                 return;
             }
@@ -711,6 +721,7 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         defaultAttack.reset();
         proximityPush.reset();
         specialAttacks.reset();
+        bubbleTravel.resetDodgeCooldown();
         setTarget(null);
         orbitGoal.reset();
         idleGoal.reset();
@@ -815,19 +826,24 @@ public class WaterSheeperEntity extends ElementalSheeperEntity {
         }
     }
 
-    /** Crossfades the model with a cloud whose emission follows the same transition. */
+    /** Anchors the cloud to the sheep model's torso where the terrain leaves room. */
     private void tickBubbleAnimation() {
         previousBubbleFade = bubbleFade;
         bubbleFade = Mth.clamp(bubbleFade + (isInBubbleForm() ? 1 : -1), 0, BUBBLE_FADE_TICKS);
-        if (isInvisible()) {
+        if (bubbleFade == 0 || isInvisible()) {
             return;
         }
-        int count = Mth.ceil(8 * (1 - getBubbleBodyOpacity(1)));
-        // Keep the cloud compact as the collision box returns to full size.
+        int count = Mth.ceil(16F * bubbleFade / BUBBLE_FADE_TICKS);
+        var bubbleSize = WaterBubbleTravel.DIMENSIONS;
+        // The normal hitbox includes the legs. Its midpoint is below the torso.
+        Vec3 torso = position().add(0, BUBBLE_TORSO_HEIGHT * getSizeMultiplier(), 0);
+        double compactCenterY = getY() + bubbleSize.height * 0.5;
+        double centerY = ArenaWater.isClearWaterColumn(level, torso, compactCenterY) ? torso.y : compactCenterY;
         for (int i = 0; i < count; i++) {
             level.addAlwaysVisibleParticle(ParticleTypes.BUBBLE,
-                    getX() + (random.nextDouble() - 0.5) * 0.7, getY() + random.nextDouble() * 0.7,
-                    getZ() + (random.nextDouble() - 0.5) * 0.7, 0, 0.04, 0);
+                    getX() + (random.nextDouble() - 0.5) * bubbleSize.width,
+                    centerY + (random.nextDouble() - 0.5) * bubbleSize.height,
+                    getZ() + (random.nextDouble() - 0.5) * bubbleSize.width, 0, 0.04, 0);
         }
     }
 

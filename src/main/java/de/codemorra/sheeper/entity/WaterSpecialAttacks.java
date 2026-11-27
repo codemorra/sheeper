@@ -200,7 +200,7 @@ final class WaterSpecialAttacks {
      * Advances the active special and its visual effects after movement.
      */
     void tickAttack() {
-        if (boss.isInBubbleForm()) {
+        if (boss.isInBubbleForm() && !boss.isDodgingProjectiles()) {
             maelstrom.tickEffects();
             return;
         }
@@ -226,6 +226,11 @@ final class WaterSpecialAttacks {
     /** @return whether movement is locked for beam warning or firing */
     boolean isBeamActive() {
         return beamActive;
+    }
+
+    /** @return whether a dodge can run without interrupting the beam or Maelstrom */
+    boolean allowsProjectileDodge() {
+        return !beamActive && !maelstrom.isActive() && !maelstrom.hasExpandingWave();
     }
 
     /**
