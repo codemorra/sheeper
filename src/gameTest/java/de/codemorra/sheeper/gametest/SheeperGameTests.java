@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import de.codemorra.sheeper.entity.LightningGameTests;
 import de.codemorra.sheeper.entity.WaterArenaGameTests;
 import de.codemorra.sheeper.entity.WaterAttackGameTests;
 import de.codemorra.sheeper.entity.WaterEnvironmentGameTests;
@@ -58,6 +59,7 @@ public final class SheeperGameTests {
         WaterAttackGameTests.add(scenarios);
         WaterEnvironmentGameTests.add(scenarios);
         WaterLifecycleGameTests.add(scenarios);
+        LightningGameTests.add(scenarios);
         DataGameTests.add(scenarios);
 
         List<TestFunction> tests = scenarios.stream().map(scenario -> {
