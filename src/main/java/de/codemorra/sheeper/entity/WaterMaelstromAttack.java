@@ -255,7 +255,7 @@ final class WaterMaelstromAttack {
         }
         if (phase == Phase.RECOVERY) {
             holdPosition();
-            return ++phaseTicks < SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_RECOVERY.get());
+            return ++phaseTicks < SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_RECOVERY.get());
         }
         holdPosition();
         phaseTicks++;
