@@ -193,9 +193,9 @@ public final class LightningSheeperConfig {
             .comment("Maximum rest seconds between special attacks. If set below the minimum, the minimum is used.")
             .defineInRange("attack.pauseMaxSeconds", 7.0, 0.05, 30.0);
 
-    /** Sequential lightning rows (lineAttack). */
+    /** Lightning row salvos (lineAttack). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_LINE_ENABLED = BUILDER
-            .comment("Enables the attack that fires lightning rows one at a time from the Sheeper.")
+            .comment("Enables the attack that fires multiple lightning rows after each jump.")
             .define("lineAttack.enabled", true);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_COOLDOWN = BUILDER
@@ -203,21 +203,35 @@ public final class LightningSheeperConfig {
             .defineInRange("lineAttack.cooldownSeconds", 20.0, 1.0, 120.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_POSITION_COUNT_MIN = BUILDER
-            .comment("Minimum number of firing positions used in one attack. Each position launches eight rows.")
-            .defineInRange("lineAttack.positionCountMin", 5, 1, 16);
+            .comment("Minimum number of firing positions per attack. The boss fires one salvo at each position.")
+            .defineInRange("lineAttack.positionCountMin", 16, 1, 24);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_POSITION_COUNT_MAX = BUILDER
             .comment("Maximum number of firing positions in one attack. If set below the minimum, the minimum is used.")
-            .defineInRange("lineAttack.positionCountMax", 8, 1, 16);
+            .defineInRange("lineAttack.positionCountMax", 16, 1, 24);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_ROW_COUNT_MIN = BUILDER
+            .comment("Minimum number of simultaneous lightning rows in a salvo.")
+            .defineInRange("lineAttack.rowCountMin", 3, 1, 12);
+
+    public static final ForgeConfigSpec.IntValue LIGHTNING_LINE_ROW_COUNT_MAX = BUILDER
+            .comment(
+                    "Maximum number of simultaneous lightning rows in a salvo. If set below the minimum, the minimum is used.")
+            .defineInRange("lineAttack.rowCountMax", 5, 1, 12);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_CHARGE_DURATION = BUILDER
             .comment("Seconds the Sheeper charges before teleporting to the first firing position.")
-            .defineInRange("lineAttack.chargeSeconds", 1.0, 0.25, 3.0);
+            .defineInRange("lineAttack.chargeSeconds", 1.5, 0.25, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_TELEPORT_DISTANCE = BUILDER
-            .comment("Preferred horizontal distance in blocks to the nearest player when choosing a firing position.",
-                    "The Sheeper can teleport closer if terrain or other players limit the available positions.")
-            .defineInRange("lineAttack.teleportDistance", 24.0, 1.0, 64.0);
+            .comment("Preferred minimum horizontal distance to the closest player at a firing position, in blocks.",
+                    "Distance from the previous position takes priority. The boss can land closer if needed.")
+            .defineInRange("lineAttack.teleportDistance", 20.0, 1.0, 64.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_PREVIOUS_POSITION_DISTANCE = BUILDER
+            .comment("Preferred minimum horizontal distance from the previous firing position, in blocks.",
+                    "Shorter jumps are allowed if the arena has no suitable landing farther away.")
+            .defineInRange("lineAttack.previousPositionDistance", 20.0, 1.0, 64.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_LINE_SPEED = BUILDER
             .comment("Speed at which each row travels toward the arena edge, in blocks per second.")
