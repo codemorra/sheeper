@@ -331,7 +331,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         float healthBefore = getHealth() + getAbsorptionAmount();
-        boolean canRetaliate = isDefenseCrackling() && specialAttacks.allowsCombatDefense();
+        boolean canRetaliate = specialAttacks.hasFanChargeRetaliation()
+                || isDefenseCrackling() && specialAttacks.allowsCombatDefense();
         boolean accepted = super.hurt(source, amount);
         if (canRetaliate && accepted && getHealth() + getAbsorptionAmount() < healthBefore
                 && source.getDirectEntity() instanceof ServerPlayer player && !player.isCreative()
