@@ -89,8 +89,9 @@ public class WaterProjectile extends Projectile implements IEntityAdditionalSpaw
         }
         Vec3 step = motion.scale(fraction);
         if (!level.isClientSide) {
-            // A defeated boss cannot leave damaging projectiles in its death sequence.
-            if (getOwner() instanceof WaterSheeperEntity boss && !boss.isAlive()
+            // Retire boss shots when the attack is disabled or the boss is defeated.
+            if (arenaOwner != null && !WaterSheeperConfig.WATER_PROJECTILE_ENABLED.get()
+                    || getOwner() instanceof WaterSheeperEntity boss && !boss.isAlive()
                     || flightTicks >= SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_PROJECTILE_LIFETIME.get())
                     || !level.getChunkSource().hasChunk(chunkPosition().x, chunkPosition().z)) {
                 discard();

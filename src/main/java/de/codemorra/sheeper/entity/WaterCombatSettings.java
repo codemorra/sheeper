@@ -46,7 +46,8 @@ final class WaterCombatSettings {
         // Very small custom entry distances still need a positive stopping point.
         double maximum = entry - Math.min(0.5D, entry * 0.5D);
         double pushRadius = WaterSheeperConfig.WATER_PROXIMITY_PUSH_RADIUS.get();
-        boolean pushEnabled = pushRadius > 0 && (WaterSheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get() > 0
+        boolean pushEnabled = WaterSheeperConfig.WATER_PROXIMITY_PUSH_ENABLED.get() && pushRadius > 0
+                && (WaterSheeperConfig.WATER_PROXIMITY_PUSH_DAMAGE.get() > 0
                 || WaterSheeperConfig.WATER_PROXIMITY_PUSH_STRENGTH.get() > 0
                 || WaterSheeperConfig.WATER_PROXIMITY_PUSH_UPWARD_STRENGTH.get() > 0);
         if (pushEnabled) {
