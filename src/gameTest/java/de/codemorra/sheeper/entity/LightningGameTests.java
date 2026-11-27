@@ -1,6 +1,8 @@
 package de.codemorra.sheeper.entity;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.gametest.GameTestContext;
@@ -35,6 +37,7 @@ public final class LightningGameTests {
         tests.add(new Scenario("lightning_rows_fire_together_and_then_teleport", LightningGameTests::rowSalvo));
         tests.add(new Scenario("lightning_row_teleports_prefer_distance_from_previous_position",
                 LightningGameTests::rowTeleportDistance));
+        tests.add(new Scenario("lightning_fan_charges_rises_and_lands_in_lightning_form", LightningGameTests::fanFlight));
         tests.add(new Scenario("lightning_tornado_retains_rider_during_overlap", LightningGameTests::tornadoOverlap));
         tests.add(new Scenario("lightning_rod_waits_and_shelters_players", LightningGameTests::rod));
     }
@@ -331,6 +334,53 @@ public final class LightningGameTests {
         c.expect(fallback != null && boss.isWithinMovementArea(fallback.x, fallback.z),
                 "Unreachable distance preferences must still allow a safe landing in a small arena");
         c.pass();
+    }
+
+    private enum FanPhase {
+        CHARGE, ASCENT, HOVER, DESCENT
+    }
+
+    private static void fanFlight(GameTestContext c) {
+        configure(c);
+        c.set(LightningSheeperConfig.LIGHTNING_FAN_ENABLED, true);
+        c.set(LightningSheeperConfig.LIGHTNING_FAN_PREPARATION, 0.75);
+        c.set(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MIN, 2.5);
+        c.set(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MAX, 2.5);
+        c.set(LightningSheeperConfig.LIGHTNING_FAN_DAMAGE, 0.0);
+        var boss = boss(c);
+        c.player(17, 1, 12);
+        Vec3 ground = boss.position();
+        boss.setNoAi(false);
+        // Observe the real combat controller, including restoration of the hitbox on landing.
+        c.at(1, () -> observeFanFlight(c, boss, ground, new LinkedHashSet<>(), 1));
+    }
+
+    private static void observeFanFlight(GameTestContext c, LightningSheeperEntity boss, Vec3 ground,
+            Set<FanPhase> observed, int tick) {
+        var arc = boss.getTravelArc();
+        if (arc != null) {
+            c.expect(!boss.isPickable(), "The boss must remain incorporeal throughout its lightning flight");
+            if (arc.compact() && arc.isCharging()) {
+                observed.add(FanPhase.HOVER);
+                c.near(boss.getY() - ground.y, 5, "An unobstructed fan must hover five blocks above the floor");
+            } else if (arc.end().y > arc.start().y) {
+                observed.add(FanPhase.ASCENT);
+            } else if (arc.end().y < arc.start().y) {
+                observed.add(FanPhase.DESCENT);
+            }
+        } else if (observed.contains(FanPhase.DESCENT)) {
+            c.expect(List.copyOf(observed).equals(List.of(FanPhase.CHARGE, FanPhase.ASCENT, FanPhase.HOVER,
+                    FanPhase.DESCENT)), "The fan must charge, ascend, hover, and descend in that order");
+            c.expect(boss.isPickable(), "The boss must become targetable again only after its return flight");
+            c.near(boss.position().distanceTo(ground), 0, "The boss must materialize back on the takeoff floor");
+            c.pass();
+            return;
+        } else if (boss.getLineCharge(1) > 0) {
+            observed.add(FanPhase.CHARGE);
+            c.expect(boss.isPickable(), "The initial charge must happen while the boss still has its natural body");
+        }
+        c.expect(tick < 100, "The complete fan flight and landing must be visible in one attack");
+        c.at(tick + 1, () -> observeFanFlight(c, boss, ground, observed, tick + 1));
     }
 
     private static void tornadoOverlap(GameTestContext c) {
