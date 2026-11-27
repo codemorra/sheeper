@@ -5,6 +5,7 @@ import java.util.List;
 import de.codemorra.sheeper.config.WaterSheeperConfig;
 import de.codemorra.sheeper.gametest.GameTestContext;
 import de.codemorra.sheeper.gametest.SheeperGameTests.Scenario;
+import de.codemorra.sheeper.gametest.TestPlayer;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.network.WaterArenaPacket;
 import io.netty.buffer.Unpooled;
@@ -16,6 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -39,6 +41,7 @@ public final class WaterEnvironmentGameTests {
         tests.add(new Scenario("water_swim_bounds_and_config_relationships", WaterEnvironmentGameTests::swimming));
         tests.add(new Scenario("water_swimming_approaches_target", WaterEnvironmentGameTests::movement));
         tests.add(new Scenario("water_bubbles_escape_reopened_cage", WaterEnvironmentGameTests::bubbleCage));
+        tests.add(new Scenario("water_bubbles_dodge_incoming_arrows", WaterEnvironmentGameTests::bubbleDodge));
         tests.add(new Scenario("water_attacks_pierce_leaves_without_air", WaterEnvironmentGameTests::leaves));
         tests.add(new Scenario("water_projectile_difficulty_and_lifetime", WaterEnvironmentGameTests::projectile));
         tests.add(new Scenario("water_projectile_stops_at_own_arena", WaterEnvironmentGameTests::projectileBoundary));
@@ -295,6 +298,51 @@ public final class WaterEnvironmentGameTests {
         });
     }
 
+    private static void bubbleDodge(GameTestContext c) {
+        c.set(WaterSheeperConfig.WATER_COMBAT_ENTRY_DELAY, 0.0);
+        c.set(WaterSheeperConfig.WATER_MOVEMENT_SPEED, 0.0);
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_ENABLED, false);
+        c.set(WaterSheeperConfig.WATER_BEAM_ENABLED, false);
+        c.set(WaterSheeperConfig.WATER_MINES_ENABLED, false);
+        c.set(WaterSheeperConfig.WATER_MAELSTROM_ENABLED, false);
+        c.set(WaterSheeperConfig.WATER_DODGE_ENABLED, true);
+        c.set(WaterSheeperConfig.WATER_DODGE_COOLDOWN, 2.0);
+        var boss = WaterTestScene.boss(c);
+        var player = WaterTestScene.player(c, 15, 1, 10);
+        boss.setNoAi(false);
+        Vec3 start = boss.position();
+        float health = boss.getHealth();
+        var close = launchArrow(c, player, boss, 1.4);
+        boss.tick();
+        c.expect(!boss.isInBubbleForm(), "A shot one tick from impact must leave no time to dodge");
+        close.discard();
+
+        launchArrow(c, player, boss, 3.25);
+        boss.tick();
+        c.expect(boss.isInBubbleForm(), "The boss must dissolve when it has time and room to dodge");
+        c.at(20, () -> {
+            c.expect(!boss.isInBubbleForm() && Math.abs(boss.getZ() - start.z) > 3,
+                    "The boss must move sideways and regain full size");
+            c.near(boss.getHealth(), health, "The incoming arrow must miss the dodging boss");
+            launchArrow(c, player, boss, 3.25);
+            c.at(26, () -> {
+                c.expect(!boss.isInBubbleForm() && boss.getHealth() < health,
+                        "A second shot during the configured cooldown must hit");
+                c.pass();
+            });
+        });
+    }
+
+    private static Arrow launchArrow(GameTestContext c, TestPlayer player, WaterSheeperEntity boss, double distance) {
+        Vec3 aim = boss.getBoundingBox().getCenter();
+        var arrow = new Arrow(c.level, player);
+        arrow.setPos(aim.x + distance, aim.y, aim.z);
+        arrow.setNoGravity(true);
+        arrow.setDeltaMovement(-2, 0, 0);
+        c.level.addFreshEntity(arrow);
+        return arrow;
+    }
+
     private static void bubbleCage(GameTestContext c) {
         configureSpawn(c);
         c.set(WaterSheeperConfig.WATER_COMBAT_RADIUS, 16.0);
@@ -302,7 +350,10 @@ public final class WaterEnvironmentGameTests {
         c.set(WaterSheeperConfig.WATER_ARENA_HEIGHT, 5);
         c.set(WaterSheeperConfig.WATER_CLOSE_RANGE_DISTANCE, 3.0);
         c.set(WaterSheeperConfig.WATER_CLOSE_RANGE_STOP_DISTANCE, 1.0);
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_ENABLED, false);
+        c.set(WaterSheeperConfig.WATER_MOVEMENT_SPRINT_ENABLED, false);
         var boss = c.readyForCombat(spawnAt(c, c.point(10, 1, 10)));
+        boss.getRandom().setSeed(92401);
         for (int y = 1; y <= 4; y++) {
             for (int side = 5; side <= 16; side++) {
                 c.setBlock(5, y, side, Blocks.STONE);
