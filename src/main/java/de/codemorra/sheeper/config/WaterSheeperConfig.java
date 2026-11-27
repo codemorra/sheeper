@@ -41,10 +41,6 @@ public final class WaterSheeperConfig {
             .comment("Seconds after the first player enters the ready arena before the projectile phase begins.")
             .defineInRange("arena.entryDelaySeconds", 2.0, 0.0, 10.0);
 
-    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_BUILD_DURATION = BUILDER
-            .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
-            .defineInRange("arenaBuild.durationSeconds", 5.0, 0.5, 30.0);
-
     public static final ForgeConfigSpec.DoubleValue WATER_ARENA_DRAIN_DURATION = ElementalConfigValues
             .arenaDrainDuration(BUILDER, 8.0,
                     "Seconds for the virtual water level to sink after the boss disappears.",
@@ -57,6 +53,10 @@ public final class WaterSheeperConfig {
     public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_STRENGTH = ElementalConfigValues
             .boundaryStrength(BUILDER, 0.70);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_ARENA_BUILD_DURATION = BUILDER
+            .comment("Seconds for the arena water and bubble front to expand from the center before combat begins.")
+            .defineInRange("arenaBuild.durationSeconds", 5.0, 0.5, 30.0);
+
     /** Empty-arena grace and recovery (arenaRecovery). */
     public static final ForgeConfigSpec.BooleanValue WATER_EMPTY_ARENA_RECOVERY_ENABLED = BUILDER
             .comment("Allows the boss to heal in an empty arena and reset the fight after full recovery.")
@@ -67,6 +67,16 @@ public final class WaterSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue WATER_EMPTY_ARENA_REGENERATION = ElementalConfigValues
             .recoveryRate(BUILDER, 5.0);
+
+    /** Damage-free transport during arena expansion (spawnPush). */
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_SPEED = ElementalConfigValues
+            .spawnPushSpeed(BUILDER, 20.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_EDGE_DISTANCE = ElementalConfigValues
+            .spawnPushEdgeDistance(BUILDER, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_LIFT_HEIGHT = ElementalConfigValues
+            .spawnPushLiftHeight(BUILDER, 2.0);
 
     /** Water boss movement (movement). */
     public static final ForgeConfigSpec.DoubleValue WATER_MOVEMENT_EDGE_DISTANCE = ElementalConfigValues
@@ -129,16 +139,6 @@ public final class WaterSheeperConfig {
             .comment("Maximum seconds between idle swim plans. If set below the minimum, the minimum is used.")
             .defineInRange("movement.idle.intervalMaxSeconds", 5.0, 0.1, 15.0);
 
-    /** Damage-free transport during arena expansion (spawnPush). */
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_SPEED = ElementalConfigValues
-            .spawnPushSpeed(BUILDER, 20.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_EDGE_DISTANCE = ElementalConfigValues
-            .spawnPushEdgeDistance(BUILDER, 8.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_SPAWN_PUSH_LIFT_HEIGHT = ElementalConfigValues
-            .spawnPushLiftHeight(BUILDER, 2.0);
-
     /** Water boss close-range approach (closeRange). */
     public static final ForgeConfigSpec.DoubleValue WATER_CLOSE_RANGE_DISTANCE = BUILDER
             .comment("Distance between body centers at which the boss enters melee mode and approaches the target.",
@@ -187,6 +187,16 @@ public final class WaterSheeperConfig {
             .comment("Minimum seconds between defensive bubble dodges.")
             .defineInRange("defense.dodgeCooldownSeconds", 3.0, 1.0, 20.0);
 
+    /** Air fountains (airStations). */
+    public static final ForgeConfigSpec.DoubleValue WATER_AIR_STATIONS_PER_1000_BLOCKS = BUILDER
+            .comment("Number of air fountains per 1,000 blocks of arena floor. Increase this value for more fountains.",
+                    "For example, a value of 2 gives about 15 fountains at an arena radius of 50 blocks. Maximum: 48.")
+            .defineInRange("airStations.per1000Blocks", 2.0, 0.1, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_AIR_DURATION = BUILDER
+            .comment("Seconds a full air bar lasts in a Water Sheeper arena without breathing bonuses.")
+            .defineInRange("airStations.airDurationSeconds", 40.0, 20.0, 120.0);
+
     /** Water projectiles (projectile). */
     public static final ForgeConfigSpec.BooleanValue WATER_PROJECTILE_ENABLED = BUILDER
             .comment("Allows the boss to fire water projectiles.",
@@ -231,6 +241,10 @@ public final class WaterSheeperConfig {
             .comment("Seconds after a beam ends before another beam may start.")
             .defineInRange("beam.cooldownSeconds", 20.0, 1.0, 120.0);
 
+    public static final ForgeConfigSpec.DoubleValue WATER_BEAM_RECOVERY = BUILDER
+            .comment("Seconds after the beam ends before the boss resumes its normal attacks.")
+            .defineInRange("beam.recoverySeconds", 2.0, 0.1, 5.0);
+
     public static final ForgeConfigSpec.DoubleValue WATER_BEAM_SIGHT_SEARCH = BUILDER
             .comment("Maximum time in seconds to look for a clear shot before choosing another attack.",
                     "Set to 0 to skip the search when the target is behind cover.")
@@ -265,6 +279,48 @@ public final class WaterSheeperConfig {
                     "Beam damage in health points on first contact, then at least one second after the last accepted beam hit.")
             .defineInRange("beam.damagePerSecond", 4.88, 0.0, 20.0);
 
+    /**
+     * Water mines (mines). A maximum below its minimum uses the
+     * minimum.
+     */
+    public static final ForgeConfigSpec.BooleanValue WATER_MINES_ENABLED = BUILDER
+            .comment("Enables the water mine special attack.")
+            .define("mines.enabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN = BUILDER
+            .comment("Cooldown in seconds after the last mine pressure wave ends.")
+            .defineInRange("mines.cooldownSeconds", 20.0, 1.0, 120.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_RECOVERY = BUILDER
+            .comment("Seconds after the last mine pressure wave ends before the boss resumes its normal attacks.")
+            .defineInRange("mines.recoverySeconds", 2.0, 0.1, 5.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MIN = BUILDER
+            .comment("Minimum seconds during which new water mines appear.")
+            .defineInRange("mines.durationMinSeconds", 20.0, 0.5, 60);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MAX = BUILDER
+            .comment("Maximum seconds during which new water mines appear.")
+            .defineInRange("mines.durationMaxSeconds", 25.0, 0.5, 60);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COUNT_MULTIPLIER = BUILDER
+            .comment("Scales how many mines the boss attempts to place without changing attack duration.",
+                    "1 uses the standard rate, 0.5 halves it, and 2 doubles it.")
+            .defineInRange("mines.countMultiplier", 1.0, 0.25, 2.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE = BUILDER
+            .comment("Damage per mine in health points before armor. 2 health points equal one heart.")
+            .defineInRange("mines.damage", 2.5, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER = BUILDER
+            .comment(
+                    "Mine bubble diameter in blocks at detonation. Larger mines need more room and have a wider damage area and pressure wave.")
+            .defineInRange("mines.diameter", 2.5, 0.75, 6.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE = BUILDER
+            .comment("Seconds from a mine appearing until it explodes.")
+            .defineInRange("mines.fuseSeconds", 2.2, 0.2, 5.0);
+
     /** Maelstrom preparation (maelstrom). */
     public static final ForgeConfigSpec.BooleanValue WATER_MAELSTROM_ENABLED = BUILDER
             .comment("Enables the Maelstrom special attack.")
@@ -274,6 +330,10 @@ public final class WaterSheeperConfig {
             .comment("Seconds before Maelstrom becomes ready, both at encounter start and after each use.",
                     "The initial countdown starts with the first combat participant; full recovery restarts it.")
             .defineInRange("maelstrom.cooldownSeconds", 60.0, 1.0, 300.0);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_RECOVERY = BUILDER
+            .comment("Seconds after impact that the boss stays still and is vulnerable.")
+            .defineInRange("maelstrom.recoverySeconds", 2.0, 0.1, 5.0);
 
     public static final ForgeConfigSpec.DoubleValue WATER_MAELSTROM_MELEE_DELAY = BUILDER
             .comment("Continuous melee-mode seconds required before starting Maelstrom while in close range.")
@@ -349,63 +409,6 @@ public final class WaterSheeperConfig {
             .comment("Width of the outer arena ring protected from wave damage and forced transport, in blocks.",
                     "Limited to half the arena radius. Reaching the ring releases affected players; 0 disables protection.")
             .defineInRange("maelstrom.safeOuterWidth", 8.0, 0.0, 32.0);
-
-    /**
-     * Shared recovery between a special and the next projectile phase
-     * (special).
-     */
-    public static final ForgeConfigSpec.DoubleValue WATER_SPECIAL_RECOVERY = BUILDER
-            .comment("Seconds without new attacks after a special; the boss is vulnerable during recovery.",
-                    "Maelstrom recovery begins at impact and holds the boss still.")
-            .defineInRange("special.recoverySeconds", 2.0, 0.1, 5.0);
-
-    /**
-     * Water mines (mines). A maximum below its minimum uses the
-     * minimum.
-     */
-    public static final ForgeConfigSpec.BooleanValue WATER_MINES_ENABLED = BUILDER
-            .comment("Enables the water mine special attack.")
-            .define("mines.enabled", true);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MIN = BUILDER
-            .comment("Minimum seconds during which new water mines appear.")
-            .defineInRange("mines.durationMinSeconds", 20.0, 0.5, 60);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DURATION_MAX = BUILDER
-            .comment("Maximum seconds during which new water mines appear.")
-            .defineInRange("mines.durationMaxSeconds", 25.0, 0.5, 60);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COUNT_MULTIPLIER = BUILDER
-            .comment("Scales how many mines the boss attempts to place without changing attack duration.",
-                    "1 uses the standard rate, 0.5 halves it, and 2 doubles it.")
-            .defineInRange("mines.countMultiplier", 1.0, 0.25, 2.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DAMAGE = BUILDER
-            .comment("Damage per mine in health points before armor. 2 health points equal one heart.")
-            .defineInRange("mines.damage", 2.5, 0.0, 10.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_COOLDOWN = BUILDER
-            .comment("Cooldown in seconds after the last mine pressure wave ends.")
-            .defineInRange("mines.cooldownSeconds", 20.0, 1.0, 120.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_DIAMETER = BUILDER
-            .comment(
-                    "Mine bubble diameter in blocks at detonation. Larger mines need more room and have a wider damage area and pressure wave.")
-            .defineInRange("mines.diameter", 2.5, 0.75, 6.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_MINES_FUSE = BUILDER
-            .comment("Seconds from a mine appearing until it explodes.")
-            .defineInRange("mines.fuseSeconds", 2.2, 0.2, 5.0);
-
-    /** Air fountains (airStations). */
-    public static final ForgeConfigSpec.DoubleValue WATER_AIR_STATIONS_PER_1000_BLOCKS = BUILDER
-            .comment("Number of air fountains per 1,000 blocks of arena floor. Increase this value for more fountains.",
-                    "For example, a value of 2 gives about 15 fountains at an arena radius of 50 blocks. Maximum: 48.")
-            .defineInRange("airStations.per1000Blocks", 2.0, 0.1, 8.0);
-
-    public static final ForgeConfigSpec.DoubleValue WATER_AIR_DURATION = BUILDER
-            .comment("Seconds a full air bar lasts in a Water Sheeper arena without breathing bonuses.")
-            .defineInRange("airStations.airDurationSeconds", 40.0, 20.0, 120.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

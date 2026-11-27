@@ -192,7 +192,8 @@ public final class WaterAttackGameTests {
         c.set(WaterSheeperConfig.WATER_BEAM_DURATION_MIN, 0.5D);
         c.set(WaterSheeperConfig.WATER_BEAM_DURATION_MAX, 0.5D);
         c.set(WaterSheeperConfig.WATER_BEAM_COOLDOWN, 1.4D);
-        c.set(WaterSheeperConfig.WATER_SPECIAL_RECOVERY, 0.2D);
+        c.set(WaterSheeperConfig.WATER_BEAM_RECOVERY, 0.2D);
+        c.set(WaterSheeperConfig.WATER_MINES_RECOVERY, 0.35D);
         var player = WaterTestScene.player(c, 12, 1, 10);
         WaterDefaultAttack normal = completedProjectilePhase(c, boss, player);
         WaterSpecialAttacks specials = specials(boss, "beam");
@@ -240,7 +241,11 @@ public final class WaterAttackGameTests {
                 "Reload must exclude the previous special even after its cooldown expires");
         restored.tickTimers(List.of(), normal);
         c.expect(restored.suppressesDefault() && !restored.locksMovement(),
-                "Mines must use the same quiet recovery as the beam");
+                "Ending mines must unlock movement and start their own quiet recovery");
+        WaterTestScene.ticks(6, () -> restored.tickTimers(List.of(player), normal));
+        c.expect(restored.suppressesDefault(), "Mines must still be recovering after the shorter beam recovery");
+        restored.tickTimers(List.of(player), normal);
+        c.expect(!restored.suppressesDefault(), "Default combat must resume after the configured mine recovery");
         c.pass();
     }
 
@@ -278,7 +283,7 @@ public final class WaterAttackGameTests {
         c.set(WaterSheeperConfig.WATER_MAELSTROM_STRONG_DURATION, 0.1D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_ASCENT_HEIGHT, 1.0D);
         c.set(WaterSheeperConfig.WATER_MAELSTROM_SLAM_SPEED, 40.0D);
-        c.set(WaterSheeperConfig.WATER_SPECIAL_RECOVERY, 0.2D);
+        c.set(WaterSheeperConfig.WATER_MAELSTROM_RECOVERY, 0.2D);
         var player = WaterTestScene.player(c, 14, 1, 10);
         boss.setNoAi(false);
         c.setBlock(10, 1, 10, Blocks.STONE);

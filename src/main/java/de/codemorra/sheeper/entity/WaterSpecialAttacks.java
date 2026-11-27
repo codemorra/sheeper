@@ -281,30 +281,27 @@ final class WaterSpecialAttacks {
         beamActive = false;
         beam.stop();
         beamCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_BEAM_COOLDOWN.get());
-        beginRecovery(Special.BEAM);
+        beginRecovery(Special.BEAM, WaterSheeperConfig.WATER_BEAM_RECOVERY.get());
     }
 
     private void finishMaelstrom() {
         boolean impacted = maelstrom.hasImpacted();
         maelstrom.finish();
         maelstromCooldown = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_COOLDOWN.get());
-        beginRecovery(Special.MAELSTROM);
-        if (impacted) {
-            // The attack already held its vulnerable recovery at the impact.
-            // Begin the next projectile phase on the next timer update.
-            recoveryTicks = 1;
-        }
+        lastSpecial = Special.MAELSTROM;
+        // A successful impact already included recovery within the attack itself.
+        recoveryTicks = impacted ? 1 : SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_MAELSTROM_RECOVERY.get());
     }
 
-    private void beginRecovery(Special completed) {
+    private void beginRecovery(Special completed, double seconds) {
         lastSpecial = completed;
-        recoveryTicks = SheeperConfig.secondsToTicks(WaterSheeperConfig.WATER_SPECIAL_RECOVERY.get());
+        recoveryTicks = SheeperConfig.secondsToTicks(seconds);
     }
 
     private void finishMines() {
         mines.clear();
         mineCooldown = mines.cooldown();
-        beginRecovery(Special.MINES);
+        beginRecovery(Special.MINES, WaterSheeperConfig.WATER_MINES_RECOVERY.get());
     }
 
     /**
