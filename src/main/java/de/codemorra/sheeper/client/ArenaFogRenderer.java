@@ -189,7 +189,7 @@ public final class ArenaFogRenderer {
                     // Keep distant lightning readable through the storm, and fade as the arena drains.
                     float tint = arena.rodDarknessAt(time);
                     float rodColor = LightningWeatherVisuals.ROD_FOG_COLOR;
-                    shader.getUniform("FogColor").set(Mth.lerp(tint, 0.08F, rodColor),
+                    shader.getUniform("ArenaFogTint").set(Mth.lerp(tint, 0.08F, rodColor),
                             Mth.lerp(tint, 0.10F, rodColor), Mth.lerp(tint, 0.14F, rodColor),
                             0.72F * arena.opacityAt(time));
                     drawVolume(frame.camera(), renderDistance, arena.center(), arena.radiusAt(time), arena.minimumY(),
@@ -198,7 +198,8 @@ public final class ArenaFogRenderer {
             }
             double waterIntensity = SheeperClientConfig.WATER_FOG_INTENSITY.get();
             if (waterIntensity > 0) {
-                shader.getUniform("FogColor").set(0.12F, 0.38F, 0.52F, 1.0F);
+                // Use the original water tint. Minecraft overwrites its built-in FogColor at draw time.
+                shader.getUniform("ArenaFogTint").set(0.12F, 0.38F, 0.52F, 1.0F);
                 shader.getUniform("FogDensity").set((float) (Math.log(20) * waterIntensity
                         / SheeperClientConfig.WATER_FOG_DISTANCE.get()));
                 for (var bounds : WaterArenaVisuals.renderVolumes(frame.level(), frame.partialTick())) {
