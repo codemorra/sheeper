@@ -53,9 +53,9 @@ final class LightningSpecialAttacks {
         return !blocksNormalMovement() && !line.isActive();
     }
 
-    /** The fan's opening crackle retaliates before the boss turns into lightning. */
-    boolean hasFanChargeRetaliation() {
-        return fan.isChargingOnGround();
+    /** @return whether an attack is charging the boss, including the sustained charge between row salvos */
+    boolean hasChargeRetaliation() {
+        return line.isFiring() || ring.isCharging() || fan.isChargingOnGround() || rod.isChargingOnGround();
     }
 
     boolean isHovering() {
