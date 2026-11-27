@@ -107,6 +107,11 @@ final class LightningFanAttack {
         return hover != null;
     }
 
+    /** @return whether the opening crackle is active while the boss is still on the ground */
+    boolean isChargingOnGround() {
+        return isActive() && ascentEndsAt < 0;
+    }
+
     /** Updates all current participants, giving each a separate lagging aim point. */
     void tick(ServerLevel level, List<ServerPlayer> players) {
         Hover site = hover;

@@ -134,8 +134,8 @@ public final class LightningSheeperConfig {
             .defineInRange("defense.crackleSeconds", 1.0, 0.4, 3.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_DAMAGE = BUILDER
-            .comment("Damage dealt to a player who lands a melee hit during an active crackle.",
-                    "0 disables the defensive crackle.")
+            .comment("Damage dealt on a melee hit during a defensive crackle or the fan's opening charge.",
+                    "0 disables the defensive crackle and the fan's retaliation.")
             .defineInRange("defense.crackleDamage", 2.0, 0.0, 8.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_DODGE_COOLDOWN = BUILDER

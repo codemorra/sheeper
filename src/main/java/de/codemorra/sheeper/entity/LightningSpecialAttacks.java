@@ -48,9 +48,14 @@ final class LightningSpecialAttacks {
         return line.isFiring() || ring.isLaunching() || tornado.isLaunching() || fan.isActive() || rod.isActive();
     }
 
-    /** Allows defensive reactions during ordinary combat and after the last tornado has launched. */
+    /** Allows defensive reactions during ordinary combat, including once rings and tornadoes move independently. */
     boolean allowsCombatDefense() {
-        return !blocksNormalMovement() && !line.isActive() && !ring.isActive();
+        return !blocksNormalMovement() && !line.isActive();
+    }
+
+    /** The fan's opening crackle retaliates before the boss turns into lightning. */
+    boolean hasFanChargeRetaliation() {
+        return fan.isChargingOnGround();
     }
 
     boolean isHovering() {
