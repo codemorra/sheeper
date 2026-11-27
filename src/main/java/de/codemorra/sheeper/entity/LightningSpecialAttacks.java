@@ -32,6 +32,7 @@ final class LightningSpecialAttacks {
     private int tornadoCooldown;
     private int fanCooldown;
     private int rodCooldown = -1;
+    private int rodFailedAtJump = -1;
 
     LightningSpecialAttacks(LightningSheeperEntity boss, LightningTeleportMovement teleports) {
         this.boss = boss;
@@ -192,7 +193,7 @@ final class LightningSpecialAttacks {
         if (fanEnabled && fanCooldown == 0) {
             ready.add(Attack.FAN);
         }
-        if (rodEnabled && rodCooldown == 0) {
+        if (rodEnabled && rodCooldown == 0 && rodFailedAtJump != teleports.jumpAttempts()) {
             ready.add(Attack.ROD);
         }
         if (ready.isEmpty()) {
@@ -201,8 +202,18 @@ final class LightningSpecialAttacks {
 
         int min = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MIN.get());
         int max = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_ATTACK_PAUSE_MAX.get());
-        restTicks = min + boss.getRandom().nextInt(Math.max(0, max - min) + 1);
-        switch (ready.get(boss.getRandom().nextInt(ready.size()))) {
+        int nextRest = min + boss.getRandom().nextInt(Math.max(0, max - min) + 1);
+        while (!ready.isEmpty()) {
+            if (startAttack(ready.remove(boss.getRandom().nextInt(ready.size())), level, players)) {
+                restTicks = nextRest;
+                return;
+            }
+        }
+    }
+
+    /** Attempts a cast without consuming the shared pause or cooldown when its placement fails. */
+    private boolean startAttack(Attack attack, ServerLevel level, List<ServerPlayer> players) {
+        switch (attack) {
             case RING -> {
                 ringCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_RING_COOLDOWN.get());
                 boss.setTarget(null);
@@ -215,9 +226,10 @@ final class LightningSpecialAttacks {
                 line.start(level);
             }
             case FAN -> {
-                if (fan.start(level)) {
-                    fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());
+                if (!fan.start(level)) {
+                    return false;
                 }
+                fanCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_COOLDOWN.get());
             }
             case TORNADO -> {
                 tornadoCooldown = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_TORNADO_COOLDOWN.get());
@@ -225,11 +237,15 @@ final class LightningSpecialAttacks {
                 tornado.start(level, players);
             }
             case ROD -> {
-                if (rod.start(level, players)) {
-                    rodCooldown = rodCooldownTicks();
+                if (!rod.start(level, players)) {
+                    // Let the next ordinary movement attempt run before scanning the arena again.
+                    rodFailedAtJump = teleports.jumpAttempts();
+                    return false;
                 }
+                rodCooldown = rodCooldownTicks();
             }
         }
+        return true;
     }
 
     /** Prepares a normal jump immediately while already released effects continue independently. */
@@ -256,6 +272,7 @@ final class LightningSpecialAttacks {
         tornadoCooldown = 0;
         fanCooldown = 0;
         rodCooldown = -1;
+        rodFailedAtJump = -1;
     }
 
     /** Persists the timers, but drops transient attacks rather than replaying impacts after a reload. */
