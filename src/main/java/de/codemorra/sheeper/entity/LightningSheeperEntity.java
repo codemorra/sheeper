@@ -52,6 +52,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.COMPOUND_TAG);
     private static final EntityDataAccessor<Float> DATA_LINE_CHARGE = SynchedEntityData
             .defineId(LightningSheeperEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Boolean> DATA_DEFENSE_CRACKLING = SynchedEntityData
+            .defineId(LightningSheeperEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** World-space endpoints keep the visible lightning and charging form anchored to the attack position. */
     public record TravelArc(Vec3 start, Vec3 end, long startTick, int durationTicks, long chargeStartedAt,
@@ -85,6 +87,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     private final LightningTeleportMovement teleports = new LightningTeleportMovement(this);
     private final LightningAmbientStrikes ambientStrikes = new LightningAmbientStrikes(this);
     private final LightningSpecialAttacks specialAttacks = new LightningSpecialAttacks(this, teleports);
+    private final LightningCombatDefense defense = new LightningCombatDefense(this);
     private final ElementalArenaCombat arenaCombat = new ElementalArenaCombat(this, this::canPlayerDamage,
             this::resetArenaEncounter, LightningSheeperConfig.LIGHTNING_MAX_HEALTH::get,
             LightningSheeperConfig.LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER::get,
@@ -109,6 +112,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         entityData.define(DATA_COMBAT_READY, false);
         entityData.define(DATA_DEATH_TICKS, 0);
         entityData.define(DATA_LINE_CHARGE, 0.0F);
+        entityData.define(DATA_DEFENSE_CRACKLING, false);
         entityData.define(DATA_TRAVEL_ARC, new CompoundTag());
     }
 
@@ -122,6 +126,15 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
 
     void setLineCharge(float charge) {
         entityData.set(DATA_LINE_CHARGE, charge);
+    }
+
+    /** @return whether the defensive crackle is active for damage, sound and rendering */
+    public boolean isDefenseCrackling() {
+        return isAlive() && entityData.get(DATA_DEFENSE_CRACKLING);
+    }
+
+    void setDefenseCrackling(boolean crackling) {
+        entityData.set(DATA_DEFENSE_CRACKLING, crackling);
     }
 
     /** Returns the captured arena center or the provisional spawn block before validation. */
@@ -314,6 +327,20 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
                         && (isInLightningForm() || !arenaCombat.allowsDamage(source));
     }
 
+    /** Shocks the player only when a direct melee attack takes health or absorption. */
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        float healthBefore = getHealth() + getAbsorptionAmount();
+        boolean canRetaliate = isDefenseCrackling() && specialAttacks.allowsCombatDefense();
+        boolean accepted = super.hurt(source, amount);
+        if (canRetaliate && accepted && getHealth() + getAbsorptionAmount() < healthBefore
+                && source.getDirectEntity() instanceof ServerPlayer player && !player.isCreative()
+                && "player".equals(source.getMsgId())) {
+            defense.retaliate(player);
+        }
+        return accepted;
+    }
+
     @Override
     public boolean doHurtTarget(Entity target) {
         return false;
@@ -358,6 +385,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             storm.updateTornados(server, getUUID(), specialAttacks.tornadoSnapshots());
             specialAttacks.applyTornadoEffects(server, participants);
             tickMovement(participants, canMove);
+            defense.tick(server, fighting && specialAttacks.allowsCombatDefense() ? participants : List.of(), teleports);
             igniteTravelLeaves(server, storm);
             LightningArenaWind.Mode windMode = specialAttacks.windMode();
             storm.tickWind(server, getUUID(), windMode, fighting ? participants : List.of(),
@@ -467,6 +495,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         ambientStrikes.reset();
         specialAttacks.reset();
         teleports.reset();
+        defense.reset();
         setTarget(null);
     }
 

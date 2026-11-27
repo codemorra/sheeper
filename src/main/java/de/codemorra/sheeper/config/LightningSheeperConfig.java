@@ -116,6 +116,32 @@ public final class LightningSheeperConfig {
                     "A recovery jump can land closer if no safe destination meets this distance.")
             .defineInRange("teleport.playerDistance", 4.0, 0.0, 32.0);
 
+    /**
+     * Defensive reactions while the boss is using its ordinary combat movement
+     * (defense).
+     */
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_INTERVAL_MIN = BUILDER
+            .comment("Minimum seconds between the starts of defensive crackles.")
+            .defineInRange("defense.crackleIntervalMinSeconds", 2.0, 0.5, 15.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_INTERVAL_MAX = BUILDER
+            .comment("Maximum seconds between the starts of defensive crackles.",
+                    "If set below the minimum, the minimum is used.")
+            .defineInRange("defense.crackleIntervalMaxSeconds", 3.0, 0.5, 15.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_DURATION = BUILDER
+            .comment("Seconds the defensive crackle lasts.")
+            .defineInRange("defense.crackleSeconds", 1.0, 0.4, 3.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_DAMAGE = BUILDER
+            .comment("Damage dealt to a player who lands a melee hit during an active crackle.",
+                    "0 disables the defensive crackle.")
+            .defineInRange("defense.crackleDamage", 2.0, 0.0, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_DODGE_COOLDOWN = BUILDER
+            .comment("Minimum seconds between defensive teleports triggered by incoming player projectiles.")
+            .defineInRange("defense.dodgeCooldownSeconds", 3.0, 1.0, 20.0);
+
     /** Random arena strikes during combat (ambientLightning). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_INTERVAL = BUILDER
             .comment("Seconds between groups of random arena strikes.")

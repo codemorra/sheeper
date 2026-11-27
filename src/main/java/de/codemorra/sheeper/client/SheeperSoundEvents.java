@@ -5,6 +5,7 @@ import java.util.Map;
 
 import de.codemorra.sheeper.SheeperMod;
 import de.codemorra.sheeper.config.SheeperClientConfig;
+import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
 import net.minecraft.client.Minecraft;
@@ -24,6 +25,7 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = SheeperMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class SheeperSoundEvents {
     private static final Map<Integer, WaterBeamSound> BEAM_SOUNDS = new HashMap<>();
+    private static final Map<LightningSheeperEntity, LightningCrackleSound> CRACKLE_SOUNDS = new HashMap<>();
 
     private SheeperSoundEvents() {
     }
@@ -40,7 +42,7 @@ public final class SheeperSoundEvents {
     }
 
     /**
-     * Advances local emitters for synchronized beams and tornadoes.
+     * Advances local emitters for synchronized beams, tornadoes and defensive crackles.
      */
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -50,6 +52,14 @@ public final class SheeperSoundEvents {
         Minecraft minecraft = Minecraft.getInstance();
         LightningTornadoSound.updateLoops(minecraft);
         BEAM_SOUNDS.values().removeIf(sound -> !sound.isBeamActive());
+        var soundManager = minecraft.getSoundManager();
+        CRACKLE_SOUNDS.values().removeIf(sound -> {
+            if (sound.isCrackleActive(minecraft)) {
+                return false;
+            }
+            soundManager.stop(sound);
+            return true;
+        });
         if (minecraft.level == null || minecraft.isPaused()) {
             return;
         }
@@ -57,6 +67,13 @@ public final class SheeperSoundEvents {
             if (entity instanceof WaterSheeperEntity boss && boss.isAlive() && !boss.isSilent()
                     && boss.getBeamOffset().lengthSqr() > 1.0E-8D) {
                 BEAM_SOUNDS.computeIfAbsent(boss.getId(), ignored -> new WaterBeamSound(boss)).tick();
+            }
+            if (entity instanceof LightningSheeperEntity boss && boss.isDefenseCrackling() && !boss.isSilent()) {
+                CRACKLE_SOUNDS.computeIfAbsent(boss, ignored -> {
+                    var sound = new LightningCrackleSound(boss);
+                    soundManager.play(sound);
+                    return sound;
+                });
             }
         }
     }
