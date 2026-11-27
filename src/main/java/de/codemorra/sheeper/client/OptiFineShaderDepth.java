@@ -30,6 +30,15 @@ final class OptiFineShaderDepth {
 
     /** Returns the world depth texture, or zero outside the scene pass. */
     static int sceneTexture() {
+        return sceneTexture(false);
+    }
+
+    /** Prefers terrain depth before translucency so weather cannot hide the storm's bolts. */
+    static int opaqueSceneTexture() {
+        return sceneTexture(true);
+    }
+
+    private static int sceneTexture(boolean opaque) {
         if (access == null) {
             return 0;
         }
@@ -40,7 +49,10 @@ final class OptiFineShaderDepth {
             Object framebuffer = access.framebuffer().get(null);
             if (framebuffer != null && access.depthTextures().get(framebuffer) instanceof IntBuffer textures
                     && textures.limit() > 0) {
-                // depthtex0 is OptiFine's full-resolution scene depth attachment.
+                // Some shaderpacks allocate only depthtex0.
+                if (opaque && textures.limit() > 1 && textures.get(1) != 0) {
+                    return textures.get(1);
+                }
                 return textures.get(0);
             }
         } catch (IllegalAccessException exception) {
@@ -71,7 +83,7 @@ final class OptiFineShaderDepth {
 
     private static void disable(Throwable exception) {
         access = null;
-        SheeperMod.LOGGER.warn("Could not access OptiFine's water arena fog depth source", exception);
+        SheeperMod.LOGGER.warn("Could not access OptiFine's arena depth source", exception);
     }
 
     private record Access(Field active, Field shadowPass, Field framebuffer, Field depthTextures) {

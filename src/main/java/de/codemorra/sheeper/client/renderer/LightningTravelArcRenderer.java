@@ -1,25 +1,50 @@
 package de.codemorra.sheeper.client.renderer;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import javax.annotation.Nullable;
+
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Matrix4f;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningSheeperEntity.TravelArc;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.phys.Vec3;
 
 /** Draws the travelling lightning and the compact charge it forms at the arena center. */
-final class LightningTravelArcRenderer {
+public final class LightningTravelArcRenderer {
     private LightningTravelArcRenderer() {
     }
 
-    static void render(LightningSheeperEntity boss, TravelArc arc, float partialTick, PoseStack poses,
-            MultiBufferSource buffers) {
+    /** Returns whether the boss has lightning geometry to submit for this frame. */
+    public static boolean hasEffect(LightningSheeperEntity boss, @Nullable TravelArc arc, float partialTick) {
+        return !boss.isInvisible() && (arc != null || boss.getDeathSparkOpacity(partialTick) > 0
+                || boss.isAlive() && boss.getLineCharge(partialTick) > 0);
+    }
+
+    /** Writes the boss's electrical effects using a pose translated to the boss's interpolated position. */
+    public static void draw(LightningSheeperEntity boss, @Nullable TravelArc arc, float partialTick,
+            Matrix4f matrix, VertexConsumer buffer) {
+        float charge = boss.getLineCharge(partialTick);
+        if (arc != null) {
+            renderArc(boss, arc, partialTick, matrix, buffer);
+            if (!arc.isCharging() && charge > 0) {
+                double time = boss.level.getGameTime() + (double) partialTick;
+                Vec3 feet = arc.start().lerp(arc.end(), arc.progress(time))
+                        .subtract(boss.getPosition(partialTick)).add(0, -boss.getBbHeight() * 0.5, 0);
+                renderBodySparks(boss, feet, partialTick, matrix, buffer, charge);
+            }
+        } else {
+            float sparks = boss.isAlive() ? charge : boss.getDeathSparkOpacity(partialTick);
+            if (sparks > 0) {
+                renderBodySparks(boss, Vec3.ZERO, partialTick, matrix, buffer, sparks);
+            }
+        }
+    }
+
+    private static void renderArc(LightningSheeperEntity boss, TravelArc arc, float partialTick, Matrix4f matrix,
+            VertexConsumer buffer) {
         if (arc.isCharging()) {
-            renderCharge(boss, arc, partialTick, poses, buffers);
+            renderCharge(boss, arc, partialTick, matrix, buffer);
             return;
         }
         Vec3 direction = arc.end().subtract(arc.start());
@@ -33,8 +58,6 @@ final class LightningTravelArcRenderer {
         double head = Math.min(segments, 0.7 + arc.progress(time) * segments);
         double tail = Math.max(0, head - Math.max(4, segments * 0.45));
         Vec3 offset = boss.getPosition(partialTick);
-        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
-        Matrix4f matrix = poses.last().pose();
         for (int index = Mth.floor(tail); index < head; index++) {
             Vec3 from = arcPoint(arc, side, up, segments, Math.max(index, tail)).subtract(offset);
             Vec3 to = arcPoint(arc, side, up, segments, Math.min(index + 1, head)).subtract(offset);
@@ -43,21 +66,13 @@ final class LightningTravelArcRenderer {
         }
     }
 
-    /** Keeps short branching bolts attached to the body while its charge builds and fades. */
-    static void renderLineCharge(LightningSheeperEntity boss, Vec3 feet, float partialTick, PoseStack poses,
-            MultiBufferSource buffers) {
-        renderBodySparks(boss, feet, partialTick, poses, buffers, boss.getLineCharge(partialTick));
-    }
-
     /** Draws the electrical silhouette for both the row charge and the death fade. */
-    static void renderBodySparks(LightningSheeperEntity boss, Vec3 feet, float partialTick, PoseStack poses,
-            MultiBufferSource buffers, float charge) {
+    private static void renderBodySparks(LightningSheeperEntity boss, Vec3 feet, float partialTick, Matrix4f matrix,
+            VertexConsumer buffer, float charge) {
         double time = (boss.tickCount + (double) partialTick) * 0.72;
         double width = boss.getBbWidth();
         double height = boss.getBbHeight();
         float yaw = -Mth.rotLerp(partialTick, boss.yBodyRotO, boss.yBodyRot) * Mth.DEG_TO_RAD;
-        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
-        Matrix4f matrix = poses.last().pose();
         for (int index = 0; index < 6; index++) {
             double phase = time + index * 2.61;
             double angle = index * Math.PI / 3 + Math.sin(phase * 0.28) * 0.33;
@@ -82,8 +97,8 @@ final class LightningTravelArcRenderer {
     }
 
     /** Builds shifting, irregular forks around the charge's core. */
-    private static void renderCharge(LightningSheeperEntity boss, TravelArc arc, float partialTick, PoseStack poses,
-            MultiBufferSource buffers) {
+    private static void renderCharge(LightningSheeperEntity boss, TravelArc arc, float partialTick, Matrix4f matrix,
+            VertexConsumer buffer) {
         Vec3 center = arc.end().subtract(boss.getPosition(partialTick));
         double time = boss.level.getGameTime() + (double) partialTick;
         float charge = arc.chargeAt(time);
@@ -93,8 +108,6 @@ final class LightningTravelArcRenderer {
         double radius = boss.getBbWidth() * (0.24 + 2.1 * charge);
         double height = boss.getBbHeight() * (0.45 + 2.2 * charge);
         double thickness = 0.60 + 0.55 * charge;
-        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
-        Matrix4f matrix = poses.last().pose();
         for (int index = 0; index < 12; index++) {
             float visibility = index < 4 ? 1 : Mth.clamp(charge * 8 - (index - 4), 0, 1);
             if (visibility == 0) {

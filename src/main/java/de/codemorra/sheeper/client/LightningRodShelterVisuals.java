@@ -16,13 +16,10 @@ import de.codemorra.sheeper.network.LightningRodShelterPacket;
 import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -33,7 +30,6 @@ public final class LightningRodShelterVisuals {
     private static final int BANDS = 12;
     private static final Map<UUID, Snapshot> active = new HashMap<>();
     private static ClientLevel currentLevel;
-    private static ShaderInstance glowShader;
 
     private record Snapshot(LightningRodShelterPacket packet, long receivedAt) {
         double visibilityAt(double time) {
@@ -46,11 +42,6 @@ public final class LightningRodShelterVisuals {
     }
 
     private LightningRodShelterVisuals() {
-    }
-
-    /** Picks up the additive shader after each resource reload. */
-    static void setGlowShader(ShaderInstance shader) {
-        glowShader = shader;
     }
 
     /** Keeps overlapping encounters independent and drops stale positions on a dimension change. */
@@ -100,23 +91,24 @@ public final class LightningRodShelterVisuals {
         return hit;
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        var minecraft = Minecraft.getInstance();
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || currentLevel == null
-                || currentLevel != minecraft.level || active.isEmpty()) {
+    static boolean hasEffects(ClientLevel level) {
+        return currentLevel == level && !active.isEmpty();
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
+        if (!hasEffects(level)) {
             return;
         }
+        var minecraft = Minecraft.getInstance();
         long tick = currentLevel.getGameTime();
         active.values().removeIf(snapshot -> tick - snapshot.receivedAt() > 25);
         if (active.isEmpty()) {
             return;
         }
-        Vec3 camera = event.getCamera().getPosition();
         Vec3 player = minecraft.player == null ? camera : minecraft.player.getBoundingBox().getCenter();
-        double time = tick + (double) event.getPartialTick();
+        double time = tick + (double) partialTick;
 
-        RenderSystem.setShader(() -> glowShader == null ? GameRenderer.getPositionColorShader() : glowShader);
+        RenderSystem.setShader(LightningWorldRender::glowShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);

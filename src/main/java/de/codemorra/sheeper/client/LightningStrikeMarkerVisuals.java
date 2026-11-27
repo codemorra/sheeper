@@ -23,7 +23,6 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -242,14 +241,15 @@ public final class LightningStrikeMarkerVisuals {
         }
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || currentLevel == null
-                || currentLevel != Minecraft.getInstance().level || markers.isEmpty()) {
+    static boolean hasEffects(ClientLevel level) {
+        return currentLevel == level && !markers.isEmpty();
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
+        if (!hasEffects(level)) {
             return;
         }
-        double now = currentLevel.getGameTime() + event.getPartialTick();
-        Vec3 camera = event.getCamera().getPosition();
+        double now = currentLevel.getGameTime() + partialTick;
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
         RenderSystem.enableDepthTest();

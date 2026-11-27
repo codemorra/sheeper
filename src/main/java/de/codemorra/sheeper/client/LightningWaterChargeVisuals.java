@@ -28,7 +28,6 @@ import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -370,14 +369,14 @@ public final class LightningWaterChargeVisuals {
         }
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || currentLevel == null
-                || currentLevel != Minecraft.getInstance().level
-                || charges.stream().noneMatch(charge -> !charge.arcs.isEmpty())) {
+    static boolean hasEffects(ClientLevel level) {
+        return currentLevel == level && charges.stream().anyMatch(charge -> !charge.arcs.isEmpty());
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
+        if (!hasEffects(level)) {
             return;
         }
-        Vec3 camera = event.getCamera().getPosition();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
         RenderSystem.enableDepthTest();
@@ -389,7 +388,7 @@ public final class LightningWaterChargeVisuals {
         BufferBuilder buffer = tesselator.getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (Charge charge : charges) {
-            double age = charge.age + event.getPartialTick();
+            double age = charge.age + partialTick;
             for (Arc arc : charge.arcs) {
                 arc.draw(buffer, camera, age);
             }

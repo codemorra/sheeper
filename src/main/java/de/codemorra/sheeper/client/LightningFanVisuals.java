@@ -22,7 +22,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -58,19 +57,20 @@ public final class LightningFanVisuals {
         active.put(packet.bossId(), new Fan(previous, packet, now));
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER
-                || currentLevel == null || currentLevel != Minecraft.getInstance().level || active.isEmpty()) {
+    static boolean hasEffects(ClientLevel level) {
+        return currentLevel == level && !active.isEmpty();
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
+        if (!hasEffects(level)) {
             return;
         }
-        double time = currentLevel.getGameTime() + (double) event.getPartialTick();
+        double time = currentLevel.getGameTime() + (double) partialTick;
         active.values().removeIf(fan -> time - fan.receivedAt >= 5);
         if (active.isEmpty()) {
             return;
         }
 
-        Vec3 camera = event.getCamera().getPosition();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
         RenderSystem.enableDepthTest();

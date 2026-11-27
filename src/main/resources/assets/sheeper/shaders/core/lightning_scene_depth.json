@@ -1,0 +1,14 @@
+{
+  "vertex": "sheeper:arena_fog",
+  "fragment": "sheeper:lightning_scene_depth",
+  "attributes": [
+    "Position",
+    "UV0"
+  ],
+  "samplers": [
+    {
+      "name": "SceneDepth"
+    }
+  ],
+  "uniforms": []
+}
