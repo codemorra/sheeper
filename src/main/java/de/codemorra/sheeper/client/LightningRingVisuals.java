@@ -23,7 +23,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -50,19 +49,20 @@ public final class LightningRingVisuals {
         active.put(packet, level.getGameTime() + 6);
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || currentLevel == null
-                || currentLevel != Minecraft.getInstance().level || active.isEmpty()) {
+    static boolean hasEffects(ClientLevel level) {
+        return currentLevel == level && !active.isEmpty();
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick, boolean shaderPack) {
+        if (!hasEffects(level)) {
             return;
         }
-        double time = currentLevel.getGameTime() + (double) event.getPartialTick();
+        double time = currentLevel.getGameTime() + (double) partialTick;
         active.entrySet().removeIf(entry -> time >= entry.getValue());
         if (active.isEmpty()) {
             return;
         }
-        Vec3 camera = event.getCamera().getPosition();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(shaderPack ? LightningWorldRender::glowShader : GameRenderer::getPositionColorShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
@@ -79,12 +79,13 @@ public final class LightningRingVisuals {
                     drawWarning(buffer, camera, packet, age);
                 }
             } else {
-                drawWave(buffer, camera, packet, age);
+                drawWave(buffer, camera, packet, age, shaderPack ? 0.12 : 0);
             }
         }
         tesselator.end();
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
     }
 
@@ -104,7 +105,8 @@ public final class LightningRingVisuals {
         }
     }
 
-    private static void drawWave(BufferBuilder buffer, Vec3 camera, LightningRingVisualPacket packet, double age) {
+    private static void drawWave(BufferBuilder buffer, Vec3 camera, LightningRingVisualPacket packet, double age,
+            double groundClearance) {
         double radius = age * packet.speed();
         double centerDistance = packet.origin().subtract(Vec3.atBottomCenterOf(packet.arenaCenter())).horizontalDistance();
         if (radius > packet.arenaRadius() + centerDistance + packet.width() * 0.5
@@ -129,9 +131,9 @@ public final class LightningRingVisuals {
                 continue;
             }
             double jitter = Math.sin(index * 4.31 + age * 1.7);
-            Vec3 from = groundPoint(packet, radius + wobble * jitter, angle - step * 0.44, 0.09);
-            Vec3 bend = groundPoint(packet, radius - wobble * jitter, angle, 0.16 + 0.07 * jitter);
-            Vec3 to = groundPoint(packet, radius + wobble * 0.5 * jitter, angle + step * 0.38, 0.09);
+            Vec3 from = groundPoint(packet, radius + wobble * jitter, angle - step * 0.44, 0.09 + groundClearance);
+            Vec3 bend = groundPoint(packet, radius - wobble * jitter, angle, 0.16 + 0.07 * jitter + groundClearance);
+            Vec3 to = groundPoint(packet, radius + wobble * 0.5 * jitter, angle + step * 0.38, 0.09 + groundClearance);
             if (from != null && bend != null && to != null
                     && Math.abs(from.y - bend.y) < 1.25 && Math.abs(bend.y - to.y) < 1.25) {
                 float alpha = (float) (0.57 + 0.29 * Math.sin(index * 2.37 - age * 2.1));

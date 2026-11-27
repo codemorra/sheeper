@@ -3,6 +3,7 @@ package de.codemorra.sheeper.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Vector3f;
+import de.codemorra.sheeper.client.LightningWorldRender;
 import de.codemorra.sheeper.client.renderer.layer.ElementalFleeceLayer;
 import de.codemorra.sheeper.client.renderer.layer.WaterBeamEyesLayer;
 import de.codemorra.sheeper.entity.ElementalSheeperEntity;
@@ -18,7 +19,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.animal.Sheep;
 
 /**
@@ -43,24 +43,14 @@ public class ElementalSheeperRenderer extends SheepRenderer {
             int light) {
         if (sheep instanceof LightningSheeperEntity bolt) {
             var arc = bolt.getTravelArc();
+            if (!LightningWorldRender.usesOptiFinePass()
+                    && LightningTravelArcRenderer.hasEffect(bolt, arc, partialTick)) {
+                LightningTravelArcRenderer.draw(bolt, arc, partialTick, poses.last().pose(),
+                        buffers.getBuffer(RenderType.lightning()));
+            }
             if (arc != null) {
                 shadowRadius = 0;
-                if (!bolt.isInvisible()) {
-                    LightningTravelArcRenderer.render(bolt, arc, partialTick, poses, buffers);
-                    if (!arc.isCharging() && bolt.getLineCharge(partialTick) > 0) {
-                        double time = bolt.level.getGameTime() + (double) partialTick;
-                        Vec3 feet = arc.start().lerp(arc.end(), arc.progress(time))
-                                .subtract(bolt.getPosition(partialTick)).add(0, -bolt.getBbHeight() * 0.5, 0);
-                        LightningTravelArcRenderer.renderLineCharge(bolt, feet, partialTick, poses, buffers);
-                    }
-                }
                 return;
-            }
-        }
-        if (sheep instanceof LightningSheeperEntity boss) {
-            float sparks = boss.getDeathSparkOpacity(partialTick);
-            if (sparks > 0 && !boss.isInvisible()) {
-                LightningTravelArcRenderer.renderBodySparks(boss, Vec3.ZERO, partialTick, poses, buffers, sparks);
             }
         }
         bodyOpacity = elementalBodyOpacity(sheep, partialTick);
@@ -76,10 +66,6 @@ public class ElementalSheeperRenderer extends SheepRenderer {
         poses.popPose();
         if (sheep instanceof WaterSheeperEntity boss && boss.isAlive() && !boss.isInvisible()) {
             WaterBeamRenderer.render(boss, poses, buffers, light, partialTick);
-        }
-        if (sheep instanceof LightningSheeperEntity boss && boss.isAlive() && !boss.isInvisible()
-                && boss.getLineCharge(partialTick) > 0) {
-            LightningTravelArcRenderer.renderLineCharge(boss, Vec3.ZERO, partialTick, poses, buffers);
         }
     }
 

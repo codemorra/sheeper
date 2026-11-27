@@ -20,7 +20,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -66,18 +65,16 @@ public final class LightningTornadoVisuals {
                 .filter(tornado -> now < tornado.endTick()).toList();
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        ClientLevel level = Minecraft.getInstance().level;
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || level == null) {
-            return;
-        }
+    static boolean hasEffects(ClientLevel level) {
+        return currentLevel == level && !snapshots.isEmpty();
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
         List<LightningTornado> active = activeTornados(level);
         if (active.isEmpty()) {
             return;
         }
-        double now = level.getGameTime() + (double) event.getPartialTick();
-        Vec3 camera = event.getCamera().getPosition();
+        double now = level.getGameTime() + (double) partialTick;
 
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.setShaderColor(1, 1, 1, 1);

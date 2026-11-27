@@ -3,7 +3,10 @@ package de.codemorra.sheeper.client.renderer;
 import java.util.List;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Matrix4f;
 import de.codemorra.sheeper.client.LightningRodShelterVisuals;
+import de.codemorra.sheeper.client.LightningWorldRender;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
 import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -31,6 +34,17 @@ public final class LightningStrikeRenderer extends EntityRenderer<LightningStrik
     @Override
     public void render(LightningStrikeEffect strike, float yaw, float partialTick, PoseStack poses,
             MultiBufferSource buffers, int light) {
+        if (!LightningWorldRender.usesOptiFinePass()) {
+            drawStrike(strike, partialTick, poses.last().pose(), buffers.getBuffer(RenderType.lightning()));
+        }
+    }
+
+    /**
+     * Writes the same cloud-to-ground strike into either the entity batch or the
+     * late shaderpack pass. The caller translates the pose to the strike origin.
+     */
+    public static void drawStrike(LightningStrikeEffect strike, float partialTick, Matrix4f matrix,
+            VertexConsumer vertices) {
         float height = strike.getStrikeHeight();
         float width = strike.getStrikeWidth();
         int segments = Mth.clamp(Mth.ceil(height), 2, 24);
@@ -38,8 +52,6 @@ public final class LightningStrikeRenderer extends EntityRenderer<LightningStrik
         Vec3 across = CROSS_X.scale(width);
         Vec3 depth = CROSS_Z.scale(width);
         RandomSource random = RandomSource.create(strike.seed);
-        var vertices = buffers.getBuffer(RenderType.lightning());
-        var matrix = poses.last().pose();
         Vec3 origin = strike.position();
         List<LightningRodShelter> shells = strike.level instanceof ClientLevel level
                 ? LightningRodShelterVisuals.visibleShells(level, level.getGameTime() + (double) partialTick)

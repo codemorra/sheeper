@@ -36,7 +36,6 @@ import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.TickEvent;
@@ -153,20 +152,18 @@ public final class LightningWeatherVisuals {
         return arena.intensityAt(time, eye.x, eye.y, eye.z) * verticalBlend;
     }
 
-    @SubscribeEvent
-    public static void renderStorm(RenderLevelStageEvent event) {
-        Minecraft mc = Minecraft.getInstance();
-        ClientLevel level = mc.level;
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || level == null
-                || !hasSnapshot(level)) {
+    static boolean hasEffects(ClientLevel level) {
+        return hasSnapshot(level);
+    }
+
+    static void draw(ClientLevel level, Vec3 camera, float partialTick) {
+        if (!hasEffects(level)) {
             return;
         }
-        Vec3 camera = event.getCamera().getPosition();
-        double time = level.getGameTime() + (double) event.getPartialTick();
+        Minecraft mc = Minecraft.getInstance();
+        double time = level.getGameTime() + (double) partialTick;
         double viewDistance = mc.options.getEffectiveRenderDistance() * 16.0;
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-        // AFTER_WEATHER already has the camera's view matrix on RenderSystem.
-        // Submit camera-relative coordinates so turning the camera applies that matrix only once.
         RenderSystem.disableCull();
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();

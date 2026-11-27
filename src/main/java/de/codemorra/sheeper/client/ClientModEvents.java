@@ -49,15 +49,18 @@ public class ClientModEvents {
         });
     }
 
-    /** Registers the arena fog and shelter glow shaders through the resource-pack reload lifecycle. */
+    /** Registers the arena shaders through the resource-pack reload lifecycle. */
     @SubscribeEvent
     public static void registerShaders(RegisterShadersEvent event) throws IOException {
         event.registerShader(new ShaderInstance(event.getResourceManager(),
                 ResourceLocations.create(SheeperMod.MODID, "arena_fog"),
                 DefaultVertexFormat.POSITION_TEX), ArenaFogRenderer::setShader);
         event.registerShader(new ShaderInstance(event.getResourceManager(),
+                ResourceLocations.create(SheeperMod.MODID, "lightning_scene_depth"),
+                DefaultVertexFormat.POSITION_TEX), LightningWorldRender::setCopyDepthShader);
+        event.registerShader(new ShaderInstance(event.getResourceManager(),
                 ResourceLocations.create(SheeperMod.MODID, "lightning_shelter_glow"),
-                DefaultVertexFormat.POSITION_COLOR), LightningRodShelterVisuals::setGlowShader);
+                DefaultVertexFormat.POSITION_COLOR), LightningWorldRender::setGlowShader);
     }
 
     /** Binds the vapor provider to the shared vanilla smoke sprite animation. */
