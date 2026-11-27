@@ -30,6 +30,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Holds the Sheeper in lightning form while ground impacts track every participant. */
 final class LightningFanAttack {
+    private static final double HOVER_HEIGHT = 5;
+    private static final double HOVER_HEIGHT_STEP = 0.25;
     private static final double HIT_RADIUS = 0.65;
     private static final double HIT_HEIGHT = 0.8;
     private static final int VISUAL_UPDATE_TICKS = 2;
@@ -42,7 +44,11 @@ final class LightningFanAttack {
     private final Map<UUID, Vec3> focuses = new HashMap<>();
     @Nullable
     private Hover hover;
+    @Nullable
+    private Vec3 landing;
     private long startedAt;
+    private long landingAt;
+    private long ascentEndsAt = -1;
     private int durationTicks;
     private int liftTicks;
     private int preparationTicks;
@@ -66,19 +72,24 @@ final class LightningFanAttack {
         if (ground == null) {
             return false;
         }
-        Vec3 position = ground.add(0, 0.65, 0);
-        if (!teleports.isSafeFanHoverPosition(position)) {
-            position = ground.add(0, 0.25, 0);
-            if (!teleports.isSafeFanHoverPosition(position)) {
-                return false;
+        Vec3 position = ground;
+        // Stop below the first obstruction so the ascent cannot skip through a low ceiling.
+        for (double height = HOVER_HEIGHT_STEP; height <= HOVER_HEIGHT; height += HOVER_HEIGHT_STEP) {
+            Vec3 candidate = ground.add(0, height, 0);
+            if (!teleports.isSafeFanHoverPosition(candidate)) {
+                break;
             }
+            position = candidate;
+        }
+        if (position.y <= ground.y || position.y <= boss.getY()) {
+            return false;
         }
         int minimum = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MIN.get());
         int maximum = SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_DURATION_MAX.get());
         durationTicks = minimum + boss.getRandom().nextInt(Math.max(0, maximum - minimum) + 1);
         preparationTicks = Math.min(durationTicks / 2,
                 SheeperConfig.secondsToTicks(LightningSheeperConfig.LIGHTNING_FAN_PREPARATION.get()));
-        liftTicks = Math.min(4, preparationTicks - 1);
+        liftTicks = Math.min(LightningSheeperEntity.ARC_TRAVEL_TICKS, preparationTicks / 2);
         lead = LightningSheeperConfig.LIGHTNING_FAN_LEAD.get();
         speed = LightningSheeperConfig.LIGHTNING_FAN_SPEED.get() / 20;
         trackingTicks = Math.max(1,
@@ -88,7 +99,6 @@ final class LightningFanAttack {
         hover = new Hover(ground, position);
         startedAt = level.getGameTime();
         boss.setTarget(null);
-        boss.startTravelArc(position, liftTicks);
         playChargeCrackle(level, 0);
         return true;
     }
@@ -103,21 +113,42 @@ final class LightningFanAttack {
         if (site == null) {
             return;
         }
-        long elapsed = level.getGameTime() - startedAt;
-        if (elapsed >= durationTicks || players.isEmpty() || !teleports.isSafeFanHoverPosition(site.position())) {
-            clear();
+        long now = level.getGameTime();
+        if (landing != null) {
+            if (now >= landingAt) {
+                if (teleports.landPreferredAttackTravel(landing)) {
+                    lifted = false;
+                }
+                clear();
+            }
             return;
         }
-        if (!lifted && elapsed >= liftTicks) {
-            teleports.teleportTo(site.position());
-            boss.startFanArcCharge(preparationTicks - liftTicks, durationTicks - preparationTicks);
-            lifted = true;
+        long elapsed = now - startedAt;
+        if (elapsed >= durationTicks || players.isEmpty() || !teleports.isSafeFanHoverPosition(site.position())) {
+            beginDescent(level, site);
+            return;
         }
-        if (elapsed < preparationTicks) {
-            if (elapsed % CHARGE_CRACKLE_INTERVAL == 0) {
+        int chargeTicks = preparationTicks - liftTicks;
+        if (elapsed < chargeTicks) {
+            boss.setLineCharge(elapsed / (float) chargeTicks);
+            if (elapsed > 0 && elapsed % CHARGE_CRACKLE_INTERVAL == 0) {
                 playChargeCrackle(level, elapsed);
             }
             return;
+        }
+        if (ascentEndsAt < 0) {
+            boss.setLineCharge(1);
+            boss.startTravelArc(site.position(), liftTicks);
+            ascentEndsAt = now + liftTicks;
+        }
+        if (now < ascentEndsAt) {
+            return;
+        }
+        if (!lifted) {
+            teleports.teleportTo(site.position());
+            boss.setLineCharge(0);
+            boss.startFanArcCharge(1, (int) (durationTicks - elapsed));
+            lifted = true;
         }
 
         Vec3 origin = boss.getBoundingBox().getCenter();
@@ -142,9 +173,28 @@ final class LightningFanAttack {
         }
     }
 
+    /** Ends the fan immediately and keeps the boss in lightning form until it reaches a safe floor. */
+    private void beginDescent(ServerLevel level, Hover site) {
+        if (!lifted) {
+            clear();
+            return;
+        }
+        Vec3 ground = site.ground();
+        if (!teleports.beginPreferredAttackTravel(ground)) {
+            ground = teleports.findGroundBelow(level, null);
+            if (ground == null || !teleports.beginPreferredAttackTravel(ground)) {
+                clear();
+                return;
+            }
+        }
+        sendVisual(level, boss.getBoundingBox().getCenter(), Map.of());
+        landing = ground;
+        landingAt = level.getGameTime() + LightningSheeperEntity.ARC_TRAVEL_TICKS;
+    }
+
     /** Overlaps the soft-edged crackle samples while raising their pitch and volume. */
     private void playChargeCrackle(ServerLevel level, long elapsed) {
-        float charge = (float) elapsed / preparationTicks;
+        float charge = (float) elapsed / (preparationTicks - liftTicks);
         float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         float pitch = 0.9F + charge * 0.45F + level.random.nextFloat() * 0.10F;
         LightningAttackSounds.play(boss, boss.getBoundingBox().getCenter(), ModSounds.LIGHTNING_FAN_CRACKLE.get(),
@@ -335,6 +385,9 @@ final class LightningFanAttack {
             }
         }
         boss.clearTravelArc();
+        boss.setLineCharge(0);
+        ascentEndsAt = -1;
+        landing = null;
         lifted = false;
         focuses.clear();
         nextHitTick.clear();

@@ -93,7 +93,7 @@ final class LightningSpecialAttacks {
             line.clear();
             ring.clear();
             tornado.clear();
-            fan.clear();
+            fan.tick(level, List.of());
             rod.clear();
             return;
         }
