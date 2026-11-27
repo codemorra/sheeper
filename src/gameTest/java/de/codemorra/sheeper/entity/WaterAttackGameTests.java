@@ -34,13 +34,14 @@ public final class WaterAttackGameTests {
 
     private static void defaultCycle(GameTestContext c) {
         var boss = WaterTestScene.boss(c);
+        c.set(WaterSheeperConfig.WATER_COMBAT_ENTRY_DELAY, 0.5);
         c.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MIN, 0.3D);
         c.set(WaterSheeperConfig.WATER_PROJECTILE_DURATION_MAX, 0.3D);
         c.set(WaterSheeperConfig.WATER_PROJECTILE_INTERVAL, 0.11);
         var a = WaterTestScene.player(c, 15, 1, 10);
         var b = WaterTestScene.player(c, 10, 1, 15);
         WaterDefaultAttack attack = new WaterDefaultAttack(boss);
-        for (int tick = 0; tick < 39; tick++) {
+        for (int tick = 0; tick < 9; tick++) {
             boss.setTarget(attack.tickTarget(List.of(a), true));
             attack.tickProjectiles();
         }
@@ -86,10 +87,12 @@ public final class WaterAttackGameTests {
         boss.readAdditionalSaveData(combat);
         boss.setNoAi(false);
         WaterTestScene.ticks(12, boss::tick);
-        int fired = c.entities(WaterProjectile.class).size();
+        c.expect(!c.entities(WaterProjectile.class).isEmpty(), "Unavailable specials must leave the boss firing");
+        c.set(WaterSheeperConfig.WATER_PROJECTILE_ENABLED, false);
+        c.entities(WaterProjectile.class).forEach(WaterProjectile::tick);
         WaterTestScene.ticks(6, boss::tick);
-        c.expect(c.entities(WaterProjectile.class).size() > fired && !boss.isPerformingWaterMines()
-                && boss.getTarget() == a, "A fallback interval must keep shooting until the next special check");
+        c.expect(c.entities(WaterProjectile.class).isEmpty() && !boss.isPerformingWaterMines()
+                && boss.getTarget() == a, "Disabling shots must preserve targeting and the fallback timer");
         boss.tick();
         c.expect(boss.isPerformingWaterMines(), "The next special check must start the newly available mines");
         c.pass();
