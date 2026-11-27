@@ -48,9 +48,9 @@ final class LightningSpecialAttacks {
         return line.isFiring() || ring.isLaunching() || tornado.isLaunching() || fan.isActive() || rod.isActive();
     }
 
-    /** Allows defensive reactions during ordinary combat, including once rings and tornadoes move independently. */
+    /** Allows defensive reactions once released attack effects no longer control the boss. */
     boolean allowsCombatDefense() {
-        return !blocksNormalMovement() && !line.isActive();
+        return !blocksNormalMovement();
     }
 
     /** @return whether an attack is charging the boss, including the sustained charge between row salvos */
