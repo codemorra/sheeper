@@ -262,16 +262,14 @@ final class LightningRodAttack {
         Vec3 point = boss.getBoundingBox().getCenter();
         double originY = Math.max(point.y + 16, boss.getStormCloudY(point));
         LightningStrikeEffect.spawnVisualBolt(level, point, originY, 2.8F);
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, point, SoundEvents.GENERIC_EXPLODE, volume * 2, 1.0F);
+        LightningAttackSounds.play(boss, point, SoundEvents.GENERIC_EXPLODE, 2, 1.0F);
     }
 
     private void showChargeStart(ServerLevel level) {
         Vec3 point = boss.getEyePosition();
         boss.startTravelArcCharge(chargeDuration, calmDuration, finaleDuration);
         shelters.beginFormation(level, boss.getBoundingBox().getCenter());
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, point, SoundEvents.LIGHTNING_BOLT_THUNDER, volume * 1.7F, 0.5F);
+        LightningAttackSounds.play(boss, point, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.7F, 0.5F);
         showCharge(level);
     }
 

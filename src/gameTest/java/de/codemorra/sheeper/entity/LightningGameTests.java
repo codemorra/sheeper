@@ -55,7 +55,7 @@ public final class LightningGameTests {
         c.set(LightningSheeperConfig.LIGHTNING_PREPARATION_DURATION, 0.0);
         c.set(LightningSheeperConfig.LIGHTNING_COMBAT_ENTRY_DELAY, 0.0);
         c.set(LightningSheeperConfig.LIGHTNING_SPAWN_PUSH_SPEED, 0.0);
-        c.set(LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT, 0);
+        c.set(LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKES_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_WIND_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_LINE_ENABLED, false);
         c.set(LightningSheeperConfig.LIGHTNING_RING_ENABLED, false);

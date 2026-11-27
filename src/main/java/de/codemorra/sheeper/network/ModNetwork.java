@@ -16,7 +16,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 public final class ModNetwork {
     // This identifies the packet format, independently of the mod's release
     // version.
-    private static final String VERSION = "42";
+    private static final String VERSION = "43";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocations.create(SheeperMod.MODID, "main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
@@ -62,6 +62,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(LightningRodShelterPacket.class, 9, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(LightningRodShelterPacket::encode).decoder(LightningRodShelterPacket::decode)
                 .consumerMainThread(LightningRodShelterPacket::handle).add();
+        CHANNEL.messageBuilder(LightningSoundPacket.class, 10, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LightningSoundPacket::encode).decoder(LightningSoundPacket::decode)
+                .consumerMainThread(LightningSoundPacket::handle).add();
     }
 
     /**
@@ -133,6 +136,11 @@ public final class ModNetwork {
 
     /** Synchronizes the visible shelters of one lightning rod attack. */
     public static void sendLightningRodShelters(ServerPlayer observer, LightningRodShelterPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
+    }
+
+    /** Sends a lightning cue to one listener for playback using their own volume settings. */
+    public static void sendLightningSound(ServerPlayer observer, LightningSoundPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> observer), packet);
     }
 

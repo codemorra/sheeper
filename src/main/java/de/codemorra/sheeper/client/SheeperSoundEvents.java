@@ -8,6 +8,7 @@ import de.codemorra.sheeper.config.SheeperClientConfig;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.WaterProjectile;
 import de.codemorra.sheeper.entity.WaterSheeperEntity;
+import de.codemorra.sheeper.network.LightningSoundPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -28,6 +29,22 @@ public final class SheeperSoundEvents {
     private static final Map<LightningSheeperEntity, LightningCrackleSound> CRACKLE_SOUNDS = new HashMap<>();
 
     private SheeperSoundEvents() {
+    }
+
+    /** Applies the local mix while retaining the position, category and pitch chosen by the server. */
+    public static void playLightningSound(LightningSoundPacket packet) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null || minecraft.player == null) {
+            return;
+        }
+        var setting = packet.ambientThunder() ? SheeperClientConfig.LIGHTNING_STORM_RUMBLE_VOLUME
+                : SheeperClientConfig.LIGHTNING_ATTACK_IMPACT_VOLUME;
+        var sound = packet.sound();
+        float volume = sound.getVolume() * setting.get().floatValue();
+        if (volume > 0) {
+            minecraft.level.playSeededSound(minecraft.player, sound.getX(), sound.getY(), sound.getZ(),
+                    sound.getSound(), sound.getSource(), volume, sound.getPitch(), sound.getSeed());
+        }
     }
 
     /**
