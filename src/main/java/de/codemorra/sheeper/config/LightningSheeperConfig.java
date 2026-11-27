@@ -58,6 +58,10 @@ public final class LightningSheeperConfig {
             .comment("Seconds after the first player enters the ready arena before combat hazards begin.")
             .defineInRange("arena.entryDelaySeconds", 2.0, 0.0, 10.0);
 
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_EMPTY_ARENA_RECOVERY_ENABLED = BUILDER
+            .comment("Allows the boss to heal in an empty arena and reset the fight after full recovery.")
+            .define("arenaRecovery.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_EMPTY_ARENA_GRACE = ElementalConfigValues
             .recoveryGrace(BUILDER, 10.0);
 
@@ -69,9 +73,9 @@ public final class LightningSheeperConfig {
             .comment("Local arena rain and thunder, including normal rain effects on exposed entities and blocks.")
             .define("storm.enabled", true);
 
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STORM_RUMBLE_VOLUME = BUILDER
-            .comment("Ambient thunder volume for players inside the arena. 0 disables rumbling.")
-            .defineInRange("storm.rumbleVolume", 0.6, 0.0, 4.0);
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_LEAF_FIRE_ENABLED = BUILDER
+            .comment("Allows lightning to ignite leaves. Turning this off also puts out existing leaf fires.")
+            .define("leafFire.enabled", true);
 
     /** Outward transport during arena startup (spawnPush). */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_SPAWN_PUSH_SPEED = ElementalConfigValues
@@ -120,6 +124,10 @@ public final class LightningSheeperConfig {
      * Defensive reactions while the boss is using its ordinary combat movement
      * (defense).
      */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_CRACKLE_ENABLED = BUILDER
+            .comment("Allows recurring defensive crackles during ordinary combat movement.")
+            .define("defense.crackleEnabled", true);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_INTERVAL_MIN = BUILDER
             .comment("Minimum seconds between the starts of defensive crackles.")
             .defineInRange("defense.crackleIntervalMinSeconds", 2.0, 0.5, 15.0);
@@ -133,24 +141,36 @@ public final class LightningSheeperConfig {
             .comment("Seconds the defensive crackle lasts.")
             .defineInRange("defense.crackleSeconds", 1.0, 0.4, 3.0);
 
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_CHARGE_RETALIATION_ENABLED = BUILDER
+            .comment("Allows melee retaliation while the boss charges an attack.")
+            .define("defense.chargeRetaliationEnabled", true);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_CRACKLE_DAMAGE = BUILDER
             .comment("Damage dealt on a melee hit during a defensive crackle or while the boss is charging an attack.",
-                    "0 disables the defensive crackle and melee retaliation.")
+                    "0 makes the shock harmless.")
             .defineInRange("defense.crackleDamage", 2.0, 0.0, 8.0);
+
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_DODGE_ENABLED = BUILDER
+            .comment("Allows the boss to dodge incoming player projectiles by teleporting.")
+            .define("defense.dodgeEnabled", true);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_DODGE_COOLDOWN = BUILDER
             .comment("Minimum seconds between defensive teleports triggered by incoming player projectiles.")
             .defineInRange("defense.dodgeCooldownSeconds", 3.0, 1.0, 20.0);
 
     /** Random arena strikes during combat (ambientLightning). */
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_AMBIENT_STRIKES_ENABLED = BUILDER
+            .comment("Allows random lightning during combat, arena buildup and idle storms.")
+            .define("ambientLightning.enabled", true);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_INTERVAL = BUILDER
             .comment("Seconds between groups of random arena strikes.")
             .defineInRange("ambientLightning.intervalSeconds", 0.5, 0.25, 5.0);
 
     public static final ForgeConfigSpec.IntValue LIGHTNING_AMBIENT_STRIKE_COUNT = BUILDER
-            .comment("Random strike locations per interval. 0 disables recurring strikes.",
+            .comment("Random strike locations per interval.",
                     "Strikes are cosmetic when no players are participating.")
-            .defineInRange("ambientLightning.strikesPerInterval", 2, 0, 4);
+            .defineInRange("ambientLightning.strikesPerInterval", 2, 1, 4);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_AMBIENT_WARNING = BUILDER
             .comment("Seconds that branching ground lines warn of an incoming strike.")
@@ -205,8 +225,17 @@ public final class LightningSheeperConfig {
                     "If set below the minimum, the minimum is used.")
             .defineInRange("wind.directionMaxSeconds", 14.0, 3.0, 30.0);
 
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_WIND_MEDIUM_GUSTS_ENABLED = BUILDER
+            .comment("Allows medium gusts during combat.")
+            .define("wind.mediumGustsEnabled", true);
+
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_WIND_LARGE_GUSTS_ENABLED = BUILDER
+            .comment("Allows large gusts during combat.")
+            .define("wind.largeGustsEnabled", true);
+
     public static final ForgeConfigSpec.IntValue LIGHTNING_WIND_LARGE_CHANCE = BUILDER
-            .comment("Chance in percent that a combat gust is wide and adds stronger drift and resistance.")
+            .comment(
+                    "Chance in percent of selecting a large gust. If the selected size is disabled, the gust is skipped.")
             .defineInRange("wind.largeGustChancePercent", 12, 0, 30);
 
     /** Recovery between special attacks (attack). */
@@ -267,11 +296,6 @@ public final class LightningSheeperConfig {
             .comment("Health points at the center of a lightning impact, before armor and difficulty scaling.",
                     "The outer block deals half damage. Each row can damage a player once. 0 disables damage.")
             .defineInRange("lineAttack.damage", 5.0, 0.0, 24.0);
-
-    /** Lightning attack audio (sound). */
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_IMPACT_VOLUME = BUILDER
-            .comment("Volume for electrical impacts and special attack cues. 0 disables these sounds.")
-            .defineInRange("sound.impactVolume", 0.8, 0.0, 4.0);
 
     /** Direct teleports followed by individual expanding rings (ring). */
     public static final ForgeConfigSpec.BooleanValue LIGHTNING_RING_ENABLED = BUILDER
@@ -446,6 +470,10 @@ public final class LightningSheeperConfig {
             .comment("Controls how many shelter spheres the arena can produce. A larger radius allows more shelters.",
                     "At a radius of 50 blocks, a value of 0.38 gives three shelters where terrain permits.")
             .defineInRange("lightningRod.sheltersPer1000Blocks", 0.38, 0.01, 1.0);
+
+    public static final ForgeConfigSpec.BooleanValue LIGHTNING_ROD_WIND_BOOST_ENABLED = BUILDER
+            .comment("Strengthens the wind and makes it rotate continuously during Lightning Rod.")
+            .define("lightningRod.windBoostEnabled", true);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_WIND_MULTIPLIER = BUILDER
             .comment("Multiplier for the arena-wide wind while the Lightning Rod is active.")

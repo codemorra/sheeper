@@ -113,7 +113,7 @@ class ElementalArenaCombat {
     }
 
     /**
-     * Preserves health throughout the grace period, then heals once per second.
+     * Preserves health when recovery is disabled and throughout the grace period, then heals once per second.
      * Returning players immediately stop regeneration at the current health.
      * The caller pauses this timer while AI is disabled or the arena is preparing.
      * Creative damage also starts recovery without adding a combat participant.
@@ -131,6 +131,12 @@ class ElementalArenaCombat {
         if (!encounterActive && boss.getHealth() >= boss.getMaxHealth()) {
             return;
         }
+        double recovery = recoveryPercent.getAsDouble();
+        if (recovery <= 0) {
+            emptyTicks = 0;
+            regenerationTicks = 0;
+            return;
+        }
         // Creative attacks can injure the boss before any combat participant enters.
         encounterActive = true;
         int grace = SheeperConfig.secondsToTicks(graceSeconds.getAsDouble());
@@ -142,8 +148,7 @@ class ElementalArenaCombat {
             regenerationTicks--;
         }
         if (regenerationTicks == 0) {
-            boss.heal((float) (boss.getMaxHealth()
-                    * recoveryPercent.getAsDouble() / 100.0D));
+            boss.heal((float) (boss.getMaxHealth() * recovery / 100.0D));
             regenerationTicks = 20;
         }
         if (boss.getHealth() >= boss.getMaxHealth()) {

@@ -200,15 +200,13 @@ final class LightningFanAttack {
     /** Overlaps the soft-edged crackle samples while raising their pitch and volume. */
     private void playChargeCrackle(ServerLevel level, long elapsed) {
         float charge = (float) elapsed / (preparationTicks - liftTicks);
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         float pitch = 0.9F + charge * 0.45F + level.random.nextFloat() * 0.10F;
         LightningAttackSounds.play(boss, boss.getBoundingBox().getCenter(), ModSounds.LIGHTNING_FAN_CRACKLE.get(),
-                volume * (0.45F + charge * 0.45F), pitch);
+                0.45F + charge * 0.45F, pitch);
     }
 
     /** Refreshes the crackle at the clipped ends as well as at the lightning core. */
     private void playActiveCrackle(ServerLevel level, Vec3 origin, Map<Integer, List<Vec3>> ends) {
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         var sources = new ArrayList<Vec3>(1 + ends.size() * 3);
         sources.add(origin);
         for (var arcs : ends.values()) {
@@ -219,7 +217,7 @@ final class LightningFanAttack {
             }
         }
         float pitch = 1.18F + level.random.nextFloat() * 0.15F;
-        LightningAttackSounds.playNearest(boss, sources, ModSounds.LIGHTNING_FAN_CRACKLE.get(), volume * 0.75F, pitch);
+        LightningAttackSounds.playNearest(boss, sources, ModSounds.LIGHTNING_FAN_CRACKLE.get(), 0.75F, pitch);
     }
 
     /** Starts short of the target and closes only part of the remaining gap each tick. */

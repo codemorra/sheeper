@@ -40,7 +40,8 @@ final class LightningCombatDefense {
             return;
         }
         tickCrackle();
-        if (level.getGameTime() < nextDodgeAt || !boss.isPickable()) {
+        if (!LightningSheeperConfig.LIGHTNING_DODGE_ENABLED.get()
+                || level.getGameTime() < nextDodgeAt || !boss.isPickable()) {
             return;
         }
         AABB body = boss.getBoundingBox().inflate(0.25);
@@ -62,12 +63,15 @@ final class LightningCombatDefense {
 
     /** Deals a light shock after an actual melee hit at any point during the crackle. */
     void retaliate(ServerPlayer player) {
+        float damage = LightningSheeperConfig.LIGHTNING_CRACKLE_DAMAGE.get().floatValue();
+        if (damage <= 0) {
+            return;
+        }
         // A recent storm hit must not absorb the shock from a successful melee hit.
         int immunity = player.invulnerableTime;
         player.invulnerableTime = 0;
         try {
-            LightningAreaDamage.hurtPlayer(boss, player, LightningSheeperConfig.LIGHTNING_CRACKLE_DAMAGE.get()
-                    .floatValue());
+            LightningAreaDamage.hurtPlayer(boss, player, damage);
         } finally {
             player.invulnerableTime = immunity;
         }
@@ -79,7 +83,7 @@ final class LightningCombatDefense {
     }
 
     private void tickCrackle() {
-        if (LightningSheeperConfig.LIGHTNING_CRACKLE_DAMAGE.get() <= 0) {
+        if (!LightningSheeperConfig.LIGHTNING_CRACKLE_ENABLED.get()) {
             clearCrackle();
             return;
         }

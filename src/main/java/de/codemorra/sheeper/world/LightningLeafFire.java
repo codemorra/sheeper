@@ -139,8 +139,11 @@ final class LightningLeafFire {
         level.sendParticles(ParticleTypes.SMOKE, x, pos.getY() + 1.08, z, 2, 0.28, 0.10, 0.28, 0.025);
     }
 
-    void clear() {
+    /** @return whether any tracked fires were extinguished */
+    boolean clear() {
+        boolean changed = !burning.isEmpty();
         burning.clear();
+        return changed;
     }
 
     ListTag save() {

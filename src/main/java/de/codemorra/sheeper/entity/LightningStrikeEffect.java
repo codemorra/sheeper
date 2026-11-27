@@ -2,7 +2,6 @@ package de.codemorra.sheeper.entity;
 
 import java.util.UUID;
 
-import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.registry.ModEntities;
 import de.codemorra.sheeper.world.LightningStormData;
 import net.minecraft.core.particles.ParticleTypes;
@@ -54,10 +53,9 @@ public final class LightningStrikeEffect extends LightningBolt {
     /** Checks leaves along weather bolts and returns the actual impact point. */
     public static Vec3 spawnWeatherBolt(ServerLevel level, UUID owner, Vec3 pos, double cloudY, boolean playImpact) {
         Vec3 hit = spawnStrike(level, owner, pos, cloudY);
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
-        if (playImpact && volume > 0) {
-            level.playSound(null, hit.x, hit.y, hit.z, SoundEvents.LIGHTNING_BOLT_IMPACT,
-                    SoundSource.WEATHER, volume, 0.9F + level.random.nextFloat() * 0.2F);
+        if (playImpact) {
+            LightningAttackSounds.playNearby(level, hit, SoundEvents.LIGHTNING_BOLT_IMPACT,
+                    SoundSource.WEATHER, 0.9F + level.random.nextFloat() * 0.2F);
         }
         return hit;
     }

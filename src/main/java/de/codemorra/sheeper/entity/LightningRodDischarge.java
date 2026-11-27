@@ -11,7 +11,6 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.world.LightningRodShelter;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -50,9 +49,8 @@ final class LightningRodDischarge {
         damage = LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE.get().floatValue();
         previousImpact = null;
         struckMobs.clear();
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
         LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.LIGHTNING_BOLT_THUNDER,
-                volume * 2.4F, 0.9F);
+                2.4F, 0.9F);
     }
 
     /** @return whether the barrage has time left after this tick */
@@ -189,12 +187,11 @@ final class LightningRodDischarge {
 
     /** Plays one real impact direction per listener so the barrage stays audible across the arena. */
     static void playImpacts(ServerLevel level, List<ServerPlayer> participants, List<Vec3> impacts) {
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
-        if (volume <= 0 || impacts.isEmpty()) {
+        if (impacts.isEmpty()) {
             return;
         }
         var sound = SoundEvents.LIGHTNING_BOLT_IMPACT;
-        double range = sound.getRange(volume);
+        double range = LightningAttackSounds.deliveryRange(sound, 1);
         for (ServerPlayer player : level.players()) {
             Vec3 listener = player.getEyePosition();
             Vec3 nearest = impacts.get(0);
@@ -212,8 +209,7 @@ final class LightningRodDischarge {
                 continue;
             }
             float pitch = 0.9F + level.random.nextFloat() * 0.2F;
-            player.connection.send(new ClientboundSoundPacket(sound, SoundSource.HOSTILE,
-                    nearest.x, nearest.y, nearest.z, volume, pitch, level.random.nextLong()));
+            LightningAttackSounds.send(player, nearest, sound, SoundSource.HOSTILE, 1, pitch, level.random.nextLong());
         }
     }
 

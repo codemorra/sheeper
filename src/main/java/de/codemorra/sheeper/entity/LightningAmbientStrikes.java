@@ -45,10 +45,8 @@ final class LightningAmbientStrikes {
 
     /** Doubles random strikes during the charge and reserves the calm window for the special attack. */
     void tick(ServerLevel level, List<ServerPlayer> participants, boolean fighting, int intensifiedTicksRemaining) {
-        int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
-        if (count == 0) {
-            clearEffects();
-            intervalTicks = 0;
+        if (!LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKES_ENABLED.get()) {
+            reset();
             return;
         }
 
@@ -82,6 +80,7 @@ final class LightningAmbientStrikes {
         double outerRadius = centerRadius + LightningSheeperConfig.LIGHTNING_AMBIENT_EDGE_WIDTH.get();
         double height = LightningSheeperConfig.LIGHTNING_AMBIENT_HIT_HEIGHT.get();
         int multiplier = intensified ? 2 : 1;
+        int count = LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKE_COUNT.get();
         for (int index = 0; index < count * multiplier && pending.size() < MAX_PENDING * multiplier; index++) {
             randomStrike(level, impactTick, centerRadius, outerRadius, height).ifPresent(strike -> {
                 pending.add(strike);

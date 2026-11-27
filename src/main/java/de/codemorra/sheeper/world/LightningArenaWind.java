@@ -60,7 +60,10 @@ public final class LightningArenaWind {
     /** Advances the arena wind, switching to continuous rotation during the lightning rod charge. */
     boolean tick(ServerLevel level, Arena arena, List<ServerPlayer> participants, boolean intensify) {
         long now = level.getGameTime();
-        boolean changed = active.removeIf(gust -> gust.expired(now));
+        boolean mediumGusts = LightningSheeperConfig.LIGHTNING_WIND_MEDIUM_GUSTS_ENABLED.get();
+        boolean largeGusts = LightningSheeperConfig.LIGHTNING_WIND_LARGE_GUSTS_ENABLED.get();
+        boolean changed = active.removeIf(gust -> gust.expired(now)
+                || (gust.size() == Size.LARGE ? !largeGusts : !mediumGusts));
         if (nextTurn < 0 || now >= nextTurn || intensified != intensify) {
             updateHeading(level, arena, now, intensify);
             changed = true;
@@ -72,7 +75,7 @@ public final class LightningArenaWind {
         }
         LightningWindField field = snapshot(arena);
         if (!participants.isEmpty() && now >= nextGust) {
-            LightningWindGust gust = plan(level, field, participants, now);
+            LightningWindGust gust = plan(level, field, participants, now, mediumGusts, largeGusts);
             nextGust = now + 24 + level.random.nextInt(23);
             if (gust != null) {
                 active.add(gust);
@@ -123,11 +126,15 @@ public final class LightningArenaWind {
     }
 
     @Nullable
-    private LightningWindGust plan(ServerLevel level, LightningWindField field, List<ServerPlayer> participants, long now) {
+    private LightningWindGust plan(ServerLevel level, LightningWindField field, List<ServerPlayer> participants, long now,
+            boolean mediumGusts, boolean largeGusts) {
         Arena arena = field.arena();
         int roll = level.random.nextInt(100);
         int largeChance = LightningSheeperConfig.LIGHTNING_WIND_LARGE_CHANCE.get();
         Size size = roll < largeChance ? Size.LARGE : Size.MEDIUM;
+        if (size == Size.LARGE ? !largeGusts : !mediumGusts) {
+            return null;
+        }
         double width = switch (size) {
             case MEDIUM -> 4 + level.random.nextDouble() * 2;
             case LARGE -> 6 + level.random.nextDouble() * 3;

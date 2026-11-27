@@ -92,7 +92,8 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
             this::resetArenaEncounter, LightningSheeperConfig.LIGHTNING_MAX_HEALTH::get,
             LightningSheeperConfig.LIGHTNING_HEALTH_PER_ADDITIONAL_PLAYER::get,
             LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_GRACE::get,
-            LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_REGENERATION::get);
+            () -> LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_RECOVERY_ENABLED.get()
+                    ? LightningSheeperConfig.LIGHTNING_EMPTY_ARENA_REGENERATION.get() : 0);
     private int encounterEntryTicks = -1;
     private float previousLineCharge;
     private long deathStartedAt = -1;
@@ -331,8 +332,10 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         float healthBefore = getHealth() + getAbsorptionAmount();
-        boolean canRetaliate = specialAttacks.hasChargeRetaliation()
-                || isDefenseCrackling() && specialAttacks.allowsCombatDefense();
+        boolean canRetaliate = LightningSheeperConfig.LIGHTNING_CHARGE_RETALIATION_ENABLED.get()
+                && specialAttacks.hasChargeRetaliation()
+                || LightningSheeperConfig.LIGHTNING_CRACKLE_ENABLED.get()
+                        && isDefenseCrackling() && specialAttacks.allowsCombatDefense();
         boolean accepted = super.hurt(source, amount);
         if (canRetaliate && accepted && getHealth() + getAbsorptionAmount() < healthBefore
                 && source.getDirectEntity() instanceof ServerPlayer player && !player.isCreative()

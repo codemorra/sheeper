@@ -124,8 +124,7 @@ final class LightningTornadoAttack {
         if (destination != null) {
             teleports.faceDestination(destination);
         }
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
-        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.PHANTOM_FLAP, volume, 0.65F);
+        LightningAttackSounds.play(boss, boss.getEyePosition(), SoundEvents.PHANTOM_FLAP, 1, 0.65F);
     }
 
     /** Launches from the landing position once per interval, including a separate lifetime for each funnel. */
@@ -169,11 +168,7 @@ final class LightningTornadoAttack {
         double availableDistance = movementRadius + origin.subtract(center).horizontalDistance();
         double heading = boss.getRandom().nextDouble() * 2 * Math.PI;
         funnels.add(new Funnel(snapshot, heading, Math.min(launchDistance, availableDistance)));
-        float volume = LightningSheeperConfig.LIGHTNING_ATTACK_IMPACT_VOLUME.get().floatValue();
-        if (volume > 0) {
-            level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.TRIDENT_RIPTIDE_1,
-                    SoundSource.HOSTILE, volume, 0.62F);
-        }
+        LightningAttackSounds.playNearby(level, origin, SoundEvents.TRIDENT_RIPTIDE_1, SoundSource.HOSTILE, 0.62F);
     }
 
     void tick(ServerLevel level) {

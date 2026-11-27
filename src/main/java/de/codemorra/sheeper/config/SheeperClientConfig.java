@@ -100,11 +100,7 @@ public final class SheeperClientConfig {
             .comment("Local volume multiplier for cooked internal explosions (normally quieter). 0 mutes them.")
             .defineInRange("sound.cookedInternalExplosionVolume", 1.0, 0.0, 4.0);
 
-    /** Local density of the continuous wind lines in lightning arenas. */
-    public static final ForgeConfigSpec.DoubleValue LIGHTNING_WIND_LINE_DENSITY = BUILDER
-            .comment("Multiplier for the number of background wind lines in lightning arenas. 0 hides them.")
-            .defineInRange("lightning.windLineDensity", 2.0, 0.0, 3.0);
-
+    /** Local water arena presentation. */
     public static final ForgeConfigSpec.DoubleValue WATER_FOG_DISTANCE = BUILDER
             .comment("Base distance in blocks over which arena water fog becomes dense. Higher values improve visibility.")
             .defineInRange("water.fogDistance", 32.0, 16.0, 96.0);
@@ -113,13 +109,26 @@ public final class SheeperClientConfig {
             .comment("Density multiplier for water arena fog. Higher values make it denser. 0 hides it.")
             .defineInRange("water.fogIntensity", 1.0, 0.0, 3.0);
 
+    /** Local lightning arena visuals and audio. */
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FOG_INTENSITY = BUILDER
             .comment("Density multiplier for storm fog. 0 hides the fog. Daylight shading is independent.")
             .defineInRange("lightning.fogIntensity", 1.0, 0.0, 3.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_WIND_LINE_DENSITY = BUILDER
+            .comment("Multiplier for the number of background wind lines in lightning arenas. 0 hides them.")
+            .defineInRange("lightning.windLineDensity", 2.0, 0.0, 3.0);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_RING_ARC_SPACING = BUILDER
             .comment("Target spacing in blocks between visible lightning arcs on a ring wave. Lower values show more arcs.")
             .defineInRange("lightning.ringArcSpacing", 1.55, 0.75, 3.1);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_STORM_RUMBLE_VOLUME = BUILDER
+            .comment("Local volume for ambient thunder inside lightning arenas. 0 mutes it.")
+            .defineInRange("lightning.rumbleVolume", 0.6, 0.0, 4.0);
+
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ATTACK_IMPACT_VOLUME = BUILDER
+            .comment("Local volume for electrical impacts and special attack cues. 0 mutes these sounds.")
+            .defineInRange("lightning.impactVolume", 0.8, 0.0, 4.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

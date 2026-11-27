@@ -15,6 +15,7 @@ import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.entity.LightningRingSurface;
 import de.codemorra.sheeper.entity.LightningSheeperEntity;
 import de.codemorra.sheeper.entity.LightningStrikeEffect;
+import de.codemorra.sheeper.network.LightningSoundPacket;
 import de.codemorra.sheeper.network.LightningTornadoPacket;
 import de.codemorra.sheeper.network.LightningWeatherPacket;
 import de.codemorra.sheeper.network.ModNetwork;
@@ -22,6 +23,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -159,7 +161,8 @@ public final class LightningStormData extends SavedData {
     /** Sets a directly struck leaf alight in the attack owner's arena. */
     public void igniteLeaves(ServerLevel level, UUID owner, BlockPos pos) {
         Storm storm = storms.get(owner);
-        if (storm != null && storm.deathDrainAt == 0 && !storm.arena.isDraining()
+        if (LightningSheeperConfig.LIGHTNING_LEAF_FIRE_ENABLED.get()
+                && storm != null && storm.deathDrainAt == 0 && !storm.arena.isDraining()
                 && storm.leafFire.ignite(level, storm.arena, pos)) {
             setDirty();
         }
@@ -168,7 +171,8 @@ public final class LightningStormData extends SavedData {
     /** Checks the visible cloud-to-impact path for leaves in an active arena. */
     public void igniteCloudStrike(ServerLevel level, UUID owner, Vec3 impact, double cloudY) {
         Storm storm = storms.get(owner);
-        if (storm != null && storm.deathDrainAt == 0 && !storm.arena.isDraining()
+        if (LightningSheeperConfig.LIGHTNING_LEAF_FIRE_ENABLED.get()
+                && storm != null && storm.deathDrainAt == 0 && !storm.arena.isDraining()
                 && storm.leafFire.strike(level, storm.arena, impact, cloudY)) {
             setDirty();
         }
@@ -192,6 +196,7 @@ public final class LightningStormData extends SavedData {
         boolean changed = removed;
         boolean windCleared = false;
         boolean enabled = hasStorms();
+        boolean leafFireEnabled = LightningSheeperConfig.LIGHTNING_LEAF_FIRE_ENABLED.get();
         Set<UUID> carriedPlayers = new HashSet<>();
         Set<UUID> playersTouchingFire = new HashSet<>();
         for (var entry : storms.entrySet()) {
@@ -203,7 +208,8 @@ public final class LightningStormData extends SavedData {
             if (storm.deathDrainAt != 0 || storm.arena.isDraining()) {
                 continue;
             }
-            changed |= storm.leafFire.tick(level, storm.arena, playersTouchingFire);
+            changed |= leafFireEnabled ? storm.leafFire.tick(level, storm.arena, playersTouchingFire)
+                    : storm.leafFire.clear();
             changed |= enabled ? storm.spawnPush.tick(level, storm.arena, carriedPlayers)
                     : storm.spawnPush.clear(level, carriedPlayers);
             boolean hasBoss = level.getEntity(entry.getKey()) instanceof LightningSheeperEntity;
@@ -277,7 +283,8 @@ public final class LightningStormData extends SavedData {
         if (darkeningChanged) {
             storm.arena = storm.arena.withRodDarkening(rodActive, level.getGameTime());
         }
-        boolean changed = active ? storm.wind.tick(level, storm.arena, participants, rodActive)
+        boolean boostWind = rodActive && LightningSheeperConfig.LIGHTNING_ROD_WIND_BOOST_ENABLED.get();
+        boolean changed = active ? storm.wind.tick(level, storm.arena, participants, boostWind)
                 : storm.wind.clear();
         if (changed || quietChanged || darkeningChanged) {
             sync(level);
@@ -293,7 +300,7 @@ public final class LightningStormData extends SavedData {
     /** Storm lightning uses the visual bolt alone, keeping warnings reserved for combat. */
     private static void tickAtmosphere(ServerLevel level, UUID owner, Storm storm, long now) {
         boolean building = storm.arena.isBuilding(now);
-        if (now >= storm.nextFlash) {
+        if (LightningSheeperConfig.LIGHTNING_AMBIENT_STRIKES_ENABLED.get() && now >= storm.nextFlash) {
             if (building) {
                 flash(level, owner, storm.arena, now, true);
                 storm.nextFlash = now + 8 + level.random.nextInt(10);
@@ -310,12 +317,13 @@ public final class LightningStormData extends SavedData {
             }
         }
         if (now >= storm.nextRumble) {
-            float volume = LightningSheeperConfig.LIGHTNING_STORM_RUMBLE_VOLUME.get().floatValue();
             for (var player : level.players()) {
                 float strength = storm.arena.intensityAt(now, player.getX(), player.getEyeY(), player.getZ());
-                if (volume > 0 && strength > 0) {
-                    player.playNotifySound(SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER,
-                            volume * strength, 0.7F + level.random.nextFloat() * 0.25F);
+                if (strength > 0) {
+                    var cue = new ClientboundSoundPacket(SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER,
+                            player.getX(), player.getY(), player.getZ(), strength,
+                            0.7F + level.random.nextFloat() * 0.25F, player.getRandom().nextLong());
+                    ModNetwork.sendLightningSound(player, new LightningSoundPacket(cue, true));
                 }
             }
             storm.nextRumble = now + 100 + level.random.nextInt(160);
