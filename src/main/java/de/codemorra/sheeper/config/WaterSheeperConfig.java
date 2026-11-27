@@ -55,7 +55,7 @@ public final class WaterSheeperConfig {
             .boundaryWidth(BUILDER, 1.5);
 
     public static final ForgeConfigSpec.DoubleValue WATER_BOUNDARY_SLOWDOWN_STRENGTH = ElementalConfigValues
-            .boundaryStrength(BUILDER, 0.35);
+            .boundaryStrength(BUILDER, 0.70);
 
     /** Empty-arena grace and recovery (arenaRecovery). */
     public static final ForgeConfigSpec.BooleanValue WATER_EMPTY_ARENA_RECOVERY_ENABLED = BUILDER
