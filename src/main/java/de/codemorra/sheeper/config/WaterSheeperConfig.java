@@ -178,6 +178,15 @@ public final class WaterSheeperConfig {
             .comment("Upward launch velocity in blocks per tick from proximity pushes and mine blasts.")
             .defineInRange("proximityPush.upwardStrength", 1.0, 0.0, 3.9);
 
+    /** Defensive bubble dodge (defense). */
+    public static final ForgeConfigSpec.BooleanValue WATER_DODGE_ENABLED = BUILDER
+            .comment("Allows the boss to evade incoming player projectiles as a bubble cloud.")
+            .define("defense.dodgeEnabled", true);
+
+    public static final ForgeConfigSpec.DoubleValue WATER_DODGE_COOLDOWN = BUILDER
+            .comment("Minimum seconds between defensive bubble dodges.")
+            .defineInRange("defense.dodgeCooldownSeconds", 3.0, 1.0, 20.0);
+
     /** Water projectiles (projectile). */
     public static final ForgeConfigSpec.BooleanValue WATER_PROJECTILE_ENABLED = BUILDER
             .comment("Allows the boss to fire water projectiles.",
