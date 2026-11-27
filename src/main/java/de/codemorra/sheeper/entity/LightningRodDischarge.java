@@ -22,7 +22,9 @@ import net.minecraft.world.phys.Vec3;
 
 /** Runs the rapid final barrage and checks each player's shelter on every damage pulse. */
 final class LightningRodDischarge {
-    private static final int DAMAGE_INTERVAL = 10;
+    private static final int GROUND_DAMAGE_INTERVAL = 5;
+    private static final int BARRAGE_DAMAGE_INTERVAL = 10;
+    private static final double GROUND_REACH = 1.25;
     // A positional storm pulse should not knock the player away from the boss on the other side of the arena.
     private static final DamageSource DAMAGE = new DamageSource("lightningBolt").setScalesWithDifficulty();
 
@@ -31,6 +33,7 @@ final class LightningRodDischarge {
     private final Set<UUID> struckMobs = new HashSet<>();
     private int age;
     private int remaining;
+    private long nextGroundPulse = -1;
     private float damage;
     @Nullable
     private Vec3 previousImpact;
@@ -43,6 +46,7 @@ final class LightningRodDischarge {
     void start(int durationTicks) {
         age = 0;
         remaining = durationTicks;
+        nextGroundPulse = -1;
         damage = LightningSheeperConfig.LIGHTNING_ROD_FINALE_DAMAGE.get().floatValue();
         previousImpact = null;
         struckMobs.clear();
@@ -53,12 +57,15 @@ final class LightningRodDischarge {
 
     /** @return whether the barrage has time left after this tick */
     boolean tick(ServerLevel level, List<ServerPlayer> players) {
-        showBolts(level, players);
-        if (damage > 0 && age % DAMAGE_INTERVAL == 0) {
+        if (showBolts(level, players)) {
+            energizeGround(level);
+        }
+        tickGround(level, players);
+        if (damage > 0 && age % BARRAGE_DAMAGE_INTERVAL == 0) {
+            // Going airborne can avoid the faster ground pulses, but the barrage still reaches exposed players.
             for (ServerPlayer player : players) {
-                if (player.isAlive() && LightningAreaDamage.hurtPlayer(boss, player, DAMAGE, damage)) {
-                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.65,
-                            player.getZ(), 7, 0.22, 0.26, 0.22, 0.1);
+                if (player.isAlive() && !touchesChargedGround(level, player)) {
+                    hurtPlayer(level, player);
                 }
             }
             for (var target : LightningAreaDamage.arenaMobs(boss)) {
@@ -69,10 +76,55 @@ final class LightningRodDischarge {
         return --remaining > 0;
     }
 
+    /** Starts both the visible charge and damage clock on the first actual impact. */
+    void energizeGround(ServerLevel level) {
+        if (nextGroundPulse < 0) {
+            nextGroundPulse = level.getGameTime();
+            shelters.beginGroundCharge(level);
+        }
+    }
+
+    /** Damages exposed players touching the arena floor, including during the final fade. */
+    void tickGround(ServerLevel level, List<ServerPlayer> players) {
+        long now = level.getGameTime();
+        if (damage <= 0 || nextGroundPulse < 0 || now < nextGroundPulse) {
+            return;
+        }
+        nextGroundPulse = now + GROUND_DAMAGE_INTERVAL;
+        for (ServerPlayer player : players) {
+            if (!player.isAlive() || LightningAreaDamage.isSheltered(player) || !touchesChargedGround(level, player)) {
+                continue;
+            }
+            // This hazard has its own pulse clock. Keep the existing immunity timer for other damage sources.
+            int immunity = player.invulnerableTime;
+            player.invulnerableTime = 0;
+            try {
+                hurtPlayer(level, player);
+            } finally {
+                player.invulnerableTime = immunity;
+            }
+        }
+    }
+
+    private boolean touchesChargedGround(ServerLevel level, ServerPlayer player) {
+        double surface = LightningRingSurface.findForRod(level, player.getX(), player.getZ(),
+                boss.getArenaCenter().getY(), boss.getArenaMinimumY(), boss.getArenaMaximumY() - 1);
+        double clearance = player.getY() - surface;
+        return clearance <= GROUND_REACH && (clearance >= -0.05 || player.isInWater());
+    }
+
+    private void hurtPlayer(ServerLevel level, ServerPlayer player) {
+        if (LightningAreaDamage.hurtPlayer(boss, player, DAMAGE, damage)) {
+            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.65,
+                    player.getZ(), 7, 0.22, 0.26, 0.22, 0.1);
+        }
+    }
+
     /** Scatters rapid cloud bolts across the arena and deliberately repeats a previous strike periodically. */
-    private void showBolts(ServerLevel level, List<ServerPlayer> players) {
+    private boolean showBolts(ServerLevel level, List<ServerPlayer> players) {
         int count = Mth.clamp(Mth.ceil(boss.getCombatRadius() / 9), 3, 12);
         boolean audibleBeat = age % 6 == 0;
+        boolean impact = false;
         List<Vec3> audibleImpacts = audibleBeat ? new ArrayList<>(count) : List.of();
         for (int index = 0; index < count; index++) {
             boolean repeat = index == 0 && audibleBeat && previousImpact != null;
@@ -80,6 +132,7 @@ final class LightningRodDischarge {
             if (position != null) {
                 Vec3 hit = LightningStrikeEffect.spawnWeatherBolt(level, boss.getUUID(), position,
                         boss.getStormCloudY(position), false);
+                impact = true;
                 if (hit.equals(position) && damage > 0) {
                     strikeMobsAt(position);
                 }
@@ -97,10 +150,12 @@ final class LightningRodDischarge {
             for (int index = 0; !active.isEmpty() && index < strikesPerBeat; index++) {
                 LightningRodShelter shelter = active.get((first + index) % active.size());
                 audibleImpacts.add(strikeShelter(level, shelter));
+                impact = true;
             }
             playImpacts(level, players, audibleImpacts);
             showChargeRelease(level);
         }
+        return impact;
     }
 
     /** Only actual ground impacts can trigger a mob's vanilla lightning reaction during the barrage. */
@@ -187,15 +242,13 @@ final class LightningRodDischarge {
     private Vec3 resolveSurface(ServerLevel level, Vec3 column) {
         int minY = boss.getArenaMinimumY();
         int maxY = boss.getArenaMaximumY() - 1;
-        double y = LightningRingSurface.findWater(level, column.x, column.z, minY, maxY);
-        if (!Double.isFinite(y)) {
-            y = LightningRingSurface.find(level, column.x, column.z, column.y, minY, maxY);
-        }
+        double y = LightningRingSurface.findForRod(level, column.x, column.z, column.y, minY, maxY);
         return Double.isFinite(y) ? new Vec3(column.x, y, column.z) : null;
     }
 
     void clear() {
         remaining = 0;
+        nextGroundPulse = -1;
         previousImpact = null;
         struckMobs.clear();
     }

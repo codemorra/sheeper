@@ -410,7 +410,7 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_CHARGE_DURATION = BUILDER
             .comment("Seconds the Sheeper builds its charge after arriving at the center, before the calm phase.")
-            .defineInRange("lightningRod.chargeSeconds", 18.0, 2.0, 30.0);
+            .defineInRange("lightningRod.chargeSeconds", 12.0, 2.0, 30.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_RADIUS = BUILDER
             .comment("Radius of the shelter spheres in blocks, limited by the arena sides and ceiling.")
@@ -435,14 +435,19 @@ public final class LightningSheeperConfig {
             .defineInRange("lightningRod.finaleSeconds", 4.0, 0.5, 6.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_FINALE_DAMAGE = BUILDER
-            .comment(
-                    "Damage in health points per half-second pulse outside the shelter spheres, before armor and difficulty.")
+            .comment("Damage in health points every quarter second on electrified ground outside shelter spheres.",
+                    "The barrage hits airborne players half as often. Armor and difficulty apply. 0 disables damage.")
             .defineInRange("lightningRod.finaleDamage", 6.0, 0.0, 16.0);
 
+    public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_GROUND_FADE_DURATION = BUILDER
+            .comment("Seconds the ground stays dangerous while its lightning fades after the last strike.",
+                    "0 ends the ground charge immediately.")
+            .defineInRange("lightningRod.groundFadeSeconds", 1.5, 0.0, 3.0);
+
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION = BUILDER
-            .comment(
-                    "Seconds the shelter spheres take to fade after the final bolt. The Sheeper stays in lightning form.")
-            .defineInRange("lightningRod.shelterDissolveSeconds", 1.5, 0.5, 3.0);
+            .comment("Seconds the shelter spheres take to fade after the final bolt.",
+                    "The spheres protect players until the ground charge ends.")
+            .defineInRange("lightningRod.shelterDissolveSeconds", 2.0, 0.5, 3.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

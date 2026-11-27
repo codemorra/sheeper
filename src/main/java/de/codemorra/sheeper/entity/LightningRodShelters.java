@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import de.codemorra.sheeper.config.LightningSheeperConfig;
 import de.codemorra.sheeper.config.SheeperConfig;
 import de.codemorra.sheeper.network.LightningRodShelterPacket;
+import de.codemorra.sheeper.network.LightningRodShelterPacket.GroundCharge;
 import de.codemorra.sheeper.network.ModNetwork;
 import de.codemorra.sheeper.world.LightningRodShelter;
 import de.codemorra.sheeper.world.LightningStormData;
@@ -34,6 +35,8 @@ final class LightningRodShelters {
     private long nextRefresh;
     private long dissolveStart;
     private int dissolveTicks;
+    private long groundChargeStart = -1;
+    private int groundFadeTicks;
 
     LightningRodShelters(LightningSheeperEntity boss) {
         this.boss = boss;
@@ -156,11 +159,18 @@ final class LightningRodShelters {
         }
     }
 
-    /** Starts one synchronized fade after the last visible bolt has expired. */
-    void beginDissolve(ServerLevel level) {
+    /** Starts the ground effect immediately, including for players joining during the barrage. */
+    void beginGroundCharge(ServerLevel level) {
+        groundChargeStart = level.getGameTime();
+        send(level);
+    }
+
+    /** Starts both fades at the final impact and keeps the spheres intact until the floor is safe. */
+    void beginDissolve(ServerLevel level, int groundFadeTicks) {
         dissolveStart = level.getGameTime();
-        dissolveTicks = SheeperConfig.secondsToTicks(
-                LightningSheeperConfig.LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION.get());
+        this.groundFadeTicks = groundFadeTicks;
+        dissolveTicks = Math.max(groundFadeTicks, SheeperConfig.secondsToTicks(
+                LightningSheeperConfig.LIGHTNING_ROD_SHELTER_DISSOLVE_DURATION.get()));
         nextRefresh = dissolveStart;
         tick(level);
     }
@@ -190,6 +200,8 @@ final class LightningRodShelters {
     void clear() {
         dissolveStart = 0;
         dissolveTicks = 0;
+        groundChargeStart = -1;
+        groundFadeTicks = 0;
         long previousFormation = formationStart;
         formationStart = -1;
         if (!shelters.isEmpty()) {
@@ -277,8 +289,12 @@ final class LightningRodShelters {
     }
 
     private void send(ServerLevel level) {
+        GroundCharge ground = groundChargeStart < 0 ? null
+                : new GroundCharge(boss.getArenaCenter(), boss.getCombatRadius(), boss.getArenaMinimumY(),
+                        boss.getArenaMaximumY() - 1, groundChargeStart, isDissolving() ? dissolveStart : -1,
+                        groundFadeTicks);
         var snapshot = new LightningRodShelterPacket(level.dimension().location(), boss.getUUID(), shelters,
-                boltOrigin, Math.max(0, formationStart), dissolveStart, dissolveTicks);
+                boltOrigin, Math.max(0, formationStart), dissolveStart, dissolveTicks, ground);
         double range = boss.getCombatRadius() + 64;
         Vec3 center = Vec3.atBottomCenterOf(boss.getArenaCenter());
         for (ServerPlayer observer : level.players()) {

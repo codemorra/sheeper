@@ -119,6 +119,10 @@ public final class LightningRodShelterVisuals {
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         List<LightningRodShelter> shells = visibleShells(currentLevel, time);
         for (Snapshot snapshot : active.values()) {
+            var ground = snapshot.packet().ground();
+            if (ground != null) {
+                LightningRodGroundVisuals.draw(buffer, level, camera, ground, time, shells);
+            }
             double visibility = snapshot.visibilityAt(time);
             if (visibility <= 0) {
                 continue;

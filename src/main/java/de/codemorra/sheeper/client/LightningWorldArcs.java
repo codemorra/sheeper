@@ -16,7 +16,7 @@ final class LightningWorldArcs {
         segment(buffer, elbow, end, width, alpha);
     }
 
-    private static void segment(BufferBuilder buffer, Vec3 from, Vec3 to, double width, float alpha) {
+    static void segment(BufferBuilder buffer, Vec3 from, Vec3 to, double width, float alpha) {
         Vec3 forward = to.subtract(from).normalize();
         Vec3 side = new Vec3(-forward.z, 0, forward.x).normalize().scale(width);
         if (side.lengthSqr() == 0) {
