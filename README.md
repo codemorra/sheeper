@@ -51,8 +51,9 @@ Sheeper look like ordinary sheep, but approach when you look away and explode if
 
 - **Storm arena:** Local rain, wind and thunder accompany the fight. Random lightning is announced on the ground and can electrify connected water.
 - **Teleporting movement:** The boss travels in lightning form, including between attacks. It prefers clear skies and searches farther afield when its usual jumps are blocked.
+- **Defense:** The boss can dodge incoming projectiles if it has time to react. Landing a melee hit while it crackles or charges an attack shocks the attacker.
 - **Special attacks:** The boss fires rows of lightning, launches expanding ground rings and roaming tornadoes, and tracks players with lightning fans.
-- **Lightning Rod:** The boss charges above the arena and releases a barrage. Glowing shelter spheres intercept lightning and protect players inside.
+- **Lightning Rod:** The boss charges above the arena and releases a barrage that electrifies the ground. Glowing shelter spheres intercept lightning and protect players until the ground charge fades.
 
 ### Explosive wool
 
@@ -107,7 +108,7 @@ Each element has its own common config file with top-level sections such as `[bo
 
 - **Shared options:** Each element has independent `size` and `maxHealth` settings under `[boss]`. Size changes also affect hitboxes. Health changes preserve the remaining health percentage. The server synchronizes boss size to clients.
 - **Water:** `water.toml` controls the virtual arena, movement, attacks, proximity defense, and recovery.
-- **Lightning:** `lightning.toml` controls arena bounds, the opening wind wave, teleports, attacks, and local weather.
+- **Lightning:** `lightning.toml` controls arena bounds, the opening wind wave, teleports, defense, attacks, storm hazards, and empty-arena recovery.
 
 **Presentation: `config/sheeper-client.toml`**
 
@@ -116,6 +117,7 @@ Each player controls their own visuals and audio. These settings do not change s
 - **Tint:** Enable skin and screen tint independently; adjust raw/cooked strength, pulse attack/release/decay times in seconds, and final fade duration. Both tints share the same pulse curve.
 - **Vapor:** Enable/disable it, set raw/cooked size and puff counts, and adjust sequence spacing and the continuous cooked stream's interval. Minecraft's Minimal particle setting also hides vapor. An existing short sequence finishes with its captured count/spacing; the next uses the new settings.
 - **Sound:** Separate local volume multipliers for warnings, raw internal explosions, and cooked internal explosions. These settings leave ordinary sheep and TNT sounds unchanged.
+- **Arena presentation:** Adjust Water and Lightning fog, Lightning wind and ring visuals, and the volume of Lightning thunder and attack cues.
 
 ## Development Environment
 
@@ -143,7 +145,7 @@ Run the automated verification with Java 17:
 ```
 
 - Builds the mod, checks wool/carpet resources and JAR contents, and runs the GameTests.
-- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water boss encounters/persistence, and packet contracts.
+- Covers representative fuse/cancellation, death loot, wool interactions, carpet stepping/crouching and harvesting, cooking, eating/milk, baby damage, natural replacement, dye-recipe, elemental boss configuration/boss bars, Water and Lightning boss encounters, and packet contracts.
 - Each run uses a fresh test world in `build/gametest/run/`; development worlds and configuration in `run/` are preserved. Test classes and scenes are excluded from the mod JAR.
 - Stops on the first failed test and fails on missing/incomplete results. Results are in `build/reports/gametest/results.xml`; server logs are in `build/gametest/run/logs/`.
 - Pull requests targeting `main` automatically run the same verification with Java 17. Reports and server logs are uploaded as the `verification-reports` artifact, including on failure.
