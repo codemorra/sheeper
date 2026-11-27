@@ -18,13 +18,13 @@ public final class LightningTravelArcRenderer {
     /** Returns whether the boss has lightning geometry to submit for this frame. */
     public static boolean hasEffect(LightningSheeperEntity boss, @Nullable TravelArc arc, float partialTick) {
         return !boss.isInvisible() && (arc != null || boss.getDeathSparkOpacity(partialTick) > 0
-                || boss.isAlive() && boss.getLineCharge(partialTick) > 0);
+                || boss.isDefenseCrackling() || boss.isAlive() && boss.getLineCharge(partialTick) > 0);
     }
 
     /** Writes the boss's electrical effects using a pose translated to the boss's interpolated position. */
     public static void draw(LightningSheeperEntity boss, @Nullable TravelArc arc, float partialTick,
             Matrix4f matrix, VertexConsumer buffer) {
-        float charge = boss.getLineCharge(partialTick);
+        float charge = boss.isDefenseCrackling() ? 0.85F : boss.getLineCharge(partialTick);
         if (arc != null) {
             renderArc(boss, arc, partialTick, matrix, buffer);
             if (!arc.isCharging() && charge > 0) {

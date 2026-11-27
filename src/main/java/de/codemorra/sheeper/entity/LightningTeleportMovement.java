@@ -147,6 +147,24 @@ final class LightningTeleportMovement {
         return prepareJump(focus);
     }
 
+    /** Replaces a normal warning with a quicker jump, preserving the current movement focus. */
+    boolean prepareDodge(int warningTicks) {
+        if (arcTicks > 0 || recoveringJump || boss.getMovementRadius() <= 0) {
+            return false;
+        }
+        Vec3 landing = findAttackDestination();
+        if (landing == null) {
+            return false;
+        }
+        destination = landing;
+        warningRemaining = warningTicks;
+        walkRemaining = 0;
+        walking = false;
+        faceDestination(landing);
+        showBurst(boss.position());
+        return true;
+    }
+
     private boolean prepareJump(@Nullable ServerPlayer focus) {
         recoveringJump = failedJumps >= FAILED_JUMPS_BEFORE_RECOVERY;
         ServerLevel level = (ServerLevel) boss.level;

@@ -48,6 +48,11 @@ final class LightningSpecialAttacks {
         return line.isFiring() || ring.isLaunching() || tornado.isLaunching() || fan.isActive() || rod.isActive();
     }
 
+    /** Allows defensive reactions during ordinary combat and after the last tornado has launched. */
+    boolean allowsCombatDefense() {
+        return !blocksNormalMovement() && !line.isActive() && !ring.isActive();
+    }
+
     boolean isHovering() {
         return rod.isHovering() || fan.isActive();
     }
