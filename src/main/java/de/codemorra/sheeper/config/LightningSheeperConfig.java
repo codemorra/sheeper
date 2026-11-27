@@ -371,16 +371,16 @@ public final class LightningSheeperConfig {
             .defineInRange("fan.cooldownSeconds", 20.0, 1.0, 120.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_PREPARATION = BUILDER
-            .comment("Opening charge in seconds. Capped at half the total attack duration.")
+            .comment("Seconds for the opening charge and ascent. Capped at half the duration before landing.")
             .defineInRange("fan.preparationSeconds", 2.0, 0.1, 5.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MIN = BUILDER
-            .comment("Minimum total attack duration in seconds, including the opening charge.")
+            .comment("Minimum seconds from opening charge through the last shot, before landing.")
             .defineInRange("fan.durationMinSeconds", 8.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DURATION_MAX = BUILDER
             .comment(
-                    "Maximum total attack duration in seconds, including the opening charge. At least durationMinSeconds.")
+                    "Maximum seconds from opening charge through the last shot, before landing. At least durationMinSeconds.")
             .defineInRange("fan.durationMaxSeconds", 12.0, 0.5, 15.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_LEAD = BUILDER
@@ -393,7 +393,7 @@ public final class LightningSheeperConfig {
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_TRACKING_RESPONSE = BUILDER
             .comment("Aim response time in seconds. Larger values make the ground impacts react more slowly.")
-            .defineInRange("fan.trackingResponseSeconds", 0.4, 0.05, 2.0);
+            .defineInRange("fan.trackingResponseSeconds", 0.3, 0.05, 2.0);
 
     public static final ForgeConfigSpec.DoubleValue LIGHTNING_FAN_DAMAGE = BUILDER
             .comment("Damage in health points on contact with a bolt or its ground impact, at most once per second.")

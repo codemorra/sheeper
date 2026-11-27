@@ -207,7 +207,7 @@ public class LightningSheeperEntity extends ElementalSheeperEntity {
         startTravelArcCharge(chargeTicks, calmTicks, dischargeTicks, false);
     }
 
-    /** Holds the smaller lightning form at the fan's ground-level origin. */
+    /** Holds the smaller lightning form at the fan's hover position. */
     void startFanArcCharge(int chargeTicks, int firingTicks) {
         startTravelArcCharge(chargeTicks, firingTicks, 0, true);
     }
